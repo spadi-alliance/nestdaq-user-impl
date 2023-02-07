@@ -131,7 +131,7 @@ endif()
 
 
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; )
+foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
@@ -153,8 +153,11 @@ foreach(lvar IN ITEMS Sampler; Sink; )
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     ${fmt_LIB};
+    FairMQStateMachine;
     FairLogger;
+    Utility;
     FairMQ;
+    stdc++fs;
   )
 
   install(TARGETS
