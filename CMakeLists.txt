@@ -166,3 +166,5 @@ foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 endforeach()
+
+add_subdirectory(utility)
