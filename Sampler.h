@@ -9,6 +9,19 @@
 #include <fairmq/FairMQDevice.h>
 #endif
 
+#include "emulator/AmQLRTdcData.h"
+
+
+//
+constexpr uint64_t Magic {0x4f464e492d4d4546};
+
+struct FEMInfo {
+  uint64_t magic    {Magic};
+  uint32_t FEMId    {0};
+  uint32_t FEMType  {0};
+  uint64_t reserved {0};
+};
+
 class Sampler : public FairMQDevice
 {
   public: 
@@ -27,6 +40,15 @@ class Sampler : public FairMQDevice
     void PreRun() override;
     void Run() override;
 
+    FEMInfo  fem_info_;
+    AmQLRTdc AmqTdc;
+    unsigned int cycle_count;
+    unsigned int max_cycle_count;
+    int GeneCycle(uint8_t* buffer);
+    const int fnByte  {8};
+    //    const int fnWordCount {16384*10};
+    const int fnWordCount {256};
+    
 };
 
 #endif
