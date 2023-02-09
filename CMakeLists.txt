@@ -158,10 +158,10 @@ foreach(lvar IN ITEMS Sampler; Sink;)
     ${fmt_LIB};
     FairMQStateMachine;
     FairLogger;
-#    Utility;
+ #   Utility;
     FairMQ;
-#    stdc++fs;
-    AmQLRTdcData;
+ #   stdc++fs;
+    AmQTdcModule;
   )
 
   install(TARGETS

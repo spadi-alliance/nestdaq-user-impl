@@ -1,15 +1,15 @@
 #==============================================
 add_executable(emulator
 	Emulator.cxx;
-	AmQLRTdcData.cxx;
+	AmQTdc.cxx;
 	)
 
-add_library(AmQLRTdcData
-	AmQLRTdcData.cxx;
+add_library(AmQTdcModule
+	AmQTdc.cxx;
 	)
 #==============================================
 install(TARGETS emulator 
-	AmQLRTdcData;
+	AmQTdcModule;
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} 
 	RUNTIME DESTINATION ./emulator/bin
 )

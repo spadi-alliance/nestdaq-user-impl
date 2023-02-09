@@ -9,7 +9,8 @@
 #include <fairmq/FairMQDevice.h>
 #endif
 
-#include "emulator/AmQLRTdcData.h"
+#include "emulator/AmQTdcData.h"
+#include "emulator/AmQTdc.h"
 
 
 //
@@ -41,13 +42,14 @@ class Sampler : public FairMQDevice
     void Run() override;
 
     FEMInfo  fem_info_;
-    AmQLRTdc AmqTdc;
+    AmQTdc   amqTdc;
+    int      tdc_type;
     unsigned int max_cycle_count;
     int GeneCycle(uint8_t* buffer);
     const int fnByte  {8};
-    //    const int fnWordCount {16384*10};
-    const int fnWordCount {256};
-    
+    //    int fnWordCount {16384*10};
+    int fnWordCount {256};
+    int HBrate {512};
 };
 
 #endif

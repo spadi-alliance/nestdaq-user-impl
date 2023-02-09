@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <iostream>
-#include "AmQLRTdcData.h"
+#include "AmQTdcData.h"
+#include "AmQTdc.h"
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -10,7 +11,7 @@ int main(){
   
   std::cout << " Start generator " << std::endl;
   
-  AmQLRTdc amq;
+  AmQTdc amq;
   unsigned int HBrate = amq.get_HBrate();
   unsigned int itval = 0;
 
@@ -29,13 +30,14 @@ int main(){
   while(true){
     //    memset(data_buf, 0, buf_size);
 
-    int dsize = amq.packet_generator(data_buf);
+    int nseq = amq.get_nseq();
+    int dsize = amq.packet_generator(2,data_buf);
 
-    if(amq.get_nseq() == 0){
+    if(nseq == 1){
       itval++;
     }
     
-    if(itval==3)
+    if(itval==5)
       break;
 
     if(dsize == -1){
@@ -50,13 +52,13 @@ int main(){
     int BufSize = 256*8;
 
     if(dsize == BufSize){
-
+      
       std::cout << "out 64 bit word count: "<< dsize << std::endl;
       for(int i=0; i< dsize; i++){
-	printf("%02x ", data_buf[i]);
-	if( ((i+1)%8) == 0 ){
-	  printf("\n");
-	}
+      	printf("%02x ", data_buf[i]);
+      	if( ((i+1)%8) == 0 ){
+      	  printf("\n");
+      	}
       }
       
       fout.write(reinterpret_cast<const char*>(&data_buf[0]), dsize);

@@ -1,6 +1,6 @@
 #include <sstream>
 #include <string>
-
+#include <iostream>
 #include <fairmq/runFairMQDevice.h>
 
 #include "Sampler.h"
@@ -11,7 +11,7 @@ namespace bpo = boost::program_options;
 void addCustomOptions(bpo::options_description& options)
 {
   options.add_options()
-  ("text", bpo::value<std::string>()->default_value("uuuuueeeee"), "Text to send out")
+  ("text", bpo::value<std::string>()->default_value("AMANEQ Emulator"), "Text to send out")
   ("max-iterations", bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");
 
 } 
@@ -42,7 +42,7 @@ Sampler::Sampler()
   , fNumIterations(0)
 {
   LOG(debug) << "Sampler : AmQ Emulator";
-  LOG(debug) << "AmQ : " << AmqTdc.get_HBrate();
+  //  LOG(debug) << "HeartBeat Rate : " << amqTdc.get_HBrate();
   
 }
 
@@ -69,6 +69,11 @@ void Sampler::Init()
 //_____________________________________________________________________________
 void Sampler::InitTask()
 {
+  int mtype = std::stoi(fConfig->GetProperty<std::string>("mtype"));
+  tdc_type = mtype;
+  std::cout << "mtype: " << tdc_type << std::endl;
+  //  tdc_type = 1;
+  
   {
     uint64_t fFEMId = 0;
     //  auto sFEMId = fConfig->GetValue<std::string>(opt::FEMId.data());
@@ -87,7 +92,7 @@ void Sampler::InitTask()
     LOG(debug) << "FEM Magic " << std::hex << fem_info_.magic << std::dec << std::endl;
 
     fem_info_.FEMId = fFEMId;
-    fem_info_.FEMType = 0;
+    fem_info_.FEMType = tdc_type;
   }
   
   
@@ -122,19 +127,38 @@ void Sampler::InitTask()
   fText = fConfig->GetProperty<std::string>("text");
   fMaxIterations = std::stoull(fConfig->GetProperty<std::string>("max-iterations"));
 
-  AmqTdc.set_WordCount(fnWordCount);
-  
-  LOG(info) << "Word Counts: "<< AmqTdc.get_WCount() ; 
-  max_cycle_count = AmqTdc.get_HBrate();
 
-  LOG(info) << "Heartbeat Rate: "<< max_cycle_count ;
+  //============for setting up Emulator ================
+  // for 64bit-word count
+  //  int wordc = std::stoi(fConfig->GetProperty<std::string>("wordc"));
+  //  if( wordc > 0 ){
+  //    fnWordCount = wordc;
+  //    LOG(info) << "Word counts from param: "<< wordc ;     
+  //  }else{
+  //    LOG(info) << "no param for Word Counts: "<< wordc ;     
+  //  }
   
+  amqTdc.set_WordCount(fnWordCount);
+  LOG(info) << "Word Counts: "<< amqTdc.get_WCount() ; 
+
+  // for Heartbeat rat
+  //  int rate = std::stoi(fConfig->GetProperty<std::string>("rate"));
+  //  if( rate > 0 ){
+  //    HBrate = rate;
+  //    LOG(info) << "HBrate from param: "<< rate ;     
+  //  }else{
+  //    LOG(info) << "no param for HBrate: "<< rate ;     
+  //  }
+  
+  amqTdc.set_HBrate(HBrate);
+  LOG(info) << "Heartbeat Rate: "<< amqTdc.get_HBrate(); 
+
 }
 
 
 int Sampler::GeneCycle(uint8_t* buffer){
   //==== data generator ===== 
-  int ByteSize = AmqTdc.packet_generator(buffer);
+  int ByteSize = amqTdc.packet_generator(tdc_type,buffer);
 
   //  std::cout << "cycle count: " << cycle_count << std::endl;
   if(ByteSize == fnWordCount*fnByte)
