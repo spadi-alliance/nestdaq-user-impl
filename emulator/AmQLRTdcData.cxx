@@ -17,6 +17,7 @@ AmQLRTdc::AmQLRTdc()
   StackBuf = new unsigned char[HBrate * (maxTdcHits*fnByte + maxNdelimByte)];  
   databuf = new unsigned char[maxTdcHits*fnByte + maxNdelimByte];
   // bytes 128*4*8 + 32, for one event
+  nseq = 0;
 
   TotalSize = 0;
   StackSize = 0;
@@ -37,12 +38,18 @@ bool AmQLRTdc::compare(const AmQTdcWord& a1, const AmQTdcWord& a2){
 
 }
 
-int AmQLRTdc::packet_generator(unsigned int iseq, unsigned char *sbuf){
+
+int AmQLRTdc::packet_generator(unsigned char *sbuf){
   
   int sendBufSize =  nWordCount * fnByte; // sending 256 words for test
   
-  int wcount = generator(iseq, databuf);
+  if(nseq > (HBrate + 30) ){
+    nseq = 0;
+  }
 
+  int wcount = generator(nseq, databuf);
+  nseq++;
+  
   TotalSize = TotalSize + wcount*sizeof(char) * fnByte;
   
   if(TotalSize > sendBufSize || TotalSize == sendBufSize){

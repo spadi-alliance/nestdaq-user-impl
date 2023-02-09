@@ -63,9 +63,10 @@ class AmQLRTdc {
   ~AmQLRTdc(){ delete[] StackBuf; delete[] databuf; }
 
   int generator(unsigned int iseq, unsigned char* buf);
-  int packet_generator(unsigned int iseq, unsigned char* sbuf);
+  int packet_generator(unsigned char* sbuf);
   unsigned int get_HBrate(){return HBrate;}
   unsigned int get_WCount(){return nWordCount;}
+  unsigned int get_nseq(){return nseq;}
   void set_WordCount(int fnWordCount){ nWordCount = fnWordCount; }
   static bool compare(const AmQTdcWord& a1, const AmQTdcWord& a2);
  private :
@@ -88,6 +89,8 @@ class AmQLRTdc {
   unsigned char* StackBuf;
   int StackSize;
   int nWordCount;
+
+  unsigned int nseq;
 };
 
 #endif

@@ -11,7 +11,6 @@ int main(){
   std::cout << " Start generator " << std::endl;
   
   AmQLRTdc amq;
-  unsigned int iseq = 0;
   unsigned int HBrate = amq.get_HBrate();
   unsigned int itval = 0;
 
@@ -30,15 +29,14 @@ int main(){
   while(true){
     //    memset(data_buf, 0, buf_size);
 
-    int dsize = amq.packet_generator(iseq, data_buf);
-    iseq++;
+    int dsize = amq.packet_generator(data_buf);
 
-    if(iseq == HBrate + 20){
-      iseq = 0;
+    if(amq.get_nseq() == 0){
       itval++;
     }
     
-    if(itval==2) break;
+    if(itval==3)
+      break;
 
     if(dsize == -1){
       std::cout << "still..."<< std::endl;
@@ -66,7 +64,7 @@ int main(){
     }else{
       std::cout << "something wrong...humm"<< std::endl;
     }
-    
+   
 
   }
 

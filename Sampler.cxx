@@ -134,11 +134,8 @@ void Sampler::InitTask()
 
 int Sampler::GeneCycle(uint8_t* buffer){
   //==== data generator ===== 
-  int ByteSize = AmqTdc.packet_generator(cycle_count, buffer);
-  cycle_count++;
-  if(cycle_count == (max_cycle_count + 30))
-    cycle_count = 0;
-  
+  int ByteSize = AmqTdc.packet_generator(buffer);
+
   //  std::cout << "cycle count: " << cycle_count << std::endl;
   if(ByteSize == fnWordCount*fnByte)
     return ByteSize;
@@ -208,7 +205,6 @@ void Sampler::PostRun()
 //_____________________________________________________________________________
 void Sampler::PreRun()
 {
-  cycle_count = 0;
 
   LOG(debug) << __FUNCTION__;
 }

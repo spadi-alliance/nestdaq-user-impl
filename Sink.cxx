@@ -140,6 +140,28 @@ void Sink::InitTask()
   fInputChannelName = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
   LOG(debug) << " input channel = " << fInputChannelName;
 
+  //////
+  FairMQMessagePtr msginfo(NewMessage());
+  int nrecv=0;
+  while(true){
+    if (Receive(msginfo, fInputChannelName) <= 0) {
+      LOG(debug) << __func__ << " Trying to get FEMIfo " << nrecv;
+      nrecv++;
+    }else{
+      break;
+    }
+  }
+
+  const auto ptr = reinterpret_cast<unsigned char*>(msginfo->GetData());
+
+  for(size_t i = 0; i < msginfo->GetSize(); i++){
+    printf("%02x", ptr[i]);
+    if( ( (i+1)%8 )==0 ) 
+      printf("\n");
+  }
+
+  ////
+
   const auto &isMultipart = fConfig->GetProperty<std::string>(opt::Multipart.data());
   if (isMultipart=="true" || isMultipart=="1") {
     LOG(warn) << " set multipart data handler";

@@ -42,7 +42,6 @@ class Sampler : public FairMQDevice
 
     FEMInfo  fem_info_;
     AmQLRTdc AmqTdc;
-    unsigned int cycle_count;
     unsigned int max_cycle_count;
     int GeneCycle(uint8_t* buffer);
     const int fnByte  {8};
