@@ -40,6 +40,8 @@ class Sampler : public FairMQDevice
     void PostRun() override;
     void PreRun() override;
     void Run() override;
+    
+    void SendFEMInfo();
 
     FEMInfo  fem_info_;
     AmQTdc   amqTdc;

@@ -65,14 +65,19 @@ void Sampler::Init()
   PrintConfig(fConfig, "chans.", __PRETTY_FUNCTION__);
 }
 
-
-//_____________________________________________________________________________
-void Sampler::InitTask()
-{
+//----------------------------------------------------------------------------
+void Sampler::SendFEMInfo() {
+  
   int mtype = std::stoi(fConfig->GetProperty<std::string>("mtype"));
-  tdc_type = mtype;
-  std::cout << "mtype: " << tdc_type << std::endl;
-  //  tdc_type = 1;
+  
+  if( mtype > 0 ){
+    tdc_type = mtype;
+    LOG(info) << "tdc type: " << tdc_type ;
+  }else{
+    tdc_type = 1;
+    LOG(error) << "can not find param. for tdc type." << mtype ; 
+  }
+
   
   {
     uint64_t fFEMId = 0;
@@ -88,8 +93,8 @@ void Sampler::InitTask()
       fFEMId |= ipv;
       --ik;
     }
-    LOG(debug) << "FEM ID    " << std::hex << fFEMId << std::dec << std::endl;
-    LOG(debug) << "FEM Magic " << std::hex << fem_info_.magic << std::dec << std::endl;
+    LOG(debug) << "FEM ID    " << std::hex << fFEMId << std::dec;
+    LOG(debug) << "FEM Magic " << std::hex << fem_info_.magic << std::dec;
 
     fem_info_.FEMId = fFEMId;
     fem_info_.FEMType = tdc_type;
@@ -145,7 +150,13 @@ void Sampler::InitTask()
     } 
   }
 
+}
+//_____________________________________________________________________________
+void Sampler::InitTask()
+{
  
+  SendFEMInfo();
+
   PrintConfig(fConfig, "channel-config", __PRETTY_FUNCTION__);
   PrintConfig(fConfig, "chans.", __PRETTY_FUNCTION__);
 
@@ -166,7 +177,7 @@ void Sampler::InitTask()
   amqTdc.set_WordCount(fnWordCount);
   LOG(info) << "Word Counts: "<< amqTdc.get_WCount() ; 
 
-  // for Heartbeat rat
+  // for Heartbeat rate
   //  int rate = std::stoi(fConfig->GetProperty<std::string>("rate"));
   //  if( rate > 0 ){
   //    HBrate = rate;
@@ -185,7 +196,6 @@ int Sampler::GeneCycle(uint8_t* buffer){
   //==== data generator ===== 
   int ByteSize = amqTdc.packet_generator(tdc_type,buffer);
 
-  //  std::cout << "cycle count: " << cycle_count << std::endl;
   if(ByteSize == fnWordCount*fnByte)
     return ByteSize;
   else
