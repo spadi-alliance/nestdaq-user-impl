@@ -97,7 +97,32 @@ void Sampler::InitTask()
   
   
   unsigned char* fbuf = new uint8_t[sizeof(fem_info_)];
-  memcpy(fbuf, &fem_info_, sizeof(fem_info_));
+
+  uint8_t buf[8] = {0};
+  buf[0] = (fem_info_.magic >> 56) & 0xff; 
+  buf[1] = (fem_info_.magic >> 48) & 0xff; 
+  buf[2] = (fem_info_.magic >> 40) & 0xff; 
+  buf[3] = (fem_info_.magic >> 32) & 0xff; 
+  buf[4] = (fem_info_.magic >> 24) & 0xff; 
+  buf[5] = (fem_info_.magic >> 16) & 0xff; 
+  buf[6] = (fem_info_.magic >> 8) & 0xff; 
+  buf[7] = fem_info_.magic & 0xff; 
+  memcpy(fbuf, &buf, sizeof(char)*8);
+  
+  buf[0] = (fem_info_.FEMId >> 24) & 0xff;
+  buf[1] = (fem_info_.FEMId >> 16) & 0xff;
+  buf[2] = (fem_info_.FEMId >> 8) & 0xff;
+  buf[3] = fem_info_.FEMId & 0xff;
+  buf[4] = (fem_info_.FEMType >> 24) & 0xff;
+  buf[5] = (fem_info_.FEMType >> 16) & 0xff;
+  buf[6] = (fem_info_.FEMType >> 8) & 0xff;
+  buf[7] = fem_info_.FEMType & 0xff;
+  memcpy(&fbuf[8], &buf, sizeof(char)*8);
+
+  uint8_t resv[8] = {0};
+  memcpy(&fbuf[16], &resv, sizeof(char)*8);
+
+  //memcpy(fbuf, &fem_info_, sizeof(fem_info_));  
 
   FairMQMessagePtr initmsg( NewMessage((char*)fbuf,
 				   fnByte*3,
