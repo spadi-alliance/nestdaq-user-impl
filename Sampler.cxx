@@ -1,6 +1,6 @@
 #include <sstream>
 #include <string>
-
+#include <iostream>
 #include <fairmq/runFairMQDevice.h>
 
 #include "Sampler.h"
@@ -11,7 +11,7 @@ namespace bpo = boost::program_options;
 void addCustomOptions(bpo::options_description& options)
 {
   options.add_options()
-  ("text", bpo::value<std::string>()->default_value("Hello"), "Text to send out")
+  ("text", bpo::value<std::string>()->default_value("AMANEQ Emulator"), "Text to send out")
   ("max-iterations", bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");
 
 } 
@@ -41,7 +41,9 @@ Sampler::Sampler()
   , fMaxIterations(0)
   , fNumIterations(0)
 {
-  LOG(debug) << "Sampler : hello";
+  LOG(debug) << "Sampler : AmQ Emulator";
+  //  LOG(debug) << "HeartBeat Rate : " << amqTdc.get_HBrate();
+  
 }
 
 //_____________________________________________________________________________
@@ -63,37 +65,178 @@ void Sampler::Init()
   PrintConfig(fConfig, "chans.", __PRETTY_FUNCTION__);
 }
 
+//----------------------------------------------------------------------------
+void Sampler::SendFEMInfo() {
+  
+  int mtype = std::stoi(fConfig->GetProperty<std::string>("mtype"));
+  
+  if( mtype > 0 ){
+    tdc_type = mtype;
+    LOG(info) << "tdc type: " << tdc_type ;
+  }else{
+    tdc_type = 1;
+    LOG(error) << "can not find param. for tdc type." << mtype ; 
+  }
 
+  
+  {
+    uint64_t fFEMId = 0;
+    //  auto sFEMId = fConfig->GetValue<std::string>(opt::FEMId.data());
+    std::string sFEMId("192.168.10.16");
+    std::istringstream istrst(sFEMId);
+    std::string token;
+    int ik = 3;
+    while(std::getline(istrst, token, '.')) {
+      if(ik < 0) break;
+
+      uint32_t ipv = (std::stoul(token) & 0xff) << (8*ik);
+      fFEMId |= ipv;
+      --ik;
+    }
+    LOG(debug) << "FEM ID    " << std::hex << fFEMId << std::dec;
+    LOG(debug) << "FEM Magic " << std::hex << fem_info_.magic << std::dec;
+
+    fem_info_.FEMId = fFEMId;
+    fem_info_.FEMType = tdc_type;
+  }
+  
+  
+  unsigned char* fbuf = new uint8_t[sizeof(fem_info_)];
+
+  uint8_t buf[8] = {0};
+  buf[0] = (fem_info_.magic >> 56) & 0xff; 
+  buf[1] = (fem_info_.magic >> 48) & 0xff; 
+  buf[2] = (fem_info_.magic >> 40) & 0xff; 
+  buf[3] = (fem_info_.magic >> 32) & 0xff; 
+  buf[4] = (fem_info_.magic >> 24) & 0xff; 
+  buf[5] = (fem_info_.magic >> 16) & 0xff; 
+  buf[6] = (fem_info_.magic >> 8) & 0xff; 
+  buf[7] = fem_info_.magic & 0xff; 
+  memcpy(fbuf, &buf, sizeof(char)*8);
+  
+  buf[0] = (fem_info_.FEMId >> 24) & 0xff;
+  buf[1] = (fem_info_.FEMId >> 16) & 0xff;
+  buf[2] = (fem_info_.FEMId >> 8) & 0xff;
+  buf[3] = fem_info_.FEMId & 0xff;
+  buf[4] = (fem_info_.FEMType >> 24) & 0xff;
+  buf[5] = (fem_info_.FEMType >> 16) & 0xff;
+  buf[6] = (fem_info_.FEMType >> 8) & 0xff;
+  buf[7] = fem_info_.FEMType & 0xff;
+  memcpy(&fbuf[8], &buf, sizeof(char)*8);
+
+  uint8_t resv[8] = {0};
+  memcpy(&fbuf[16], &resv, sizeof(char)*8);
+
+  //memcpy(fbuf, &fem_info_, sizeof(fem_info_));  
+
+  FairMQMessagePtr initmsg( NewMessage((char*)fbuf,
+				   fnByte*3,
+				   [](void* object, void*)
+				   {delete [] static_cast<uint8_t*>(object);}
+				   )
+			);
+
+  LOG(info) << "Sending FEMInfo \"" << sizeof(fem_info_) << "\"";
+
+  int count=0;
+  while(true){
+
+    if (Send(initmsg, "data") < 0) {
+      LOG(warn) << " fail to send FEMInfo :  " << count;
+      count++;
+    }else{
+      LOG(debug) << " send FEMInfo :  "  << count;
+      break;
+    } 
+  }
+
+}
 //_____________________________________________________________________________
 void Sampler::InitTask()
 {
+ 
+  SendFEMInfo();
+
   PrintConfig(fConfig, "channel-config", __PRETTY_FUNCTION__);
   PrintConfig(fConfig, "chans.", __PRETTY_FUNCTION__);
 
   fText = fConfig->GetProperty<std::string>("text");
   fMaxIterations = std::stoull(fConfig->GetProperty<std::string>("max-iterations"));
+
+
+  //============for setting up Emulator ================
+  // for 64bit-word count
+  //  int wordc = std::stoi(fConfig->GetProperty<std::string>("wordc"));
+  //  if( wordc > 0 ){
+  //    fnWordCount = wordc;
+  //    LOG(info) << "Word counts from param: "<< wordc ;     
+  //  }else{
+  //    LOG(info) << "no param for Word Counts: "<< wordc ;     
+  //  }
+  
+  amqTdc.set_WordCount(fnWordCount);
+  LOG(info) << "Word Counts: "<< amqTdc.get_WCount() ; 
+
+  // for Heartbeat rate
+  //  int rate = std::stoi(fConfig->GetProperty<std::string>("rate"));
+  //  if( rate > 0 ){
+  //    HBrate = rate;
+  //    LOG(info) << "HBrate from param: "<< rate ;     
+  //  }else{
+  //    LOG(info) << "no param for HBrate: "<< rate ;     
+  //  }
+  
+  amqTdc.set_HBrate(HBrate);
+  LOG(info) << "Heartbeat Rate: "<< amqTdc.get_HBrate(); 
+
+}
+
+
+int Sampler::GeneCycle(uint8_t* buffer){
+  //==== data generator ===== 
+  int ByteSize = amqTdc.packet_generator(tdc_type,buffer);
+
+  if(ByteSize == fnWordCount*fnByte)
+    return ByteSize;
+  else
+    return -2;
 }
 
 //_____________________________________________________________________________
 bool Sampler::ConditionalRun()
 {
-  auto text = new std::string(fConfig->GetProperty<std::string>("id") + ":" + fText + " : " + std::to_string(fNumIterations));
+  bool fShow = false;
 
-  // copy
-  auto txt = *text;
+  int nByteSize = 0;
+  //  int8_t* buffer = new uint8_t[fnByte*fnWordCount];
+  unsigned char* buffer = new uint8_t[fnByte*fnWordCount];
 
-  FairMQMessagePtr msg(NewMessage(
-      const_cast<char*>(text->data()),
-      text->length(),
-      [](void * /*data*/, void* object) { 
-        auto p = reinterpret_cast<std::string*>(object);
-        //LOG(debug) << " sent " << *p;
-        delete p; }, 
-      text
-    )
-  );
+  while( -2 == ( nByteSize = GeneCycle(buffer) )){ 
+    
+    //LOG(info) << "Spill off: "<< cycle_count; 
+    continue;
+  }
 
-  LOG(info) << "Sending \"" << txt << "\"";
+  if(fShow){
+    std::cout << "Out of cycle "<< std::endl;
+    for(int ia = 0; ia < fnWordCount*fnByte; ia++){
+      printf("%02x ", buffer[ia]);
+      if( ((ia+1)%8) == 0 ){
+	printf("\n");
+      }
+    }
+  }
+
+  FairMQMessagePtr msg( NewMessage((char*)buffer,
+				   //				  fnByte*nword
+				  nByteSize,
+				  [](void* object, void*)
+				  {delete [] static_cast<uint8_t*>(object);}
+				  )
+		       );
+  
+
+  LOG(info) << "Sending \"" << nByteSize << "\"";
 
   if (Send(msg, "data") < 0) {
     LOG(warn) << " event:  " << fNumIterations;
@@ -106,6 +249,8 @@ bool Sampler::ConditionalRun()
     }
   }
   LOG(info) << " processed events:  " << fNumIterations;
+  
+
   return true;
 }
 
@@ -119,6 +264,7 @@ void Sampler::PostRun()
 //_____________________________________________________________________________
 void Sampler::PreRun()
 {
+
   LOG(debug) << __FUNCTION__;
 }
 

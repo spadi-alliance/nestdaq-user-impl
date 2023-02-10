@@ -6,6 +6,10 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <fstream>
+
+//#include "emulator/AmQTdcData.h"
+#include <iostream>
 
 #if __has_include(<fairmq/Device.h>)
 #include <fairmq/Device.h> // since v1.4.34
@@ -32,9 +36,14 @@ private:
   void Init() override; 
   void InitTask() override; 
   void PostRun() override;
+  void PreRun() override;
 
   std::string fInputChannelName;
   uint64_t fNumMessages{0};
+  uint64_t TotalLength(const FairMQParts& parts);
+
+  bool fopened;
+  std::ofstream fstr;
 
 };
 

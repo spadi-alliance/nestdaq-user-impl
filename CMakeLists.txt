@@ -128,10 +128,13 @@ if(fmt_DIR)
   message(STATUS "fmt_LIB: ${fmt_LIB}")
 endif()
 
-
+#==============================================================================
+#add_subdirectory(utility)
+add_subdirectory(emulator)
 
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
+#foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
+foreach(lvar IN ITEMS Sampler; Sink;)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
@@ -155,9 +158,10 @@ foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
     ${fmt_LIB};
     FairMQStateMachine;
     FairLogger;
-    Utility;
+#    Utility;
     FairMQ;
-    stdc++fs;
+#    stdc++fs;
+    AmQTdcModule;
   )
 
   install(TARGETS
