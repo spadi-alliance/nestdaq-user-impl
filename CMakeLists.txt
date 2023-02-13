@@ -129,8 +129,7 @@ if(fmt_DIR)
 endif()
 
 #==============================================================================
-add_subdirectory(emulator)
-
+# Sampler(for Emulator), Sink, FileSink
 #==============================================================================
 foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
   set(EXEC ${lvar})
@@ -169,4 +168,39 @@ foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
   )
 endforeach()
 
+#==============================================================================
+# AmQStrSampler (for the read-out of AmQ)
+#==============================================================================
+add_executable(AmQStrTdcSampler
+	       runAmQStrTdcSampler.cxx;
+               AmQStrTdcSampler.cxx;
+)
+
+target_include_directories(AmQStrTdcSampler PUBLIC 
+    ${Boost_INCLUDE_DIRS};  
+    ${FairLogger_INCDIR};
+    ${FairMQ_INCDIR};
+    ${CMAKE_SOURCE_DIR};
+)
+
+target_link_directories(AmQStrTdcSampler PUBLIC
+    ${Boost_LIBRARY_DIRS}; 
+    ${FairLogger_LIBDIR};
+    ${FairMQ_LIBDIR};
+)
+
+target_link_libraries(AmQStrTdcSampler  PUBLIC
+                        FairMQ;
+                        FairLogger;
+                        ${Boost_LIBRARIES};
+			Utility;
+)
+
+install(TARGETS
+  AmQStrTdcSampler
+  RUNTIME DESTINATION ${PROJECT_INSTALL_BINDIR}
+)
+
+#================================================================================
 add_subdirectory(utility)
+add_subdirectory(emulator)

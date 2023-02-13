@@ -78,6 +78,9 @@ add_library(Utility
 #  RegisterMapParser.cxx;
   Timer.cxx;
   TaskProcessorMT.cxx
+  Reporter.cxx;
+  UDPRBCP.cc;
+  BitDump.cc;
   )
 
 if(USE_LZMA)

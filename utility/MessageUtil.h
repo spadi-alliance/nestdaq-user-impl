@@ -11,7 +11,7 @@
 
 #include <fairmq/FairMQDevice.h>
 
-#include "utility/HexDump.h"
+#include "HexDump.h"
 
 namespace nestdaq::MessageUtil {
 
