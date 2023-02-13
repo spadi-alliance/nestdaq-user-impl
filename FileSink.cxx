@@ -12,6 +12,7 @@
 #include "utility/MessageUtil.h"
 #include "utility/TaskProcessorMT.h"
 #include "FileSink.h"
+#include "FileSinkHeaderBlock.h"
 
 using namespace nestdaq;
 using namespace std::string_literals;
@@ -391,9 +392,27 @@ void FileSink::PreRun()
             return WriteMultipartData(msgParts, index);
          };
       }
-
       fWorker->Run();
    }
+
+   fFileSinkHeaderBlock.fFileSinkHeaderBlockSize = sizeof(fFileSinkHeaderBlock);
+   fFileSinkHeaderBlock.fMagic                   = *(uint64_t*)(char*) "@FS-HEAD";
+   fFileSinkHeaderBlock.fFairMQDeviceType        = 99;
+   fFileSinkHeaderBlock.fRunNumber               = fRunNumber;
+   fFileSinkHeaderBlock.fStartUnixtime           = time(0);
+   fFileSinkHeaderBlock.fStopUnixtime            = 0;
+   strcpy(fFileSinkHeaderBlock.fComments, "fFileSinkHeaderBlock.h test");
+
+   LOG(debug) << "fFileSinkHeaderBlock.fFileSinkHeaderBlockSize : " << fFileSinkHeaderBlock.fFileSinkHeaderBlockSize;
+   LOG(debug) << "fFileSinkHeaderBlock.fMagic                   : " << fFileSinkHeaderBlock.fMagic       ;
+   LOG(debug) << "fFileSinkHeaderBlock.fFairMQDeviceType        : " << fFileSinkHeaderBlock.fFairMQDeviceType       ;
+   LOG(debug) << "fFileSinkHeaderBlock.fRunNumber               : " << fFileSinkHeaderBlock.fRunNumber              ;
+   LOG(debug) << "fFileSinkHeaderBlock.fStartUnixtime           : " << fFileSinkHeaderBlock.fStartUnixtime          ;
+   LOG(debug) << "fFileSinkHeaderBlock.fStopUnixtime            : " << fFileSinkHeaderBlock.fStopUnixtime           ;
+   LOG(debug) << "fFileSinkHeaderBlock.fComments                : " << fFileSinkHeaderBlock.fComments;
+   LOG(debug) << "sizeof(fFileSinkHeaderBlock.fRunNumber)       : " << sizeof(fFileSinkHeaderBlock.fRunNumber);
+   
+   fFile->Write(reinterpret_cast<char *>(&fFileSinkHeaderBlock), sizeof(fFileSinkHeaderBlock));
 }
 
 //______________________________________________________________________________
