@@ -141,7 +141,7 @@ void Sink::InitTask()
   LOG(debug) << " input channel = " << fInputChannelName;
 
   //////
-  FairMQMessagePtr msginfo(NewMessage());
+  /*  FairMQMessagePtr msginfo(NewMessage());
   int nrecv=0;
   while(true){
     if (Receive(msginfo, fInputChannelName) <= 0) {
@@ -159,7 +159,7 @@ void Sink::InitTask()
     if( ( (i+1)%8 )==0 ) 
       printf("\n");
   }
-
+  */
   ////
 
   const auto &isMultipart = fConfig->GetProperty<std::string>(opt::Multipart.data());

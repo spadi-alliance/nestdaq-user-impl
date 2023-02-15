@@ -105,15 +105,15 @@ void Sampler::SendFEMInfo() {
   uint8_t buf[8] = {0};
   
   for(int i = 0; i < 8; i++){
-    buf[i] = (fem_info_.magic >> 8*(7-i) ) & 0xff;
+    buf[7-i] = (fem_info_.magic >> 8*(7-i) ) & 0xff;
   }
   memcpy(fbuf, &buf, sizeof(char)*8);
 
   for(int i = 0; i < 8; i++){
     if(i < 4){
-      buf[i] = (fem_info_.FEMId >> 8*(3-i)) & 0xff;
+      buf[7-i] = (fem_info_.FEMId >> 8*(3-i)) & 0xff;
     }else{
-      buf[i] = (fem_info_.FEMType >> 8*(7-i)) & 0xff;
+      buf[7-i] = (fem_info_.FEMType >> 8*(7-i)) & 0xff;
     }
   }
   memcpy(&fbuf[8], &buf, sizeof(char)*8);

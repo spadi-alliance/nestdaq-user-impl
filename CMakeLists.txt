@@ -131,7 +131,7 @@ endif()
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; FileSink;)
+foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
