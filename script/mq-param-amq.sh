@@ -14,10 +14,10 @@ function param () {
 # RLTDC 161~167, 170  HR 168, 169
 #=============================================================
 #      isntance-id                field       value  
-param  AmQStrTdcSampler-0         ModuleTcpIp   192.168.2.168
-param  AmQStrTdcSampler-1         ModuleTcpIp   192.168.2.169
-param  AmQStrTdcSampler-2         ModuleTcpIp   192.168.2.161
-param  AmQStrTdcSampler-3         ModuleTcpIp   192.168.2.162
+param  AmQStrTdcSampler-0         sitcp-ip   192.168.2.168
+param  AmQStrTdcSampler-1         sitcp-ip   192.168.2.169
+param  AmQStrTdcSampler-2         sitcp-ip   192.168.2.161
+param  AmQStrTdcSampler-3         sitcp-ip   192.168.2.162
 #param Sink-0 multipart false
 #param Sink-1 multipart false
 #param Sink-2 multipart false

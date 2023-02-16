@@ -31,7 +31,7 @@ bool AmQStrTdcSampler::ConditionalRun()
     for(int i = 0; i<fnWordPerCycle; ++i){
 
       //      if((buffer[fnByte*i+4] & 0xff) == 0x50){
-      if((buffer[fnByte*i+7] & 0xff) == 0x50){
+      if((buffer[fnByte*i + header_pos] & 0xff) == 0x50){
         printf("\n#D : Spill End is detected\n");
         n_word = i+1; 
         break;
@@ -39,6 +39,18 @@ bool AmQStrTdcSampler::ConditionalRun()
     }// For(i)
   }
   if (n_word<=0) return true;
+  
+  if(fTdcType == 1){
+    //    auto data5 = reinterpret_cast<lrWord*>(buffer);
+    //    auto data8 = reinterpret_cast<uint64_t*>(data5);
+    uint8_t* nbuffer = new uint8_t[fnByte*fnWordPerCycle]{};
+
+    for(int i=0; i<n_word; i++){
+      memcpy(&nbuffer[8*i + 3], &buffer[i*5], 5);
+    }    
+    memcpy(&buffer[0], &nbuffer[0], fnByte*n_word);
+    delete[] nbuffer;
+  }
 
   FairMQMessagePtr msg(NewMessage((char*)buffer,
                                   //fnByte*fnWordPerCycle, 
@@ -78,10 +90,6 @@ void AmQStrTdcSampler::Init()
 //_____________________________________________________________________________
 void AmQStrTdcSampler::SendFEMInfo()
 {
-  //  int mtype = std::stoi(fConfig->GetProperty<std::string>("TdcType"));
-  int tdc_type = 1;
-  std::cout << "mtype: " << tdc_type << std::endl;
-  //  tdc_type = 1;
   
   {
     uint64_t fFEMId = 0;
@@ -100,7 +108,7 @@ void AmQStrTdcSampler::SendFEMInfo()
     LOG(debug) << "FEM Magic " << std::hex << fem_info_.magic << std::dec; 
 
     fem_info_.FEMId = fFEMId;
-    fem_info_.FEMType = tdc_type;
+    fem_info_.FEMType = fTdcType;
   }
   
   // bit set-up for module information
@@ -155,14 +163,30 @@ void AmQStrTdcSampler::InitTask()
 {
 
   using opt     = OptionKey;
-  fIpSiTCP           = fConfig->GetValue<std::string>("ModuleTcpIp");
-  LOG(debug) << "TPC IP: " << fIpSiTCP;
+
+  //  fIpSiTCP           = fConfig->GetValue<std::string>("sitcp-ip");
+  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
+  LOG(info) << "TPC IP: " << fIpSiTCP;
   //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
   fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data()); 
+
+  fTdcType = std::stoi(fConfig->GetProperty<std::string>("TdcType"));
+  LOG(info) << "TDC Type: " << fTdcType << std::endl;
 
   LOG(info) << fIpSiTCP;
   SendFEMInfo();
 
+  if(fTdcType == 1){
+    header_pos = 4; 
+    optnByte = 5;
+    LOG(info) << "LRTDC nByte: " << optnByte << "  header_pos: " << header_pos << std::endl;
+  }else{
+    header_pos = 7;
+    optnByte = 8; 
+    LOG(info) << "HRTDC nByte: " << optnByte << "  header_pos: " << header_pos << std::endl;
+  }
+
+  
   /*
   rbcp_header rbcpHeader;
   rbcpHeader.type = UDPRBCP::rbcp_ver_;
@@ -254,7 +278,8 @@ int AmQStrTdcSampler::ConnectSocket(const char* ip)
 int AmQStrTdcSampler::Event_Cycle(uint8_t* buffer)
 {
   // data read ---------------------------------------------------------
-  static const unsigned int sizeData = fnByte*fnWordPerCycle*sizeof(uint8_t);
+  //  static const unsigned int sizeData = fnByte*fnWordPerCycle*sizeof(uint8_t);
+  static const unsigned int sizeData = optnByte*fnWordPerCycle*sizeof(uint8_t);
   int ret = receive(fAmqSocket, (char*)buffer, sizeData);
   if(ret < 0) return ret;
 

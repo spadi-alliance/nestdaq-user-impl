@@ -96,13 +96,13 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	  continue;
 	else
 	  nhb = 0;
-      }else if( h == Data::SpillEnd ){
-	nsp_off++;
-	if(nsp_off != 2)
-	  continue;
-	else
-	  nsp_off = 0;
-      }
+      } //else if( h == Data::SpillEnd ){/// how...to....
+      //	nsp_off++;
+      //	if(nsp_off != 2)
+      //	  continue;
+      //	else
+      //	  nsp_off = 0;
+      //      }
 
       if(mdebug){
 	LOG(debug) << " Fill " << std::setw(10) << offset << " -> " << std::setw(10) << i << " : " << std::hex << word->raw << std::dec;

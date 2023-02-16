@@ -20,6 +20,10 @@ struct FEMInfo {
   uint64_t reserved {0};
 };
 
+struct lrWord {
+  uint8_t d[5];
+};
+
 class AmQStrTdcSampler : public FairMQDevice
 {
 public: 
@@ -51,13 +55,15 @@ protected:
   std::string fIpSiTCP {"0"};
   std::string fOutputChannelName {"out"};
 
-  const int fnByte         {8};
+  const int fnByte           {8};
   const int fnWordPerCycle {16384*10};
 
   FairMQPollerPtr fPoller;
 
   FEMInfo  fem_info_;
-
+  int fTdcType {2};
+  int header_pos {0};
+  int optnByte   {0};
 };
 
 #endif
