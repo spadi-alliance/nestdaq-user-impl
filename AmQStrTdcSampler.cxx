@@ -164,8 +164,8 @@ void AmQStrTdcSampler::InitTask()
 
   using opt     = OptionKey;
 
-  //  fIpSiTCP           = fConfig->GetValue<std::string>("sitcp-ip");
-  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
+  fIpSiTCP           = fConfig->GetValue<std::string>("msiTcpIp");
+  //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
   LOG(info) << "TPC IP: " << fIpSiTCP;
   //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
   fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data()); 
@@ -230,19 +230,19 @@ void AmQStrTdcSampler::PostRun()
   FPGAModule fModule(fIpSiTCP.c_str(), 4660, &rbcpHeader, 0);
   fModule.WriteModule(DCT::addr_gate,  0, 1);
   */
+  int n_word = 0;
+  uint8_t buffer[fnByte*fnWordPerCycle];
+  while( -1 == ( n_word = Event_Cycle(buffer))) continue;
+
+  close(fAmqSocket);
+  LOG(info) << "Socket close";
   LOG(info) << "End DAQ";
 }
 
 //______________________________________________________________________________
 void AmQStrTdcSampler::ResetTask()
 {
-  int n_word = 0;
-  uint8_t buffer[fnByte*fnWordPerCycle];
-  while( -1 == ( n_word = Event_Cycle(buffer))) continue;
-
-  close(fAmqSocket);
-
-  LOG(info) << "Socket close";
+  //  close(fAmqSocket);
 
 }
 

@@ -11,7 +11,7 @@ namespace bpo = boost::program_options;
 void addCustomOptions(bpo::options_description& options)
 {
   options.add_options()
-  ("TdcType", bpo::value<std::string>()->default_value("1"), "TDC type: HR=2, LR=1")
+    //  ("TdcType", bpo::value<std::string>()->default_value("1"), "TDC type: HR=2, LR=1")
   ("text", bpo::value<std::string>()->default_value("AMANEQ Emulator"), "Text to send out")
   ("max-iterations", bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");
 
