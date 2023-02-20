@@ -56,7 +56,8 @@ protected:
   std::string fOutputChannelName {"out"};
 
   const int fnByte           {8};
-  const int fnWordPerCycle {16384*10};
+  //  const int fnWordPerCycle {16384*10};
+  const int fnWordPerCycle {16384};
 
   FairMQPollerPtr fPoller;
 
@@ -64,6 +65,8 @@ protected:
   int fTdcType {2};
   int header_pos {0};
   int optnByte   {0};
+  
+  int remain {0};
 };
 
 #endif

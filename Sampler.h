@@ -41,6 +41,7 @@ class Sampler : public FairMQDevice
     void PreRun() override;
     void Run() override;
     
+    std::string fIpSiTCP {"0"};
     void SendFEMInfo();
 
     FEMInfo  fem_info_;

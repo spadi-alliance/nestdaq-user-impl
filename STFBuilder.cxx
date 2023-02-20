@@ -152,7 +152,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
   auto buf = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
 
   if (last != first) {
-    LOG(debug) << " first != last";
+    //    LOG(debug) << " first != last";
     // insert new data to send buffer
     buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
   }
@@ -162,10 +162,10 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(buf)));
   }
 
-  LOG(debug)
-    << " single word frame : " << std::hex
-    << reinterpret_cast<Data::Bits*>(last)->raw
-    << std::dec << std::endl;
+  //  LOG(debug)
+  //    << " single word frame : " << std::hex
+  //    << reinterpret_cast<Data::Bits*>(last)->raw
+  //    << std::dec << std::endl;
 
   if (fSplitMethod!=0) {
     if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
@@ -176,7 +176,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
   }
 
   if (!isSpillEnd) {
-    LOG(debug) << " not spill-end";
+    //    LOG(debug) << " not spill-end";
     fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
   }
 
@@ -201,8 +201,8 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
   stfHeader->time_sec = curtime.tv_sec;
   stfHeader->time_usec = curtime.tv_usec;
   
-  std::cout << "sec:  "<< stfHeader->time_sec << std::endl;
-  std::cout << "usec: "<< stfHeader->time_usec << std::endl;
+  //  std::cout << "sec:  "<< stfHeader->time_sec << std::endl;
+  //  std::cout << "usec: "<< stfHeader->time_usec << std::endl;
 
   // replace first element with STF header
   fWorkingPayloads->at(0) = nestdaq::MessageUtil::NewMessage(*this, std::move(stfHeader));
@@ -274,7 +274,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
     auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
-    /*
+    /*    
     { // for debug-begin
 
       std::cout << " parts size = " << parts.Size() << std::endl;

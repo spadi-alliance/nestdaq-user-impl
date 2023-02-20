@@ -129,9 +129,9 @@ if(fmt_DIR)
 endif()
 
 #==============================================================================
-# Sampler(for Emulator), Sink, FileSink
+# Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder)
+foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;

@@ -27,17 +27,24 @@ bool AmQStrTdcSampler::ConditionalRun()
 
   while( -1 == ( n_word = Event_Cycle(buffer))) continue;
 
+  //  if(n_word == -4){
+  //    n_word = remain;
+  //    remain = 0;
+  //  }
+  
   if(n_word == -4){
     for(int i = 0; i<fnWordPerCycle; ++i){
 
       //      if((buffer[fnByte*i+4] & 0xff) == 0x50){
       if((buffer[fnByte*i + header_pos] & 0xff) == 0x50){
         printf("\n#D : Spill End is detected\n");
-        n_word = i+1; 
+	//        n_word = i+1; 
+        n_word = i+2; 
         break;
       }
     }// For(i)
   }
+
   if (n_word<=0) return true;
   
   if(fTdcType == 1){
@@ -302,6 +309,7 @@ int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length)
       if(errbuf == EAGAIN){
 	// this is time out
 	std::cout << "#D : TCP recv time out" << std::endl;
+	//	remain = revd_size;
 	return -4;
       }else{
 	// something wrong

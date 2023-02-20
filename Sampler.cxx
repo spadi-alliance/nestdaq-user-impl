@@ -82,8 +82,9 @@ void Sampler::SendFEMInfo() {
   
   {
     uint64_t fFEMId = 0;
-    //  auto sFEMId = fConfig->GetValue<std::string>(opt::FEMId.data());
-    std::string sFEMId("192.168.10.16");
+    //    auto sFEMId = fConfig->GetValue<std::string>(opt::FEMId.data());
+    //    std::string sFEMId("192.168.10.16");
+    std::string sFEMId(fIpSiTCP);
     std::istringstream istrst(sFEMId);
     std::string token;
     int ik = 3;
@@ -150,6 +151,10 @@ void Sampler::SendFEMInfo() {
 void Sampler::InitTask()
 {
  
+  fIpSiTCP           = fConfig->GetValue<std::string>("msiTcpIp");
+  //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
+  LOG(info) << "TPC IP: " << fIpSiTCP;
+
   SendFEMInfo();
 
   PrintConfig(fConfig, "channel-config", __PRETTY_FUNCTION__);

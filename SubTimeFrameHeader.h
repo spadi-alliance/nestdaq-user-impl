@@ -5,10 +5,6 @@
 
 namespace SubTimeFrame {
 
-// This format is temporary and should be updated.
-inline
-namespace v0 {
-
 // "DAEH-FTS" : little endian of "STF-HEAD"
 constexpr uint64_t Magic {0x444145482d465453};
 
@@ -24,8 +20,6 @@ struct Header {
   uint64_t time_usec    {0};  
 };
 
-} // namespace v0
-
-} // namespace highp::e50::SubTimeFrame
+} // 
 
 #endif

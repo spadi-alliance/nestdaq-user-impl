@@ -10,20 +10,19 @@ function param () {
   redis-cli -u $server hset parameters:$1 ${@:2}
 }
 
-# HRTDC TdcType=2, LRTDC TdcType=1 
 #==========================================================================================================
-#      isntance-id       field  value    field value  field   value   field          value
-param  Sampler-0         text   Hello    rate  512    TdcType   1       max-iterations 0
-param  Sampler-1         text   world    rate  512    TdcType   1       max-iterations 0              
-param  Sampler-2         text   hoge     rate  512    TdcType   2       max-iterations 0              
-param  Sampler-3         text   piyo     rate  512    TdcType   2       max-iterations 0              
+#      isntance-id       field  value    field value  field     value   field          value
+param  Sampler-0         text   Hello    msiTcpIp  192.168.2.168    TdcType   1       max-iterations 0
+param  Sampler-1         text   world    msiTcpIp  192.168.2.169    TdcType   2       max-iterations 0              
+param  Sampler-2         text   hoge     msiTcpIp  192.168.2.161    TdcType   2       max-iterations 0              
+param  Sampler-3         text   piyo     msiTcpIp  192.168.2.162    TdcType   2       max-iterations 0              
 
 #param Sink-0 multipart false
 #param Sink-1 multipart false
 #param Sink-2 multipart false
 #param Sink-3 multipart false
 
-param Sink-0 multipart true
-param Sink-1 multipart true 
-param Sink-2 multipart true 
-param Sink-3 multipart true 
+param FileSink-0 multipart true  prefix emdata ext .dat 
+param FileSink-1 multipart true  prefix emdata ext .dat 
+param FileSink-2 multipart true  prefix emdata ext .dat 
+param FileSink-3 multipart true  prefix emdata ext .dat 
