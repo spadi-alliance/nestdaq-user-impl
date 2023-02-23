@@ -228,7 +228,7 @@ bool Sampler::ConditionalRun()
     }
   }
 
-  sleep(1);
+  sleep(2);
 
   FairMQMessagePtr msg( NewMessage((char*)buffer,
 				   //				  fnByte*nword
