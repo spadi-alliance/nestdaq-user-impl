@@ -13,16 +13,36 @@ AmQTdc::AmQTdc()
 
   nWordCount = 256;
   HBrate = 300;
-
-  StackBuf = new unsigned char[HBrate * (maxTdcHits*fnByte + maxNdelimByte)];  
-  databuf = new unsigned char[maxTdcHits*fnByte + maxNdelimByte];
-  // bytes 128*4*8 + 32, for one event
   nseq = 0;
   hbframe_count = 0;
   spill_count = 0;
   
   TotalSize = 0;
   StackSize = 0;
+}
+
+void AmQTdc::Delete(){
+  delete[] StackBuf;
+  delete[] databuf;
+
+}
+void AmQTdc::Init(){
+
+  StackBuf = new unsigned char[HBrate * (maxTdcHits*fnByte + maxNdelimByte)];  
+  databuf = new unsigned char[maxTdcHits*fnByte + maxNdelimByte];
+  // bytes 128*4*8 + 32, for one event
+
+  nseq = 0;
+  hbframe_count = 0;
+  spill_count = 0;
+  
+  TotalSize = 0;
+  StackSize = 0;
+  std::cout << "nseq        : " << nseq << std::endl;
+  std::cout << "hbframe     : " << hbframe_count << std::endl;
+  std::cout << "spill_count : " << spill_count << std::endl;
+  std::cout << "TotalSize : "   << TotalSize << std::endl;
+  std::cout << "StackSize : "   << StackSize << std::endl;
 }
 
 bool AmQTdc::LRcompare(const LRTdc::AmQTdcWord& a1, const LRTdc::AmQTdcWord& a2){
@@ -138,7 +158,15 @@ int AmQTdc::LRgenerator(unsigned int iseq, unsigned char* bufptr){
     return 0;
   }
 
+  if(sflag == 0){
+    std::cout << "iseq: " << iseq << std::endl;
+    std::cout << "hbframe: " << hbframe_count << std::endl;
+  }
+
+  sflag = 1;
+
   hb_delmt_.hb_frame = hbframe_count;
+  std::cout << "hbframe: " << hbframe_count << std::endl;
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -369,6 +397,13 @@ int AmQTdc::HRgenerator(unsigned int iseq, unsigned char* bufptr){
   }else if( iseq >= HBrate ){
     return 0;
   }
+
+  if(sflag == 0){
+    std::cout << "iseq: " << iseq << std::endl;
+    std::cout << "hbframe: " << hbframe_count << std::endl;
+  }
+
+  sflag = 1;
 
   hb_delmt_.hb_frame = hbframe_count;
 

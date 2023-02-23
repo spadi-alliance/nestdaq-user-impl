@@ -191,6 +191,7 @@ void Sampler::InitTask()
   amqTdc.set_HBrate(fMaxHBF);
   LOG(info) << "Heartbeat Rate: "<< amqTdc.get_HBrate(); 
 
+  LOG(info) << "SEQ: "<< amqTdc.get_nseq(); 
 }
 
 int Sampler::GeneCycle(uint8_t* buffer){
@@ -262,6 +263,7 @@ void Sampler::PostRun()
 {
   LOG(debug) << __FUNCTION__;
   fNumIterations = 0;
+  amqTdc.Delete();
 }
 
 //_____________________________________________________________________________
@@ -269,7 +271,8 @@ void Sampler::PreRun()
 {
 
   LOG(debug) << __FUNCTION__;
-  amqTdc.initHBF();
+  amqTdc.Init();
+  std::cout << "NSEQ: "<< amqTdc.get_nseq() << std::endl;
   
 }
 

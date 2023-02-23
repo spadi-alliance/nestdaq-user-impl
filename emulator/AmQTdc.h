@@ -21,9 +21,14 @@ class AmQTdc {
   void set_WordCount(int fnWordCount){ nWordCount = fnWordCount; }
   unsigned int get_WCount(){return nWordCount;}
 
-  unsigned int get_nseq(){return nseq;}
-  void initHBF(){ nseq = 0 ;}
+  void Init();
+  void Delete();
 
+  unsigned int get_nseq(){return nseq;}
+  void initHBF(){ 
+    nseq = 0;
+    sflag = 0;
+  }
 
   static bool LRcompare(const LRTdc::AmQTdcWord& a1, const LRTdc::AmQTdcWord& a2);
   static bool HRcompare(const HRTdc::AmQTdcWord& a1, const HRTdc::AmQTdcWord& a2);
@@ -46,6 +51,8 @@ class AmQTdc {
   
   unsigned int hbframe_count;
   unsigned int spill_count;
+
+  int sflag {0};
 };
 
 #endif
