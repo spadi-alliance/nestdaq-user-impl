@@ -22,6 +22,7 @@ class AmQTdc {
   unsigned int get_WCount(){return nWordCount;}
 
   unsigned int get_nseq(){return nseq;}
+  void initHBF(){ nseq = 0 ;}
 
 
   static bool LRcompare(const LRTdc::AmQTdcWord& a1, const LRTdc::AmQTdcWord& a2);

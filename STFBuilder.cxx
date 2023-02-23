@@ -342,7 +342,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	LOG(info) << "Device is not RUNNING";
 	return false;
       }
-      if( (err_count % 1000) == 0 )
+      if( err_count < 10 )
 	LOG(error) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->FEMId << std::dec << "  STF = " << h->timeFrameId << std::endl;
 
       err_count++;

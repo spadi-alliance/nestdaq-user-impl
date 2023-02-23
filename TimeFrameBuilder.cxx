@@ -18,7 +18,7 @@
 TimeFrameBuilder::TimeFrameBuilder()
   : FairMQDevice()
 {
-  mdebug = true;
+  mdebug = false;
 }
 
 //______________________________________________________________________________
@@ -30,15 +30,19 @@ bool TimeFrameBuilder::ConditionalRun()
   // receive
   FairMQParts inParts;
   if (Receive(inParts, fInputChannelName, 0, 1000) > 0) {
-    assert(inParts.Size() >= 3);
+    assert(inParts.Size() >= 2);
+
+    LOG(debug) << " send message parts size = " << inParts.Size() << std::endl;
+
     //Reporter::AddInputMessageSize(inParts);
     
     auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
     auto stfId     = stfHeader->timeFrameId;
 
-    if(mdebug)
+    if(mdebug){
       LOG(debug) << "stfId: "<< stfId;
-
+      LOG(debug) << "msg size: " << inParts.Size();      
+    }
 
     if (fDiscarded.find(stfId) == fDiscarded.end()) {
       // accumulate sub time frame with same STF ID
@@ -87,19 +91,19 @@ bool TimeFrameBuilder::ConditionalRun()
         }
         tfBuf.clear();
 
+       	//{ // for debug
 
-	// { // for debug
-	//   LOG(debug) << " send message parts size = " << outParts.Size() << std::endl;
-	//   for (int i=0; i<outParts.Size(); ++ i) {
-	//     const auto& msg = outParts.At(i);
-	//     LOG(debug) << "msg[" << i << "] length = " << msg->GetSize() << " bytes" << std::endl;
-        //     if (i==0) {
-        //       std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()), 
-        //                     reinterpret_cast<uint64_t*>(msg->GetData()+msg->GetSize()),
-        //                     HexDump{4});
-        //     }
-        //   }
-        // }
+	//	  LOG(debug) << " send message parts size = " << outParts.Size() << std::endl;
+	//	  for (int i=0; i<outParts.Size(); ++ i) {
+	//	    const auto& msg = outParts.At(i);
+	//	    LOG(debug) << "msg[" << i << "] length = " << msg->GetSize() << " bytes" << std::endl;
+	//	    if (i==0) {
+	//	      std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()), 
+	//			    reinterpret_cast<uint64_t*>(msg->GetData()+msg->GetSize()),
+	//			    nestdaq::HexDump{4});
+	//	    }
+	//	  }
+	//	} 
 
         //Reporter::AddOutputMessageSize(outParts);
 
@@ -183,7 +187,7 @@ void addCustomOptions(bpo::options_description& options)
 {
   using opt = TimeFrameBuilder::OptionKey;
   options.add_options()
-    (opt::NumSource.data(),         bpo::value<int>()->default_value(8),             "Number of source endpoint")
+    (opt::NumSource.data(),         bpo::value<int>()->default_value(1),             "Number of source endpoint")
     (opt::BufferTimeoutInMs.data(), bpo::value<int>()->default_value(100000),        "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("datain"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("dataout"), "Name of the output channel")

@@ -228,6 +228,8 @@ bool Sampler::ConditionalRun()
     }
   }
 
+  sleep(1);
+
   FairMQMessagePtr msg( NewMessage((char*)buffer,
 				   //				  fnByte*nword
 				  nByteSize,
@@ -267,6 +269,8 @@ void Sampler::PreRun()
 {
 
   LOG(debug) << __FUNCTION__;
+  amqTdc.initHBF();
+  
 }
 
 //_____________________________________________________________________________
