@@ -64,10 +64,9 @@ private:
   int fHBFCounter {0};
   uint64_t fSTFId {0};
   int fSplitMethod {0};
+  int hbf_flag {0};
 
   bool mdebug;
-  int nhb {0};
-  int nsp_off {0};
   RecvBuffer fInputPayloads;
   WorkBuffer fWorkingPayloads;
   SendBuffer fOutputPayloads;

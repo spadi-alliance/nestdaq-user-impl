@@ -10,10 +10,14 @@ namespace bpo = boost::program_options;
 //_____________________________________________________________________________
 void addCustomOptions(bpo::options_description& options)
 {
+  using opt = Sampler::OptionKey;
   options.add_options()
-    //  ("TdcType", bpo::value<std::string>()->default_value("1"), "TDC type: HR=2, LR=1")
-  ("text", bpo::value<std::string>()->default_value("AMANEQ Emulator"), "Text to send out")
-  ("max-iterations", bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");
+    (opt::Text.data(),           bpo::value<std::string>()->default_value("AMANEQ Emulator"), "Text to send out")
+    (opt::IpSiTCP.data(),        bpo::value<std::string>()->default_value("0"),   "Ip Address for FEMId")
+    (opt::TdcType.data(),        bpo::value<std::string>()->default_value("0"),   "TDC type: HR=2, LR=1")
+    (opt::MaxNumberHBF.data(),   bpo::value<std::string>()->default_value("50"), "# of HeartBeat Frame")
+    (opt::SendInfo.data(),  bpo::value<std::string>()->default_value("0"),   "Flag to send FEM Info")
+    ("max-iterations",      bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");    
 
 } 
 
@@ -43,7 +47,6 @@ Sampler::Sampler()
   , fNumIterations(0)
 {
   LOG(debug) << "Sampler : AmQ Emulator";
-  //  LOG(debug) << "HeartBeat Rate : " << amqTdc.get_HBrate();
   
 }
 
@@ -69,20 +72,8 @@ void Sampler::Init()
 //----------------------------------------------------------------------------
 void Sampler::SendFEMInfo() {
   
-  int mtype = std::stoi(fConfig->GetProperty<std::string>("TdcType"));
-  
-  if( mtype > 0 ){
-    tdc_type = mtype;
-    LOG(info) << "tdc type: " << tdc_type ;
-  }else{
-    tdc_type = 1;
-    LOG(error) << "can not find param. for tdc type." << mtype ; 
-  }
-
-  
   {
     uint64_t fFEMId = 0;
-    //    auto sFEMId = fConfig->GetValue<std::string>(opt::FEMId.data());
     //    std::string sFEMId("192.168.10.16");
     std::string sFEMId(fIpSiTCP);
     std::istringstream istrst(sFEMId);
@@ -149,48 +140,58 @@ void Sampler::SendFEMInfo() {
 }
 //_____________________________________________________________________________
 void Sampler::InitTask()
-{
- 
-  fIpSiTCP           = fConfig->GetValue<std::string>("msiTcpIp");
-  //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
+{ 
+  using opt = OptionKey;
+
+  // for TDC Type for module (LR, HR) (1, 2)
+  auto type = fConfig->GetProperty<std::string>(opt::TdcType.data());
+  int mtype = stoi(type);
+
+  if( mtype > 0 ){
+    tdc_type = mtype;
+    LOG(info) << "tdc type: " << tdc_type ;
+  }else{
+    tdc_type = 1;
+    LOG(info) << "can not find param. for tdc type." << mtype ; 
+  }
+
+  // for Modue IP Address
+  fIpSiTCP = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
   LOG(info) << "TPC IP: " << fIpSiTCP;
 
-  SendFEMInfo();
+  // A flag for Sending the FEM info or not
+  auto flag = fConfig->GetValue<std::string>(opt::SendInfo.data());
+  LOG(info) << "sflag: " << flag;
+  int nflag = stoi(flag);
+  LOG(info) << "nflag: " << nflag;
 
+  if(nflag>0)
+    SendFEMInfo();
+
+  // channel info
   PrintConfig(fConfig, "channel-config", __PRETTY_FUNCTION__);
   PrintConfig(fConfig, "chans.", __PRETTY_FUNCTION__);
 
-  fText = fConfig->GetProperty<std::string>("text");
+  fText = fConfig->GetProperty<std::string>(opt::Text.data());
   fMaxIterations = std::stoull(fConfig->GetProperty<std::string>("max-iterations"));
-
-
-  //============for setting up Emulator ================
-  // for 64bit-word count
-  //  int wordc = std::stoi(fConfig->GetProperty<std::string>("wordc"));
-  //  if( wordc > 0 ){
-  //    fnWordCount = wordc;
-  //    LOG(info) << "Word counts from param: "<< wordc ;     
-  //  }else{
-  //    LOG(info) << "no param for Word Counts: "<< wordc ;     
-  //  }
-  
+ 
   amqTdc.set_WordCount(fnWordCount);
   LOG(info) << "Word Counts: "<< amqTdc.get_WCount() ; 
 
-  // for Heartbeat rate
-  //  int rate = std::stoi(fConfig->GetProperty<std::string>("rate"));
-  //  if( rate > 0 ){
-  //    HBrate = rate;
-  //    LOG(info) << "HBrate from param: "<< rate ;     
-  //  }else{
-  //    LOG(info) << "no param for HBrate: "<< rate ;     
-  //  }
-  
-  amqTdc.set_HBrate(HBrate);
+  // for # of Heartbeat frame per one cycle 
+  auto maxHBF = fConfig->GetProperty<std::string>(opt::MaxNumberHBF.data());
+  int fMaxNumberHBF = stoi(maxHBF);
+
+  if( fMaxNumberHBF > 0 ){
+    fMaxHBF = fMaxNumberHBF;
+    LOG(info) << "MaxHBF from param: "<< fMaxNumberHBF ;     
+  }else{
+    LOG(info) << "no param for MaxHBF: "<< fMaxNumberHBF ;     
+  }  
+  amqTdc.set_HBrate(fMaxHBF);
   LOG(info) << "Heartbeat Rate: "<< amqTdc.get_HBrate(); 
 
 }
-
 
 int Sampler::GeneCycle(uint8_t* buffer){
   //==== data generator ===== 

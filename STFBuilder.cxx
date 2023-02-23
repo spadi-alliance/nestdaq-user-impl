@@ -91,18 +91,16 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
     if ((h == Data::Heartbeat) || (h == Data::SpillEnd)) {
 
       if( h == Data::Heartbeat ){
-	nhb++;
-	if(nhb != 2)
+	++hbf_flag;
+
+	if( hbf_flag == 1 ){
 	  continue;
-	else
-	  nhb = 0;
-      } //else if( h == Data::SpillEnd ){/// how...to....
-      //	nsp_off++;
-      //	if(nsp_off != 2)
-      //	  continue;
-      //	else
-      //	  nsp_off = 0;
-      //      }
+
+	}else if(hbf_flag == 2){
+	  hbf_flag = 0;
+	} 
+
+      }
 
       if(mdebug){
 	LOG(debug) << " Fill " << std::setw(10) << offset << " -> " << std::setw(10) << i << " : " << std::hex << word->raw << std::dec;
@@ -111,11 +109,16 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
       auto first = msgBegin + offset;
       auto last  = msgBegin + i;
       offset     = i+1;
+
       FillData(first, last, (h==Data::SpillEnd));
-      if ( h==Data::Heartbeat ) {
+
+      if ( h == Data::Heartbeat ) {
 	++fHBFCounter;
+
 	if (fSplitMethod==0) {
+
 	  if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
+	    //	    std::cout << "FinalizeSTF " << std::endl;
 	    FinalizeSTF();
 	  }
 	}
@@ -151,8 +154,14 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
   // construct send buffer with remained data on heap
   auto buf = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
 
+  if(mdebug){
+    LOG(debug) << " FillData " ;
+    std::for_each(first, last, nestdaq::HexDump{4});    
+  }
+
   if (last != first) {
-    //    LOG(debug) << " first != last";
+    if(mdebug)
+      LOG(debug) << " first: "<< first << "  last: " << last;
     // insert new data to send buffer
     buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
   }
@@ -162,10 +171,12 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(buf)));
   }
 
-  //  LOG(debug)
-  //    << " single word frame : " << std::hex
-  //    << reinterpret_cast<Data::Bits*>(last)->raw
-  //    << std::dec << std::endl;
+  if(mdebug){
+    LOG(debug)
+      << " single word frame : " << std::hex
+      << reinterpret_cast<Data::Bits*>(last)->raw
+      << std::dec << std::endl;
+  }
 
   if (fSplitMethod!=0) {
     if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
@@ -176,7 +187,6 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
   }
 
   if (!isSpillEnd) {
-    //    LOG(debug) << " not spill-end";
     fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
   }
 
@@ -227,6 +237,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
 
   //  std::cout << "============ data in ============= "<< std::endl;
+  //  auto indata_size = msg->GetSize();
   //  std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
   //		reinterpret_cast<uint64_t*>(msg->GetData() + msg->GetSize()),
   //		nestdaq::HexDump{4});
@@ -274,7 +285,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
     auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
-    /*    
+    /*
     { // for debug-begin
 
       std::cout << " parts size = " << parts.Size() << std::endl;
@@ -284,8 +295,9 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	if (i==0) {
 	  auto stfh = reinterpret_cast<STF::Header*>(msg->GetData());
 	  LOG(debug) << "STF " << stfh->timeFrameId << " length " << stfh->length << " header " << msg->GetSize() << std::endl;
+	  auto msize = msg->GetSize();
 	  std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
-			reinterpret_cast<uint64_t*>(msg->GetData() + msg->GetSize()),
+			reinterpret_cast<uint64_t*>(msg->GetData() + msize),
 			nestdaq::HexDump{4});
 	} else {
 	  LOG(debug) << " body " << i << " " << msg->GetSize() << " "
@@ -322,6 +334,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
     if(mdebug)
       std::cout << "direction: " << direction << std::endl;
 
+    unsigned int err_count = 0;
     while (Send(parts, fOutputChannelName, direction, 0) < 0) {
       // timeout
       //if (!CheckCurrentState(RUNNING)) {
@@ -329,7 +342,10 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	LOG(info) << "Device is not RUNNING";
 	return false;
       }
-      LOG(error) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->FEMId << std::dec << "  STF = " << h->timeFrameId << std::endl;
+      if( (err_count % 1000) == 0 )
+	LOG(error) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->FEMId << std::dec << "  STF = " << h->timeFrameId << std::endl;
+
+      err_count++;
     }
   }
 
@@ -414,7 +430,6 @@ void AmQStrTdcSTFBuilder::InitTask()
     LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName
 	       << " num = " << fChannels.at(fDQMChannelName).size();
   }
-
   
   OnData(fInputChannelName, &AmQStrTdcSTFBuilder::HandleData);
 

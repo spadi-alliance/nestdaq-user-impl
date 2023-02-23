@@ -26,13 +26,25 @@ struct FEMInfo {
 class Sampler : public FairMQDevice
 {
   public: 
+  struct OptionKey {
+    static constexpr std::string_view Text            {"text"};
+    static constexpr std::string_view IpSiTCP         {"msiTcpIp"};
+    static constexpr std::string_view TdcType         {"TdcType"};
+    static constexpr std::string_view MaxNumberHBF    {"MaxHBF"};
+    static constexpr std::string_view SendInfo        {"sflag"};
+  };
+  
   Sampler();
   ~Sampler() override = default;
-
+  
   protected:
     std::string fText;
+    std::string fIpSiTCP {0};
+    
     uint64_t fMaxIterations;
     uint64_t fNumIterations;
+
+    int fTdcType {1};
 
     void Init() override;
     void InitTask() override;
@@ -41,7 +53,6 @@ class Sampler : public FairMQDevice
     void PreRun() override;
     void Run() override;
     
-    std::string fIpSiTCP {"0"};
     void SendFEMInfo();
 
     FEMInfo  fem_info_;
@@ -52,7 +63,7 @@ class Sampler : public FairMQDevice
     const int fnByte  {8};
     //    int fnWordCount {16384*10};
     int fnWordCount {256};
-    int HBrate {512};
+    int fMaxHBF {512};
 };
 
 #endif
