@@ -80,6 +80,7 @@ bool Sink::HandleMultipartData(FairMQParts &msgParts, int index)
   std::cout << "len: "<< length << std::endl;
 
   for (const auto& msg : msgParts) {
+
     if(!fSave){
       const auto ptr = reinterpret_cast<unsigned char*>(msg->GetData());
       //    std::string s(ptr, ptr+msg->GetSize());

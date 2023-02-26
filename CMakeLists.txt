@@ -129,9 +129,26 @@ if(fmt_DIR)
 endif()
 
 #==============================================================================
+set(ROOT_DIR /home/usr/root/* )
+find_package(ROOT REQUIRED COMPONENTS RIO RHTTP Hist)
+set(ROOT_LIBRARYS ${ROOT_LIBRARYS};/home/nestdaq/usr/root/lib/libRHTTP.so)
+#find_package(ROOT::RHTTP)
+
+# ROOT dictionary
+if(ROOT_FOUND)
+  message(STATUS "ROOT found")
+  message(STATUS "ROOT_INCLUDE_DIRS ${ROOT_INCLUDE_DIRS}")
+  message(STATUS "ROOT_LIBRARIES ${ROOT_LIBRARIES}")
+
+#  ROOT_GENERATE_DICTIONARY(G__stl_vector_vector
+#    LINKDEF LinkDef/stl_vector_vector_LinkDef.h)
+endif()
+
+
+#==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder)
+foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder; AmQStrTdcDqm)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
@@ -141,6 +158,7 @@ foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder)
     ${Boost_INCLUDE_DIRS};  
     ${FairLogger_INCDIR};
     ${FairMQ_INCDIR};
+    ${ROOT_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR};
   )
 
@@ -153,6 +171,7 @@ foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder)
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     ${fmt_LIB};
+    ${ROOT_LIBRARIES};
     FairMQStateMachine;
     FairLogger;
     Utility;

@@ -99,7 +99,6 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	}else if(hbf_flag == 2){
 	  hbf_flag = 0;
 	} 
-
       }
 
       if(mdebug){
@@ -211,6 +210,8 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
   stfHeader->time_sec = curtime.tv_sec;
   stfHeader->time_usec = curtime.tv_usec;
   
+  //  std::cout << "femtype:  "<< stfHeader->FEMType << std::endl;
+
   //  std::cout << "sec:  "<< stfHeader->time_sec << std::endl;
   //  std::cout << "usec: "<< stfHeader->time_usec << std::endl;
 
@@ -285,7 +286,8 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
     auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
-    /*
+
+    /*    
     { // for debug-begin
 
       std::cout << " parts size = " << parts.Size() << std::endl;
@@ -453,6 +455,27 @@ void AmQStrTdcSTFBuilder::PostRun()
   fInputPayloads.clear();
   fWorkingPayloads.reset();
   SendBuffer ().swap(fOutputPayloads);
+
+  int nrecv = 0;
+
+  while(true){
+    FairMQMessagePtr msg(NewMessage());
+
+    if (Receive(msg, fInputChannelName) <= 0) {
+      LOG(debug) << __func__ << " no data received " << nrecv;
+      ++nrecv;
+      if (nrecv>10) {
+	break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    } else {
+      LOG(debug) << __func__ << " print data";
+      //      HandleData(msg, 0);
+    }
+  }
+
+  LOG(debug) << __func__ << " done";
+
 }
 
 namespace bpo = boost::program_options;
@@ -466,7 +489,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("data-in"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("data-out"), "Name of the output channel")
     (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value(""), "Name of the data quality monitoring")
-    (opt::MaxHBF.data(),            bpo::value<int>()->default_value(1),             "maximum number of heartbeat frame in one sub time frame")
+    (opt::MaxHBF.data(),            bpo::value<int>()->default_value(3),             "maximum number of heartbeat frame in one sub time frame")
     (opt::SplitMethod.data(),       bpo::value<int>()->default_value(0),             "STF split method")
     ;
 }

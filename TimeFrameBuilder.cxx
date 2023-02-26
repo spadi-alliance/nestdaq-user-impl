@@ -166,8 +166,11 @@ void TimeFrameBuilder::InitTask()
   fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
   fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
 
-  LOG(debug) << " input channel : name = " << fInputChannelName ;
+  LOG(debug) << " input channel : name = " << fInputChannelName 
+	     << " num = " << GetNumSubChannels(fInputChannelName)
+	     << " num peer = " << GetNumberOfConnectedPeers(fInputChannelName,0);
     //	     << " num = " << fChannels.at(fInputChannelName).size();
+  
   LOG(debug) << " number of source = " << fNumSource;
 
   //Reporter::Reset();
@@ -178,6 +181,30 @@ void TimeFrameBuilder::PostRun()
 {
   fTFBuffer.clear();
   fDiscarded.clear();
+
+  int nrecv=0;
+  if (fChannels.count(fInputChannelName) > 0) {
+    auto n = fChannels.count(fInputChannelName);
+
+    for (auto i = 0u; i < n; ++i) {
+      std::cout << " #i : "<< i << std::endl;
+      while(true) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+	FairMQParts part;
+	if (Receive(part, fInputChannelName, i, 1000) <= 0) {
+	  LOG(debug) << __func__ << " no data received " << nrecv;
+	  ++nrecv;
+	  if (nrecv > 10){
+	    break;
+	  }
+	} else {
+	  LOG(debug) << __func__ << " data comes..";	  
+	}
+      }
+    }
+  }// for clean up
+
 }
 
 namespace bpo = boost::program_options;
@@ -187,7 +214,7 @@ void addCustomOptions(bpo::options_description& options)
 {
   using opt = TimeFrameBuilder::OptionKey;
   options.add_options()
-    (opt::NumSource.data(),         bpo::value<int>()->default_value(1),             "Number of source endpoint")
+    (opt::NumSource.data(),         bpo::value<int>()->default_value(2),             "Number of source endpoint")
     (opt::BufferTimeoutInMs.data(), bpo::value<int>()->default_value(100000),        "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("datain"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("dataout"), "Name of the output channel")

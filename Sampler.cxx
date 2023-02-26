@@ -161,7 +161,6 @@ void Sampler::InitTask()
 
   // A flag for Sending the FEM info or not
   auto flag = fConfig->GetValue<std::string>(opt::SendInfo.data());
-  LOG(info) << "sflag: " << flag;
   int nflag = stoi(flag);
   LOG(info) << "nflag: " << nflag;
 

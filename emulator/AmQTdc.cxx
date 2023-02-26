@@ -166,7 +166,7 @@ int AmQTdc::LRgenerator(unsigned int iseq, unsigned char* bufptr){
   sflag = 1;
 
   hb_delmt_.hb_frame = hbframe_count;
-  std::cout << "hbframe: " << hbframe_count << std::endl;
+  //  std::cout << "hbframe: " << hbframe_count << std::endl;
 
   std::random_device rd;
   std::mt19937 gen(rd());
