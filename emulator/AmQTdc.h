@@ -8,7 +8,7 @@
 class AmQTdc {
  public :
   AmQTdc();
-  ~AmQTdc(){ delete[] StackBuf; delete[] databuf; }
+  ~AmQTdc(){ }
 
   int LRgenerator(unsigned int iseq, unsigned char* buf);
   int HRgenerator(unsigned int iseq, unsigned char* buf);

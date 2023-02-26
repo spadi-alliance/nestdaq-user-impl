@@ -286,8 +286,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
     auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
-
-    /*    
+    /*
     { // for debug-begin
 
       std::cout << " parts size = " << parts.Size() << std::endl;
@@ -415,10 +414,12 @@ void AmQStrTdcSTFBuilder::InitTask()
   fFEMId = femID;
   fFEMType = femType;
 
-  fMaxHBF = fConfig->GetValue<int>(opt::MaxHBF.data());
+  auto s_maxHBF = fConfig->GetValue<std::string>(opt::MaxHBF.data());
+  fMaxHBF = std::stoi(s_maxHBF);
   LOG(debug) << "fMaxHBF = " <<fMaxHBF;
 
-  fSplitMethod = fConfig->GetValue<int>(opt::SplitMethod.data());
+  auto s_splitMethod = fConfig->GetValue<std::string>(opt::SplitMethod.data());
+  fSplitMethod = std::stoi(s_splitMethod);
 
   fSTFId      = 0;
   fHBFCounter = 0;
@@ -489,8 +490,8 @@ void addCustomOptions(bpo::options_description& options)
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("data-in"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("data-out"), "Name of the output channel")
     (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value(""), "Name of the data quality monitoring")
-    (opt::MaxHBF.data(),            bpo::value<int>()->default_value(3),             "maximum number of heartbeat frame in one sub time frame")
-    (opt::SplitMethod.data(),       bpo::value<int>()->default_value(0),             "STF split method")
+    (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),             "maximum number of heartbeat frame in one sub time frame")
+    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),             "STF split method")
     ;
 }
 

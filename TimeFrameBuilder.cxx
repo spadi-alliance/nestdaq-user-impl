@@ -161,8 +161,10 @@ void TimeFrameBuilder::Init()
 void TimeFrameBuilder::InitTask()
 {
   using opt = OptionKey;
-  fNumSource         = fConfig->GetValue<int>(opt::NumSource.data());
-  fBufferTimeoutInMs = fConfig->GetValue<int>(opt::BufferTimeoutInMs.data());
+  auto sNumSource         = fConfig->GetValue<std::string>(opt::NumSource.data());
+  fNumSource         = std::stoi(sNumSource);
+  auto sBufferTimeoutInMs = fConfig->GetValue<std::string>(opt::BufferTimeoutInMs.data());
+  fBufferTimeoutInMs = std::stoi(sBufferTimeoutInMs);
   fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
   fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
 
@@ -214,8 +216,8 @@ void addCustomOptions(bpo::options_description& options)
 {
   using opt = TimeFrameBuilder::OptionKey;
   options.add_options()
-    (opt::NumSource.data(),         bpo::value<int>()->default_value(2),             "Number of source endpoint")
-    (opt::BufferTimeoutInMs.data(), bpo::value<int>()->default_value(100000),        "Buffer timeout in milliseconds")
+    (opt::NumSource.data(),         bpo::value<std::string>()->default_value("2"),             "Number of source endpoint")
+    (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("100000"),        "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("datain"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("dataout"), "Name of the output channel")
     ;

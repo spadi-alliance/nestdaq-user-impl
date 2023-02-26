@@ -262,7 +262,7 @@ void Sampler::PostRun()
 {
   LOG(debug) << __FUNCTION__;
   fNumIterations = 0;
-  amqTdc.Delete();
+  //  amqTdc.Delete();
 }
 
 //_____________________________________________________________________________
