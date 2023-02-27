@@ -88,19 +88,24 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
       continue;
     }
 
-    if ((h == Data::Heartbeat) || (h == Data::SpillEnd)) {
-
-      if( h == Data::Heartbeat ){
-	++hbf_flag;
-
-	if( hbf_flag == 1 ){
-	  continue;
-
-	}else if(hbf_flag == 2){
-	  hbf_flag = 0;
-	} 
+    if ((h == Data::Heartbeat) || h == Data::SpillEnd) {
+      if (fLastHeader == 0) {
+	fLastHeader = h;
+	continue;
+      } else if (fLastHeader == h) {
+	fLastHeader = 0;
+      } else {
+	// unexpected @TODO
       }
+#if 0
+      ++hbf_flag;
+      if( hbf_flag == 1 ){
+	continue;
 
+      }else if(hbf_flag == 2){
+	hbf_flag = 0;
+      } 
+#endif
       if(mdebug){
 	LOG(debug) << " Fill " << std::setw(10) << offset << " -> " << std::setw(10) << i << " : " << std::hex << word->raw << std::dec;
       }
@@ -110,6 +115,11 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
       offset     = i+1;
 
       FillData(first, last, (h==Data::SpillEnd));
+
+      if ( h == Data::SpillEnd ) {
+	FinalizeSTF();
+	continue;
+      }
 
       if ( h == Data::Heartbeat ) {
 	++fHBFCounter;
@@ -123,13 +133,15 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	}
       }
     }
-
-    if ( h == Data::SpillEnd ) {
-
-      FillData(msgBegin+i, msgBegin+offset, true);
+#if 0
+    if (  ) {
+      if (h == Data::SpillEnd) {
+	FillData(msgBegin+i, msgBegin+i+2, true);
+      }
       FinalizeSTF();
+      i += 1;
     }
-
+#endif
   }
 
   if(mdebug)

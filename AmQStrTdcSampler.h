@@ -13,6 +13,10 @@
 
 
 constexpr uint64_t Magic {0x4f464e492d4d4546};
+constexpr int kOutBufByte           {8};
+  //  const int fnWordPerCycle {16384*10};
+constexpr int fnWordPerCycle {16384};
+
 struct FEMInfo {
   uint64_t magic    {Magic};
   uint32_t FEMId    {0};
@@ -55,9 +59,7 @@ protected:
   std::string fIpSiTCP {"0"};
   std::string fOutputChannelName;
 
-  const int fnByte           {8};
-  //  const int fnWordPerCycle {16384*10};
-  const int fnWordPerCycle {16384};
+  
 
   FairMQPollerPtr fPoller;
 

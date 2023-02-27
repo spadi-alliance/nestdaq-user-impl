@@ -43,7 +43,7 @@ bool AmQStrTdcSampler::ConditionalRun()
   using namespace std::chrono_literals;
 
   int n_word = 0;
-  uint8_t* buffer = new uint8_t[fnByte*fnWordPerCycle]{};
+  uint8_t* buffer = new uint8_t[kOutBufByte*fnWordPerCycle]{};
 
   while( -1 == ( n_word = Event_Cycle(buffer))) continue;
 
@@ -56,7 +56,7 @@ bool AmQStrTdcSampler::ConditionalRun()
     for(int i = 0; i<fnWordPerCycle; ++i){
 
       //      if((buffer[fnByte*i+4] & 0xff) == 0x50){
-      if((buffer[fnByte*i + header_pos] & 0xff) == 0x50){
+      if((buffer[optnByte*i + header_pos] & 0xff) == 0x50){
         printf("\n#D : Spill End is detected\n");
 	//        n_word = i+1; 
         n_word = i+2; 
@@ -73,18 +73,18 @@ bool AmQStrTdcSampler::ConditionalRun()
   if(fTdcType == 1){
     //    auto data5 = reinterpret_cast<lrWord*>(buffer);
     //    auto data8 = reinterpret_cast<uint64_t*>(data5);
-    uint8_t* nbuffer = new uint8_t[fnByte*fnWordPerCycle]{};
+    uint8_t* nbuffer = new uint8_t[kOutBufByte*fnWordPerCycle]{};
 
     for(int i=0; i<n_word; i++){
       memcpy(&nbuffer[8*i + 3], &buffer[i*5], 5);
     }    
-    memcpy(&buffer[0], &nbuffer[0], fnByte*n_word);
+    memcpy(&buffer[0], &nbuffer[0], kOutBufByte*n_word);
     delete[] nbuffer;
   }
 
   FairMQMessagePtr msg(NewMessage((char*)buffer,
                                   //fnByte*fnWordPerCycle, 
-                                  fnByte*n_word,
+                                  kOutBufByte*n_word,
                                   [](void* object, void*)
                                   {delete [] static_cast<uint8_t*>(object);}
                                   )
@@ -163,7 +163,7 @@ void AmQStrTdcSampler::SendFEMInfo()
   //memcpy(fbuf, &fem_info_, sizeof(fem_info_));
 
   FairMQMessagePtr initmsg( NewMessage((char*)fbuf,
-				   fnByte*3,
+				   kOutBufByte*3,
 				   [](void* object, void*)
 				   {delete [] static_cast<uint8_t*>(object);}
 				   )
@@ -258,8 +258,13 @@ void AmQStrTdcSampler::PostRun()
   fModule.WriteModule(DCT::addr_gate,  0, 1);
   */
   int n_word = 0;
-  uint8_t buffer[fnByte*fnWordPerCycle];
-  while( -1 == ( n_word = Event_Cycle(buffer))) continue;
+  uint8_t buffer[optnByte*fnWordPerCycle];
+  while( ( n_word = Event_Cycle(buffer)) > 0) {
+    // if consition requires n_word = -1, sometime fails to break the loop 
+    // when n_word = -4 comes
+    LOG(info) << "Receiving remaining data:" << n_word << "read";
+    continue;
+  }
 
   close(fAmqSocket);
   LOG(info) << "Socket close";

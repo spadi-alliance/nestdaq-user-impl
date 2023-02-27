@@ -64,7 +64,8 @@ private:
   int fHBFCounter {0};
   uint64_t fSTFId {0};
   int fSplitMethod {0};
-  int hbf_flag {0};
+  uint8_t fLastHeader {0};
+  // int fH_flag {0};
 
   bool mdebug;
   RecvBuffer fInputPayloads;
