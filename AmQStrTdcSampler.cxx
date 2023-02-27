@@ -4,7 +4,6 @@
 #include <iostream>
 
 #include "utility/MessageUtil.h"
-#include "utility/Reporter.h"
 #include "AmQStrTdcSampler.h"
 
 #include "utility/network.hh"
@@ -45,7 +44,10 @@ bool AmQStrTdcSampler::ConditionalRun()
     }// For(i)
   }
 
-  if (n_word<=0) return true;
+  if (n_word<=0){
+    delete[] buffer; 
+    return true;
+  }
   
   if(fTdcType == 1){
     //    auto data5 = reinterpret_cast<lrWord*>(buffer);
@@ -70,7 +72,6 @@ bool AmQStrTdcSampler::ConditionalRun()
   
   //    while (Send(msg, "data") == -2);
 
-  Reporter::AddOutputMessageSize(msg->GetSize());
   Send(msg, fOutputChannelName);
 
   //     ++fNumIterations;
@@ -92,7 +93,6 @@ bool AmQStrTdcSampler::ConditionalRun()
 //______________________________________________________________________________
 void AmQStrTdcSampler::Init()
 {
-  Reporter::Instance(fConfig);
 }
 //_____________________________________________________________________________
 void AmQStrTdcSampler::SendFEMInfo()
@@ -202,7 +202,6 @@ void AmQStrTdcSampler::InitTask()
   FPGAModule fModule(fIpSiTCP.c_str(), 4660, &rbcpHeader, 0);
   LOG(info) << std::hex << fModule.ReadModule(hul_strtdc::BCT::addr_Version, 4) << std::dec;
   */
-  Reporter::Reset();
 }
 
 //______________________________________________________________________________

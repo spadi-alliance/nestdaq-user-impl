@@ -89,6 +89,8 @@ endif()
 
 target_include_directories(Utility PRIVATE
   ${Boost_INCLUDE_DIRS};
+  ${FairLogger_INCDIR};
+  ${FairMQ_INCDIR};
   ${YAML_CPP_INCLUDE_DIR};
   ${CMAKE_SOURCE_DIR};
 )
@@ -99,7 +101,10 @@ target_link_directories(Utility PRIVATE
 
 target_link_libraries(Utility
   ${Boost_LIBRARIES};
-  ${YAML_CPP_LIBRARIES}
+  ${YAML_CPP_LIBRARIES};
+  ${fmt_LIB};
+  ${FairLogger_LIBDIR};
+  ${FairMQ_LIBDIR};
 )
 
 
