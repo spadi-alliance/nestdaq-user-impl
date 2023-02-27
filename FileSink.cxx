@@ -27,7 +27,7 @@ void addCustomOptions(bpo::options_description &options)
       options.add_options()
          //
          (opt::InputDataChannelName.data(),
-          bpo::value<std::string>()->default_value(std::string(opt::InputDataChannelName.data())),
+          bpo::value<std::string>()->default_value("in"),
           "Name of input channel")
          //
          (opt::Multipart.data(), bpo::value<std::string>()->default_value("true"), "Handle multipart message")

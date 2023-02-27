@@ -32,6 +32,7 @@ class Sampler : public FairMQDevice
     static constexpr std::string_view TdcType         {"TdcType"};
     static constexpr std::string_view MaxNumberHBF    {"MaxHBF"};
     static constexpr std::string_view SendInfo        {"sflag"};
+    static constexpr std::string_view OutputChannelName {"out-chan-name"}; 
   };
   
   Sampler();
@@ -64,6 +65,7 @@ class Sampler : public FairMQDevice
     //    int fnWordCount {16384*10};
     int fnWordCount {256};
     int fMaxHBF {512};
+    std::string fOutputChannelName;
 };
 
 #endif

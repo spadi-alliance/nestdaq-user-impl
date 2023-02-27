@@ -53,7 +53,7 @@ protected:
 
   int fAmqSocket {0};
   std::string fIpSiTCP {"0"};
-  std::string fOutputChannelName {"out"};
+  std::string fOutputChannelName;
 
   const int fnByte           {8};
   //  const int fnWordPerCycle {16384*10};

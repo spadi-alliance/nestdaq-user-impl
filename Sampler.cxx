@@ -17,6 +17,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::TdcType.data(),        bpo::value<std::string>()->default_value("0"),   "TDC type: HR=2, LR=1")
     (opt::MaxNumberHBF.data(),   bpo::value<std::string>()->default_value("50"), "# of HeartBeat Frame")
     (opt::SendInfo.data(),  bpo::value<std::string>()->default_value("0"),   "Flag to send FEM Info")
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the data output channel")
     ("max-iterations",      bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");    
 
 } 
@@ -128,7 +129,7 @@ void Sampler::SendFEMInfo() {
   int count=0;
   while(true){
 
-    if (Send(initmsg, "data") < 0) {
+    if (Send(initmsg, fOutputChannelName) < 0) {
       LOG(warn) << " fail to send FEMInfo :  " << count;
       count++;
     }else{
@@ -173,6 +174,7 @@ void Sampler::InitTask()
 
   fText = fConfig->GetProperty<std::string>(opt::Text.data());
   fMaxIterations = std::stoull(fConfig->GetProperty<std::string>("max-iterations"));
+  fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
  
   amqTdc.set_WordCount(fnWordCount);
   LOG(info) << "Word Counts: "<< amqTdc.get_WCount() ; 
@@ -241,7 +243,7 @@ bool Sampler::ConditionalRun()
 
   LOG(info) << "Sending \"" << nByteSize << "\"";
 
-  if (Send(msg, "data") < 0) {
+  if (Send(msg, fOutputChannelName) < 0) {
     LOG(warn) << " event:  " << fNumIterations;
     return false;
   } else { 

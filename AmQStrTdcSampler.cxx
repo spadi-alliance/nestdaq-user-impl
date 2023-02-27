@@ -3,12 +3,33 @@
 #include <algorithm>
 #include <iostream>
 
+#include <fairmq/runFairMQDevice.h>
+
 #include "utility/MessageUtil.h"
 #include "AmQStrTdcSampler.h"
 
 #include "utility/network.hh"
 #include "utility/rbcp.h"
 #include "utility/UDPRBCP.hh"
+
+namespace bpo = boost::program_options;
+
+//______________________________________________________________________________
+void
+addCustomOptions(bpo::options_description& options)
+{
+    using opt = AmQStrTdcSampler::OptionKey;
+    options.add_options()
+      (opt::IpSiTCP.data(),           bpo::value<std::string>()->default_value("0"),   "SiTCP IP (xxx.yyy.zzz.aaa)")
+      (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel");
+      //      ("TdcType", bpo::value<std::string>()->default_value("2"), "TDC type: HR=2, LR=1");
+}
+
+//______________________________________________________________________________
+FairMQDevicePtr getDevice(const FairMQProgOptions&)
+{
+  return new AmQStrTdcSampler;
+}
 
 //______________________________________________________________________________
 
@@ -70,7 +91,7 @@ bool AmQStrTdcSampler::ConditionalRun()
                        );
 
   
-  //    while (Send(msg, "data") == -2);
+  //    while (Send(msg, fOutputChannelName) == -2);
 
   Send(msg, fOutputChannelName);
 
@@ -171,11 +192,11 @@ void AmQStrTdcSampler::InitTask()
 
   using opt     = OptionKey;
 
-  fIpSiTCP           = fConfig->GetValue<std::string>("msiTcpIp");
-  //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
+  fIpSiTCP           = fConfig->GetProperty<std::string>("msiTcpIp");
+  //  fIpSiTCP           = fConfig->GetProperty<std::string>(opt::IpSiTCP.data());
   LOG(info) << "TPC IP: " << fIpSiTCP;
-  //  fIpSiTCP           = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
-  fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data()); 
+  //  fIpSiTCP           = fConfig->GetProperty<std::string>(opt::IpSiTCP.data());
+  fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data()); 
 
   fTdcType = std::stoi(fConfig->GetProperty<std::string>("TdcType"));
   LOG(info) << "TDC Type: " << fTdcType << std::endl;

@@ -191,7 +191,6 @@ endforeach()
 # AmQStrSampler (for the read-out of AmQ)
 #==============================================================================
 add_executable(AmQStrTdcSampler
-	       runAmQStrTdcSampler.cxx;
                AmQStrTdcSampler.cxx;
 )
 
