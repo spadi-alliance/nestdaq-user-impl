@@ -31,11 +31,11 @@ echo "---------------------------------------------------------------------"
 #------------------------------------------------------------------------------------
 
 # Sampler 
-endpoint     AmQStrTdcSampler        data           type push  method bind 
+endpoint     AmQStrTdcSampler        out            type push  method bind 
 
 # subtime frame builder
-endpoint     STFBuilder              data-in        type pull method connect 
-endpoint     STFBuilder              data-out       type push method connect    
+endpoint     STFBuilder              in             type pull method connect 
+endpoint     STFBuilder              out            type push method connect    
 
 # Sink
 endpoint     FileSink                in             type pull  method bind
@@ -48,5 +48,5 @@ echo "---------------------------------------------------------------------"
 #       service1                channel1              service2        channel2      
 #------------------------------------------------------------------------------------
 
-link    AmQStrTdcSampler        data                 STFBuilder       data-in
-link    STFBuilder              data-out             FileSink         in
+link    AmQStrTdcSampler        out                   STFBuilder      in
+link    STFBuilder              out                   FileSink        in
