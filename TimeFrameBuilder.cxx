@@ -218,8 +218,8 @@ void addCustomOptions(bpo::options_description& options)
   options.add_options()
     (opt::NumSource.data(),         bpo::value<std::string>()->default_value("2"),             "Number of source endpoint")
     (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("100000"),        "Buffer timeout in milliseconds")
-    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("datain"),  "Name of the input channel")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("dataout"), "Name of the output channel")
+    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
     ;
 }
 

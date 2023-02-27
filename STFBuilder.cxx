@@ -487,9 +487,9 @@ void addCustomOptions(bpo::options_description& options)
   using opt = AmQStrTdcSTFBuilder::OptionKey;
   options.add_options()
     (opt::FEMId.data(),             bpo::value<std::string>(),                       "FEM ID")
-    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("data-in"),  "Name of the input channel")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("data-out"), "Name of the output channel")
-    (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value(""), "Name of the data quality monitoring")
+    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
+    (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value("dqm"), "Name of the data quality monitoring")
     (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),             "maximum number of heartbeat frame in one sub time frame")
     (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),             "STF split method")
     ;

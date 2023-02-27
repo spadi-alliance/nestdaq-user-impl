@@ -20,7 +20,7 @@ class FileSink : public FairMQDevice {
 public:
    const std::string fClassName;
    struct OptionKey {
-      static constexpr std::string_view InputDataChannelName{"in"};
+      static constexpr std::string_view InputDataChannelName{"in-chan-name"};
       static constexpr std::string_view Multipart{"multipart"};
       static constexpr std::string_view MergeMessage{"merge-msg"};
       static constexpr std::string_view RunNumber{"run_number"};
