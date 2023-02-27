@@ -209,6 +209,7 @@ target_link_directories(AmQStrTdcSampler PUBLIC
 )
 
 target_link_libraries(AmQStrTdcSampler  PUBLIC
+                        ${fmt_LIB};
                         FairMQ;
                         FairLogger;
                         ${Boost_LIBRARIES};

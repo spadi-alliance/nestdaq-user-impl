@@ -45,7 +45,10 @@ bool AmQStrTdcSampler::ConditionalRun()
     }// For(i)
   }
 
-  if (n_word<=0) return true;
+  if (n_word<=0){
+    delete[] buffer; 
+    return true;
+  }
   
   if(fTdcType == 1){
     //    auto data5 = reinterpret_cast<lrWord*>(buffer);
