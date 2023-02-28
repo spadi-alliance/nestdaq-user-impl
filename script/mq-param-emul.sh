@@ -26,11 +26,6 @@ param  STFBuilder-0 max-hbf 2
 param  STFBuilder-1 max-hbf 2
 param  STFBuilder-2 max-hbf 2
 
-param TimeFrameBuilder-0 num-source 1
-param TimeFrameBuilder-1 num-source 1
-param TimeFrameBuilder-2 num-source 1
-param TimeFrameBuilder-3 num-source 1
-
 #param Sink-0 multipart true
 #param Sink-1 multipart true
 #param Sink-2 multipart false
