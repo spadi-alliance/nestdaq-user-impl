@@ -157,11 +157,11 @@ void Sampler::InitTask()
   }
 
   // for Modue IP Address
-  fIpSiTCP = fConfig->GetValue<std::string>(opt::IpSiTCP.data());
+  fIpSiTCP = fConfig->GetProperty<std::string>(opt::IpSiTCP.data());
   LOG(info) << "TPC IP: " << fIpSiTCP;
 
   // A flag for Sending the FEM info or not
-  auto flag = fConfig->GetValue<std::string>(opt::SendInfo.data());
+  auto flag = fConfig->GetProperty<std::string>(opt::SendInfo.data());
   int nflag = stoi(flag);
   LOG(info) << "nflag: " << nflag;
  

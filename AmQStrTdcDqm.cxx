@@ -303,13 +303,13 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
 void AmQStrTdcDqm::InitTask()
 {
   using opt = OptionKey;
-  fNumSource         = fConfig->GetValue<int>(opt::NumSource.data());
+  fNumSource         = fConfig->GetProperty<int>(opt::NumSource.data());
   assert(fNumSource>=1);
 
-  fBufferTimeoutInMs  = fConfig->GetValue<int>(opt::BufferTimeoutInMs.data());
-  fInputChannelName   = fConfig->GetValue<std::string>(opt::InputChannelName.data());
-  auto server         = fConfig->GetValue<std::string>(opt::Http.data());
-  fUpdateIntervalInMs = fConfig->GetValue<int>(opt::UpdateInterval.data());
+  fBufferTimeoutInMs  = fConfig->GetProperty<int>(opt::BufferTimeoutInMs.data());
+  fInputChannelName   = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
+  auto server         = fConfig->GetProperty<std::string>(opt::Http.data());
+  fUpdateIntervalInMs = fConfig->GetProperty<int>(opt::UpdateInterval.data());
 
   fHbc.resize(fNumSource);
 
