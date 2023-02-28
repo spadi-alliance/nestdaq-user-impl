@@ -194,18 +194,18 @@ void TimeFrameBuilder::PostRun()
     for (auto i = 0u; i < n; ++i) {
       std::cout << " #i : "<< i << std::endl;
       while(true) {
-	std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-	FairMQParts part;
-	if (Receive(part, fInputChannelName, i, 1000) <= 0) {
-	  LOG(debug) << __func__ << " no data received " << nrecv;
-	  ++nrecv;
-	  if (nrecv > 10){
-	    break;
-	  }
-	} else {
-	  LOG(debug) << __func__ << " data comes..";	  
-	}
+	      FairMQParts part;
+	      if (Receive(part, fInputChannelName, i, 1000) <= 0) {
+	        LOG(debug) << __func__ << " no data received " << nrecv;
+	        ++nrecv;
+	        if (nrecv > 10){
+	          break;
+	        }
+	        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	      } else {
+	        LOG(debug) << __func__ << " data comes..";	  
+	      }
       }
     }
   }// for clean up
