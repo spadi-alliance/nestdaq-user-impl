@@ -129,10 +129,7 @@ if(fmt_DIR)
 endif()
 
 #==============================================================================
-set(ROOT_DIR /home/usr/root/* )
 find_package(ROOT REQUIRED COMPONENTS RIO RHTTP Hist)
-set(ROOT_LIBRARYS ${ROOT_LIBRARYS};/home/nestdaq/usr/root/lib/libRHTTP.so)
-#find_package(ROOT::RHTTP)
 
 # ROOT dictionary
 if(ROOT_FOUND)
