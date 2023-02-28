@@ -31,11 +31,12 @@ echo "---------------------------------------------------------------------"
 #------------------------------------------------------------------------------------
 
 # Sampler 
+endpoint     Sampler                 out            type push  method bind 
 endpoint     AmQStrTdcSampler        out            type push  method bind 
 
 # subtime frame builder
 endpoint     STFBuilder              in             type pull method connect 
-endpoint     STFBuilder              out            type push method connect    
+endpoint     STFBuilder              out            type push method connect autoSubChannel true   
 
 # Sink
 endpoint     FileSink                in             type pull  method bind
@@ -48,5 +49,6 @@ echo "---------------------------------------------------------------------"
 #       service1                channel1              service2        channel2      
 #------------------------------------------------------------------------------------
 
+link    Sampler                 out                   STFBuilder      in
 link    AmQStrTdcSampler        out                   STFBuilder      in
 link    STFBuilder              out                   FileSink        in
