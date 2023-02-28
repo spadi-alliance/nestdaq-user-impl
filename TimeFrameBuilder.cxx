@@ -161,12 +161,15 @@ void TimeFrameBuilder::Init()
 void TimeFrameBuilder::InitTask()
 {
   using opt = OptionKey;
-  auto sNumSource         = fConfig->GetValue<std::string>(opt::NumSource.data());
-  fNumSource         = std::stoi(sNumSource);
-  auto sBufferTimeoutInMs = fConfig->GetValue<std::string>(opt::BufferTimeoutInMs.data());
+  auto sBufferTimeoutInMs = fConfig->GetProperty<std::string>(opt::BufferTimeoutInMs.data());
   fBufferTimeoutInMs = std::stoi(sBufferTimeoutInMs);
-  fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
-  fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
+  fInputChannelName  = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
+  fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
+  auto numSubChannels = GetNumSubChannels(fInputChannelName);
+  fNumSource = 0;
+  for (auto i=0; i<numSubChannels; ++i) {
+    fNumSource += GetNumberOfConnectedPeers(fInputChannelName, i);
+  }
 
   LOG(debug) << " input channel : name = " << fInputChannelName 
 	     << " num = " << GetNumSubChannels(fInputChannelName)
@@ -216,7 +219,6 @@ void addCustomOptions(bpo::options_description& options)
 {
   using opt = TimeFrameBuilder::OptionKey;
   options.add_options()
-    (opt::NumSource.data(),         bpo::value<std::string>()->default_value("2"),             "Number of source endpoint")
     (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("100000"),        "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")

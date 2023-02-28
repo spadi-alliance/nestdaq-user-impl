@@ -381,7 +381,7 @@ void AmQStrTdcSTFBuilder::InitTask()
     // convert IP address  to 32 bit. e.g. 192.168.10.16 -> FEM id = 0xC0A80A10
     //    fFEMId = 0;
 
-    auto femid = fConfig->GetValue<std::string>(opt::FEMId.data());
+    auto femid = fConfig->GetProperty<std::string>(opt::FEMId.data());
     std::istringstream iss(femid);
     std::string token;
     int i = 3;
@@ -396,9 +396,9 @@ void AmQStrTdcSTFBuilder::InitTask()
   }
   */
 
-  fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
-  fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
-  fDQMChannelName    = fConfig->GetValue<std::string>(opt::DQMChannelName.data());
+  fInputChannelName  = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
+  fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
+  fDQMChannelName    = fConfig->GetProperty<std::string>(opt::DQMChannelName.data());
 
 
   //////
@@ -426,11 +426,11 @@ void AmQStrTdcSTFBuilder::InitTask()
   fFEMId = femID;
   fFEMType = femType;
 
-  auto s_maxHBF = fConfig->GetValue<std::string>(opt::MaxHBF.data());
+  auto s_maxHBF = fConfig->GetProperty<std::string>(opt::MaxHBF.data());
   fMaxHBF = std::stoi(s_maxHBF);
   LOG(debug) << "fMaxHBF = " <<fMaxHBF;
 
-  auto s_splitMethod = fConfig->GetValue<std::string>(opt::SplitMethod.data());
+  auto s_splitMethod = fConfig->GetProperty<std::string>(opt::SplitMethod.data());
   fSplitMethod = std::stoi(s_splitMethod);
 
   fSTFId      = 0;
