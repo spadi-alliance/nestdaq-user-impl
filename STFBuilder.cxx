@@ -11,7 +11,7 @@
 #include <sstream>
 #include <sys/time.h>
 
-#include <fairmq/runFairMQDevice.h>
+#include <fairmq/runDevice.h>
 
 #include "utility/HexDump.h"
 #include "utility/MessageUtil.h"
@@ -24,7 +24,7 @@ namespace STF  = SubTimeFrame;
 
 //______________________________________________________________________________
 AmQStrTdcSTFBuilder::AmQStrTdcSTFBuilder()
-	: FairMQDevice()
+	: fair::mq::Device()
 {
   mdebug = false;
 }
@@ -508,7 +508,7 @@ void addCustomOptions(bpo::options_description& options)
 }
 
 //______________________________________________________________________________
-FairMQDevicePtr getDevice(const FairMQProgOptions&)
+std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions&)
 {
-  return new AmQStrTdcSTFBuilder;
+  return std::make_unique<AmQStrTdcSTFBuilder>();
 }

@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <fairmq/FairMQDevice.h>
+#include <fairmq/Device.h>
 
 #include <THttpServer.h>
 
@@ -18,7 +18,7 @@
 
 class TH1; 
 
-class AmQStrTdcDqm : public FairMQDevice
+class AmQStrTdcDqm : public fair::mq::Device
 {
 public:
   struct OptionKey {

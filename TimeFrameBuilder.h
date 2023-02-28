@@ -10,10 +10,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <fairmq/FairMQDevice.h>
+#include <fairmq/Device.h>
 
 
-class TimeFrameBuilder : public FairMQDevice
+class TimeFrameBuilder : public fair::mq::Device
 {
 public:
   struct OptionKey {
@@ -48,8 +48,6 @@ private:
   std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
   std::unordered_set<uint64_t> fDiscarded;
 
-  bool mdebug;
-  unsigned int rcount {0};
 };
 
 #endif

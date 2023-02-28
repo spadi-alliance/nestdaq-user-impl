@@ -3,7 +3,7 @@
 
 #include <boost/algorithm/string/case_conv.hpp>
 
-#include <fairmq/runFairMQDevice.h>
+#include <fairmq/runDevice.h>
 
 #include "utility/CompressHelper.h"
 #include "utility/Compressor.h"
@@ -64,11 +64,11 @@ void addCustomOptions(bpo::options_description &options)
 }
 
 //______________________________________________________________________________
-FairMQDevicePtr getDevice(const FairMQProgOptions &config)
+std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions &config)
 {
    (void)config;
 
-   return new nestdaq::FileSink;
+   return std::make_unique<nestdaq::FileSink>();
 }
 
 //=============================================================================

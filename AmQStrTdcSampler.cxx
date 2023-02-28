@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <fairmq/runFairMQDevice.h>
+#include <fairmq/runDevice.h>
 
 #include "utility/MessageUtil.h"
 #include "AmQStrTdcSampler.h"
@@ -26,9 +26,9 @@ addCustomOptions(bpo::options_description& options)
 }
 
 //______________________________________________________________________________
-FairMQDevicePtr getDevice(const FairMQProgOptions&)
+std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions&)
 {
-  return new AmQStrTdcSampler;
+  return std::make_unique<AmQStrTdcSampler>();
 }
 
 //______________________________________________________________________________

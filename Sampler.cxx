@@ -1,7 +1,7 @@
 #include <sstream>
 #include <string>
 #include <iostream>
-#include <fairmq/runFairMQDevice.h>
+#include <fairmq/runDevice.h>
 
 #include "Sampler.h"
 
@@ -23,9 +23,9 @@ void addCustomOptions(bpo::options_description& options)
 } 
 
 //_____________________________________________________________________________
-FairMQDevicePtr getDevice(const fair::mq::ProgOptions& /*config*/)
+std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
 {
-  return new Sampler(); 
+  return std::make_unique<Sampler>(); 
 }
 
 //_____________________________________________________________________________
@@ -43,7 +43,8 @@ void PrintConfig(const fair::mq::ProgOptions* config, std::string_view name, std
 
 //_____________________________________________________________________________
 Sampler::Sampler()
-  : fText()
+  : fair::mq::Device()
+  , fText()
   , fMaxIterations(0)
   , fNumIterations(0)
 {
