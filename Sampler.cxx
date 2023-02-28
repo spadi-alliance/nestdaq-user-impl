@@ -164,6 +164,8 @@ void Sampler::InitTask()
   auto flag = fConfig->GetValue<std::string>(opt::SendInfo.data());
   int nflag = stoi(flag);
   LOG(info) << "nflag: " << nflag;
+ 
+  fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
 
   if(nflag>0)
     SendFEMInfo();
@@ -174,7 +176,6 @@ void Sampler::InitTask()
 
   fText = fConfig->GetProperty<std::string>(opt::Text.data());
   fMaxIterations = std::stoull(fConfig->GetProperty<std::string>("max-iterations"));
-  fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
  
   amqTdc.set_WordCount(fnWordCount);
   LOG(info) << "Word Counts: "<< amqTdc.get_WCount() ; 
