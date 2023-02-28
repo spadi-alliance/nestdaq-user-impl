@@ -478,7 +478,7 @@ void AmQStrTdcSTFBuilder::PostRun()
       LOG(debug) << __func__ << " no data received " << nrecv;
       ++nrecv;
       if (nrecv>10) {
-	break;
+	      break;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
     } else {
