@@ -8,7 +8,7 @@
 #include <memory>
 #include <queue>
 
-#include <fairmq/FairMQDevice.h>
+#include <fairmq/Device.h>
 
 #include "AmQStrTdcData.h"
 
@@ -20,7 +20,7 @@ struct FEMInfo {
 };
 
 
-class AmQStrTdcSTFBuilder : public FairMQDevice
+class AmQStrTdcSTFBuilder : public fair::mq::Device
 {
 public:
   using WorkBuffer = std::unique_ptr<std::vector<FairMQMessagePtr>>;

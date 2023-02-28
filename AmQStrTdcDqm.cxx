@@ -13,7 +13,7 @@
 #include <iostream>
 #include <boost/format.hpp>
 
-#include <fairmq/runFairMQDevice.h>
+#include <fairmq/runDevice.h>
 
 #include "SubTimeFrameHeader.h"
 #include "STFBuilder.h"
@@ -348,8 +348,8 @@ void addCustomOptions(bpo::options_description& options)
 }
 
 //______________________________________________________________________________
-FairMQDevicePtr getDevice(const FairMQProgOptions&)
+std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions&)
 {
-   return new AmQStrTdcDqm;
+   return std::make_unique<AmQStrTdcDqm>();
 }
 

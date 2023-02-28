@@ -6,7 +6,7 @@
 #if __has_include(<fairmq/Device.h>)
 #include <fairmq/Device.h>  // since v1.4.34
 #else 
-#include <fairmq/FairMQDevice.h>
+#include <fairmq/Device.h>
 #endif
 
 #include "emulator/AmQTdcData.h"
@@ -23,7 +23,7 @@ struct FEMInfo {
   uint64_t reserved {0};
 };
 
-class Sampler : public FairMQDevice
+class Sampler : public fair::mq::Device
 {
   public: 
   struct OptionKey {

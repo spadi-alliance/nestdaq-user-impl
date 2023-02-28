@@ -145,7 +145,7 @@ endif()
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder; AmQStrTdcDqm)
+foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder; TFBFilePlayer; AmQStrTdcDqm)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;

@@ -7,7 +7,7 @@
 #include <string_view>
 #include <thread>
 
-#include <fairmq/FairMQDevice.h>
+#include <fairmq/Device.h>
 
 #include "utility/RingBuffer.h"
 #include "utility/FileUtil.h"
@@ -16,7 +16,7 @@
 namespace nestdaq {
 class TaskProcessorMT;
 
-class FileSink : public FairMQDevice {
+class FileSink : public fair::mq::Device {
 public:
    const std::string fClassName;
    struct OptionKey {

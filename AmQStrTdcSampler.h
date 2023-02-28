@@ -8,8 +8,7 @@
 #include <atomic>
 #include <memory>
 
-#include <fairmq/FairMQDevice.h>
-#include <fairmq/FairMQPoller.h>
+#include <fairmq/Device.h>
 
 
 constexpr uint64_t Magic {0x4f464e492d4d4546};
@@ -28,7 +27,7 @@ struct lrWord {
   uint8_t d[5];
 };
 
-class AmQStrTdcSampler : public FairMQDevice
+class AmQStrTdcSampler : public fair::mq::Device
 {
 public: 
   struct OptionKey {
@@ -61,7 +60,6 @@ protected:
 
   
 
-  FairMQPollerPtr fPoller;
 
   FEMInfo  fem_info_;
   int fTdcType {2};
