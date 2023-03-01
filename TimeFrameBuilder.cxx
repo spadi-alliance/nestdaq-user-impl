@@ -22,10 +22,10 @@ void addCustomOptions(bpo::options_description& options)
 {
     using opt = TimeFrameBuilder::OptionKey;
     options.add_options()
-    (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("100000"),        "Buffer timeout in milliseconds")
-    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
-    (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"), "Timeout (in msec) of send-socket polling")
+    (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("10000"), "Buffer timeout in milliseconds")
+    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),    "Name of the input channel")
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),   "Name of the output channel")
+    (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),     "Timeout (in msec) of send-socket polling")
     ;
 }
 
@@ -60,18 +60,18 @@ bool TimeFrameBuilder::ConditionalRun()
         LOG(debug) << "stfId: "<< stfId;
         LOG(debug) << "msg size: " << inParts.Size();
 
-        if (fDiscarded.find(stfId) == fDiscarded.end()) {
-            // accumulate sub time frame with same STF ID
+        //if (fDiscarded.find(stfId) == fDiscarded.end()) {
+        // accumulate sub time frame with same STF ID
 
-            if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
-                fTFBuffer[stfId].reserve(fNumSource);
-            }
-            fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
+        if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
+            fTFBuffer[stfId].reserve(fNumSource);
         }
-        else {
-            // if received ID has been previously discarded.
-            LOG(warn) << "Received part from an already discarded timeframe with id " << stfId;
-        }
+        fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
+        //}
+        //else {
+        //    // if received ID has been previously discarded.
+        //    LOG(warn) << "Received part from an already discarded timeframe with id " << stfId;
+        //}
     }
 
     // send
@@ -112,23 +112,26 @@ bool TimeFrameBuilder::ConditionalRun()
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
                     auto direction = fNumIteration % fNumDestination;
+                    ++fNumIteration;
                     if (poller->CheckOutput(fOutputChannelName, direction)) {
                         // output ready
-                        if (Send(outParts, fOutputChannelName, direction) < 0) {
+
+                        if (Send(outParts, fOutputChannelName, direction) > 0) {
+                            // successfully sent
+                            break;
+                        } else {
                             LOG(error) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
                         }
                     }
-                    // move to the next peer even if the peer is busy.
-                    ++fNumIteration;
                 }
             } else {
                 // discard incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
                     LOG(warn) << "Timeframe #" << stfId << " incomplete after " << fBufferTimeoutInMs << " milliseconds, discarding";
-                    fDiscarded.insert(stfId);
+                    //fDiscarded.insert(stfId);
                     tfBuf.clear();
-                    LOG(warn) << "Number of discarded timeframes: " << fDiscarded.size();
+                    //LOG(warn) << "Number of discarded timeframes: " << fDiscarded.size();
                 }
             }
 
@@ -179,7 +182,7 @@ void TimeFrameBuilder::InitTask()
 void TimeFrameBuilder::PostRun()
 {
     fTFBuffer.clear();
-    fDiscarded.clear();
+    //fDiscarded.clear();
 
     int nrecv=0;
     if (fChannels.count(fInputChannelName) > 0) {
