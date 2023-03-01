@@ -13,26 +13,26 @@ uint64_t Stoi(std::string_view arg, int debug = 0);
 template <int nbits, bool msb_first = true>
 uint64_t ToBits(std::string_view val)
 {
-   if (val.find("0x") == 0) {
-      return Stoi(val);
-   }
-   std::bitset<nbits> ret;
-   auto i = (msb_first) ? nbits : 0;
-   for (auto c : val) {
-      if (c == '1') {
-         if (msb_first)
-            ret[--i] = 1;
-         else
-            ret[i++] = 1;
-      } else if (c == '0') {
-         if (msb_first)
-            ret[--i] = 0;
-         else
-            ret[i++] = 0;
-      }
-   }
+    if (val.find("0x") == 0) {
+        return Stoi(val);
+    }
+    std::bitset<nbits> ret;
+    auto i = (msb_first) ? nbits : 0;
+    for (auto c : val) {
+        if (c == '1') {
+            if (msb_first)
+                ret[--i] = 1;
+            else
+                ret[i++] = 1;
+        } else if (c == '0') {
+            if (msb_first)
+                ret[--i] = 0;
+            else
+                ret[i++] = 0;
+        }
+    }
 
-   return ret.to_ullong();
+    return ret.to_ullong();
 }
 
 } // namespace nestdaq

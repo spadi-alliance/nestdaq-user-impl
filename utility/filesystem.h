@@ -15,12 +15,12 @@ namespace stdfs = std::experimental::filesystem;
 namespace nestdaq {
 inline std::string filename(std::string_view s)
 {
-   return stdfs::path(s.data()).filename().string();
+    return stdfs::path(s.data()).filename().string();
 }
 
 inline std::string stem(std::string_view s)
 {
-   return stdfs::path(s.data()).stem().string();
+    return stdfs::path(s.data()).stem().string();
 }
 } // namespace nestdaq
 

@@ -9,12 +9,12 @@
 * 2010/05/31 Tomohisa Uchida                     *
 *                                                *
 *************************************************/
-struct rbcp_header{
-  unsigned char type;
-  unsigned char command;
-  unsigned char id;
-  unsigned char length;
-  unsigned int address;
+struct rbcp_header {
+    unsigned char type;
+    unsigned char command;
+    unsigned char id;
+    unsigned char length;
+    unsigned int address;
 };
 
 #endif
