@@ -92,6 +92,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
         if (h == Data::Heartbeat) {
             int32_t hbframe = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
+            //LOG(debug) << " heartbeat delimiter comes " << std::hex << hbframe << ", raw = " << word->raw;
             if (fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) {
                 if (fHBFrame<0) {
                     fHBFrame = hbframe;
