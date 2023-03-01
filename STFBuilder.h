@@ -19,6 +19,11 @@ struct FEMInfo {
     uint64_t reserved {0};
 };
 
+enum class TimeFrameIdType : int {
+    FirstHeartbeatDelimiter = 0,
+    LastHeartbeatDelimiter,
+    SequenceNumberOfTimeFrames
+};
 
 class AmQStrTdcSTFBuilder : public fair::mq::Device
 {
@@ -35,6 +40,7 @@ public:
         static constexpr std::string_view StripHBF          {"strip-hbf"};
         static constexpr std::string_view MaxHBF            {"max-hbf"};
         static constexpr std::string_view SplitMethod       {"split"};
+        static constexpr std::string_view TimeFrameIdType   {"time-frame-id-type"};
     };
 
     AmQStrTdcSTFBuilder();
@@ -66,6 +72,8 @@ private:
     int fSplitMethod {0};
     uint8_t fLastHeader {0};
     // int fH_flag {0};
+    TimeFrameIdType fTimeFrameIdType;
+    int32_t fHBFrame{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
 
     bool mdebug;
     RecvBuffer fInputPayloads;
