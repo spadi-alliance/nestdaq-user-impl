@@ -1,6 +1,6 @@
 #include <functional>
 
-#include <fmt/core.h>
+//#include <fmt/core.h>
 #include <fairmq/runDevice.h>
 #include <fairmq/FairMQLogger.h>
 
@@ -60,8 +60,8 @@ bool TFBFilePlayer::ConditionalRun()
     }
     auto tfHeader = reinterpret_cast<TF::Header*>(msgTFHeader.GetData());
 
-    LOG(debug4) << fmt::format("TF header: magic = {:016x}, tf-id = {:d}, n-src = {:d}, bytes = {:d}",
-                               tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
+//    LOG(debug4) << fmt::format("TF header: magic = {:016x}, tf-id = {:d}, n-src = {:d}, bytes = {:d}",
+//                               tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
 
     std::vector<char> buf(tfHeader->length - sizeof(TF::Header));
     fInputFile.read(buf.data(), buf.size());
@@ -83,8 +83,8 @@ bool TFBFilePlayer::ConditionalRun()
         std::memcpy(header, bufBegin, headerNBytes);
         auto stfHeader = reinterpret_cast<STF::Header*>(header);
 
-        LOG(debug4) << fmt::format("STF header: magic = {:016x}, tf-id = {:d}, rsv = {:08x}, FEM-type = {:08x}, FEM-id = {:08x}, bytes = {:d}, n-msg = {:d}, sec = {:d}, usec = {:d}",
-                                   stfHeader->magic, stfHeader->timeFrameId, stfHeader->reserve, stfHeader->FEMType, stfHeader->FEMId, stfHeader->length, stfHeader->numMessages, stfHeader->time_sec, stfHeader->time_usec);
+//        LOG(debug4) << fmt::format("STF header: magic = {:016x}, tf-id = {:d}, rsv = {:08x}, FEM-type = {:08x}, FEM-id = {:08x}, bytes = {:d}, n-msg = {:d}, sec = {:d}, usec = {:d}",
+//                                   stfHeader->magic, stfHeader->timeFrameId, stfHeader->reserve, stfHeader->FEMType, stfHeader->FEMId, stfHeader->length, stfHeader->numMessages, stfHeader->time_sec, stfHeader->time_usec);
 
 
         auto wordBegin = reinterpret_cast<uint64_t*>(bufBegin + headerNBytes);
@@ -98,7 +98,7 @@ bool TFBFilePlayer::ConditionalRun()
         for (auto ptr = wBegin; ptr!=wEnd; ++ptr) {
             auto d = reinterpret_cast<AmQStrTdc::Data::Bits*>(ptr);
             uint16_t type = d->head;
-            LOG(debug4) << fmt::format(" data type = {:x}", type);
+//            LOG(debug4) << fmt::format(" data type = {:x}", type);
             switch (d->head) {
             //-----------------------------
             case AmQStrTdc::Data::Heartbeat: {
