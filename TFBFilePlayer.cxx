@@ -120,9 +120,9 @@ bool TFBFilePlayer::ConditionalRun()
     }
     LOG(debug4) << " n-iteration = " << fNumIteration << ": out parts.size() = " << outParts.Size();
     while (Send(outParts, fOutputChannelName) < 0) {
-        if (GetCurrentState() != fair::mq::State::Running) {
+        if (NewStatePending()) {
             LOG(info) << "Device is not RUNNING";
-            return true;
+            return false;
         }
         LOG(error) << "Failed to enqueue messages : parts.size() = " << outParts.Size();
     }

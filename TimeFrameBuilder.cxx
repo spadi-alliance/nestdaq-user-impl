@@ -105,15 +105,21 @@ bool TimeFrameBuilder::ConditionalRun()
                     }
                 }
                 tfBuf.clear();
-
-                while ( Send(outParts, fOutputChannelName) < 0) {
+                auto direction = fNumIteration % fNumDestination;
+                while ( Send(outParts, fOutputChannelName, direction) < 0) {
                     // timeout
-                    if (GetCurrentState() != fair::mq::State::Running) {
+                    if (NewStatePending()) {
                         LOG(info) << "Device is not RUNNING";
-                        return true;
+                        return false;
                     }
                     LOG(error) << "Failed to queue time frame : TF = " << h->timeFrameId;
+
+                    // skip the peer
+                    ++fNumIteration;
+                    direction = fNumIteration % fNumDestination;
                 }
+                // enqueuing succeeded. move to the next peer
+                ++fNumIteration;
             } else {
                 // discard incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
@@ -163,6 +169,8 @@ void TimeFrameBuilder::InitTask()
 
     LOG(debug) << " number of source = " << fNumSource;
 
+    fNumDestination = fChannels.at(fOutputChannelName).size();
+
 }
 
 //______________________________________________________________________________
@@ -196,3 +204,8 @@ void TimeFrameBuilder::PostRun()
 
 }
 
+//_____________________________________________________________________________
+void TimeFrameBuilder::PreRun()
+{
+    fNumIteration = 0;
+}
