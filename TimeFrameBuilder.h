@@ -16,37 +16,37 @@
 class TimeFrameBuilder : public fair::mq::Device
 {
 public:
-  struct OptionKey {
-    static constexpr std::string_view NumSource         {"num-source"};
-    static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
-    static constexpr std::string_view InputChannelName  {"in-chan-name"};
-    static constexpr std::string_view OutputChannelName {"out-chan-name"};
-  };
+    struct OptionKey {
+        static constexpr std::string_view NumSource         {"num-source"};
+        static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
+        static constexpr std::string_view InputChannelName  {"in-chan-name"};
+        static constexpr std::string_view OutputChannelName {"out-chan-name"};
+    };
 
-  struct STFBuffer {
-    FairMQParts parts;
-    std::chrono::steady_clock::time_point start;
-  };
+    struct STFBuffer {
+        FairMQParts parts;
+        std::chrono::steady_clock::time_point start;
+    };
 
-  TimeFrameBuilder();
-  TimeFrameBuilder(const TimeFrameBuilder&)            = delete;
-  TimeFrameBuilder& operator=(const TimeFrameBuilder&) = delete;
-  ~TimeFrameBuilder() = default;
+    TimeFrameBuilder();
+    TimeFrameBuilder(const TimeFrameBuilder&)            = delete;
+    TimeFrameBuilder& operator=(const TimeFrameBuilder&) = delete;
+    ~TimeFrameBuilder() = default;
 
 protected:
-  bool ConditionalRun() override;
-  void Init() override;
-  void InitTask() override;
-  void PostRun() override;
+    bool ConditionalRun() override;
+    void Init() override;
+    void InitTask() override;
+    void PostRun() override;
 
 private:
-  int fNumSource {0};
-  int fBufferTimeoutInMs {100000};
-  std::string fInputChannelName;
-  std::string fOutputChannelName;
+    int fNumSource {0};
+    int fBufferTimeoutInMs {100000};
+    std::string fInputChannelName;
+    std::string fOutputChannelName;
 
-  std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
-  std::unordered_set<uint64_t> fDiscarded;
+    std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
+    std::unordered_set<uint64_t> fDiscarded;
 
 };
 
