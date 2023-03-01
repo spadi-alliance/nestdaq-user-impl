@@ -8,6 +8,7 @@ namespace nestdaq {
 
 class FileSinkHeaderBlock {
 public:
+   constexpr static uint64_t kMagic = 0x444145482d534640ull; // "@FS-HEAD"
    std::uint64_t fFileSinkHeaderBlockSize; /* 64 bits */
    std::uint64_t fMagic;                   /* 64 bits */
    std::uint64_t fFairMQDeviceType;        /* 64 bits */

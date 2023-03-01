@@ -39,13 +39,13 @@
 
 namespace nestdaq::Compressor {
 enum Format : int {
-   none,
-   gzip,
-   bzip2,
+    none,
+    gzip,
+    bzip2,
 #ifdef USE_LZMA
-   lzma,
+    lzma,
 #endif
-   zstd
+    zstd
 };
 
 // false value for static assert to invoke compilation error
@@ -69,69 +69,69 @@ using FilterPtr = std::unique_ptr<boost::iostreams::filtering_ostream>;
 //____________________________________________________________________________
 inline FilterPtr CreateFilter(Format format = Format::none, int bufferSize = -1)
 {
-   namespace io = boost::iostreams;
+    namespace io = boost::iostreams;
 
-   // filtering_stream with write method
-   auto filter = std::make_unique<io::filtering_ostream>();
+    // filtering_stream with write method
+    auto filter = std::make_unique<io::filtering_ostream>();
 
-   int n = (bufferSize <= 0) ? io::default_device_buffer_size : bufferSize;
+    int n = (bufferSize <= 0) ? io::default_device_buffer_size : bufferSize;
 
-   // add compression filter ------------------------------
-   if (format == Format::none) {
-      // do nothing
-   }
+    // add compression filter ------------------------------
+    if (format == Format::none) {
+        // do nothing
+    }
 #if __has_include(<boost/iostreams/filter/gzip.hpp>)
-   else if (format == Format::gzip) {
-      filter->push(io::gzip_compressor{io::gzip::default_compression, n});
-   }
+    else if (format == Format::gzip) {
+        filter->push(io::gzip_compressor{io::gzip::default_compression, n});
+    }
 #endif
 #if __has_include(<boost/iostreams/filter/bzip2.hpp>)
-   else if (format == Format::bzip2) {
-      filter->push(io::bzip2_compressor{io::bzip2::default_block_size, n});
-   }
+    else if (format == Format::bzip2) {
+        filter->push(io::bzip2_compressor{io::bzip2::default_block_size, n});
+    }
 #endif
 #ifdef USE_LZMA
 #if __has_include(<boost/iostreams/filter/lzma.hpp>)
-   else if (format == Format::lzma) {
-      filter->push(io::lzma_compressor{io::lzma::default_compression, n});
-   }
+    else if (format == Format::lzma) {
+        filter->push(io::lzma_compressor{io::lzma::default_compression, n});
+    }
 #endif
 #endif
 #if __has_include(<boost/iostreams/filter/zstd.hpp>)
-   else if (format == Format::zstd) {
-      filter->push(io::zstd_compressor{io::zstd::default_compression, n});
-   }
+    else if (format == Format::zstd) {
+        filter->push(io::zstd_compressor{io::zstd::default_compression, n});
+    }
 #endif
 
-   return std::move(filter);
+    return std::move(filter);
 }
 
 //____________________________________________________________________________
 inline std::pair<BufferPtr, FilterPtr>
 CreateFilter(Format format = Format::none, unsigned int nReserve = 0, int bufferSize = -1)
 {
-   namespace io = boost::iostreams;
-   // add output buffer
-   auto buf = std::make_unique<std::vector<char>>();
-   buf->reserve(nReserve);
-   auto filter = CreateFilter(format, bufferSize);
-   filter->push(io::back_inserter(*buf));
+    namespace io = boost::iostreams;
+    // add output buffer
+    auto buf = std::make_unique<std::vector<char>>();
+    buf->reserve(nReserve);
+    auto filter = CreateFilter(format, bufferSize);
+    filter->push(io::back_inserter(*buf));
 
-   return {std::move(buf), std::move(filter)};
+    return {std::move(buf), std::move(filter)};
 }
 
 //____________________________________________________________________________
 template <typename T, std::size_t N>
 inline Buffer Compress(const T (&src)[N], Format format = Format::none, unsigned int nReserve = 0, int bufferSize = -1)
 {
-   auto [buf, filter] = CreateFilter(format, nReserve, bufferSize);
-   if constexpr (std::is_standard_layout_v<T>) {
-      filter->write(reinterpret_cast<const char *>(src), sizeof(T) * N);
-   } else {
-      static_assert(false_v<T>);
-   }
-   boost::iostreams::close(*filter);
-   return std::move(*buf);
+    auto [buf, filter] = CreateFilter(format, nReserve, bufferSize);
+    if constexpr (std::is_standard_layout_v<T>) {
+        filter->write(reinterpret_cast<const char *>(src), sizeof(T) * N);
+    } else {
+        static_assert(false_v<T>);
+    }
+    boost::iostreams::close(*filter);
+    return std::move(*buf);
 }
 
 //____________________________________________________________________________
@@ -139,41 +139,41 @@ template <typename T>
 inline Buffer
 Compress(const T *src, int n, Format format = Format::none, unsigned int nReserve = 0, int bufferSize = -1)
 {
-   auto [buf, filter] = CreateFilter(format, nReserve, bufferSize);
-   if constexpr (std::is_standard_layout_v<T>) {
-      filter->write(reinterpret_cast<const char *>(src), sizeof(T) * n);
-   } else {
-      static_assert(false_v<T>);
-   }
-   boost::iostreams::close(*filter);
-   return std::move(*buf);
+    auto [buf, filter] = CreateFilter(format, nReserve, bufferSize);
+    if constexpr (std::is_standard_layout_v<T>) {
+        filter->write(reinterpret_cast<const char *>(src), sizeof(T) * n);
+    } else {
+        static_assert(false_v<T>);
+    }
+    boost::iostreams::close(*filter);
+    return std::move(*buf);
 }
 
 //____________________________________________________________________________
 template <typename T>
 inline Buffer Compress(const T &src, Format format = Format::none, unsigned int nReserve = 0, int bufferSize = -1)
 {
-   auto [buf, filter] = CreateFilter(format, nReserve, bufferSize);
-   // write data
-   if constexpr (is_vector_v<T>) {
-      // T is std::vector
-      using Val = typename T::value_type;
-      if constexpr (std::is_standard_layout_v<Val>) {
-         // T is std::vector<Val> and Val is a simple type
-         filter->write(reinterpret_cast<const char *>(src.data()), src.size() * sizeof(Val));
-      } else {
-         static_assert(false_v<T>);
-      }
-   } else if constexpr (std::is_standard_layout_v<T>) {
-      // T is a simple type
-      filter->write(reinterpret_cast<const char *>(&src), sizeof(src));
-   } else {
-      static_assert(false_v<T>);
-   }
+    auto [buf, filter] = CreateFilter(format, nReserve, bufferSize);
+    // write data
+    if constexpr (is_vector_v<T>) {
+        // T is std::vector
+        using Val = typename T::value_type;
+        if constexpr (std::is_standard_layout_v<Val>) {
+            // T is std::vector<Val> and Val is a simple type
+            filter->write(reinterpret_cast<const char *>(src.data()), src.size() * sizeof(Val));
+        } else {
+            static_assert(false_v<T>);
+        }
+    } else if constexpr (std::is_standard_layout_v<T>) {
+        // T is a simple type
+        filter->write(reinterpret_cast<const char *>(&src), sizeof(src));
+    } else {
+        static_assert(false_v<T>);
+    }
 
-   // finalize buffer writing
-   boost::iostreams::close(*filter);
-   return std::move(*buf);
+    // finalize buffer writing
+    boost::iostreams::close(*filter);
+    return std::move(*buf);
 }
 
 } // namespace nestdaq::Compressor

@@ -14,11 +14,11 @@ void add_option(boost::program_options::options_description_easy_init &a, std::s
                 boost::program_options::typed_value<T> *s, std::string_view description,
                 const std::unordered_map<std::string, T> &defaultValues)
 {
-   if (defaultValues.count(name.data()) == 0) {
-      a(name.data(), s, description.data());
-   } else {
-      a(name.data(), s->default_value(defaultValues.at(name.data())), description.data());
-   }
+    if (defaultValues.count(name.data()) == 0) {
+        a(name.data(), s, description.data());
+    } else {
+        a(name.data(), s->default_value(defaultValues.at(name.data())), description.data());
+    }
 }
 
 //______________________________________________________________________________
@@ -27,43 +27,43 @@ void add_option(boost::program_options::options_description_easy_init &a, std::s
                 boost::program_options::typed_value<T> *s, std::string_view description,
                 const std::unordered_map<std::string, T> &defaultValues, const T &t)
 {
-   if (defaultValues.count(name.data()) == 0) {
-      a(name.data(), s->default_value(t), description.data());
-   } else {
-      a(name.data(), s->default_value(defaultValues.at(name.data())), description.data());
-   }
+    if (defaultValues.count(name.data()) == 0) {
+        a(name.data(), s->default_value(t), description.data());
+    } else {
+        a(name.data(), s->default_value(defaultValues.at(name.data())), description.data());
+    }
 }
 
 //______________________________________________________________________________
 template <typename T, typename DescriptionMap>
 void add_options(boost::program_options::options_description &o, std::string_view s, const DescriptionMap &m)
 {
-   if constexpr (is_vector_v<T>) {
-      o.add_options()(s.data(), boost::program_options::value<T>()->multitoken(), m.at(s).data());
-   } else {
-      o.add_options()(s.data(), boost::program_options::value<T>(), m.at(s).data());
-   }
+    if constexpr (is_vector_v<T>) {
+        o.add_options()(s.data(), boost::program_options::value<T>()->multitoken(), m.at(s).data());
+    } else {
+        o.add_options()(s.data(), boost::program_options::value<T>(), m.at(s).data());
+    }
 }
 
 //______________________________________________________________________________
 template <typename T, typename DescriptionMap>
 void add_options(boost::program_options::options_description &o, std::string_view s, const DescriptionMap &m, T t)
 {
-   o.add_options()(s.data(), boost::program_options::value<T>()->default_value(t), m.at(s).data());
+    o.add_options()(s.data(), boost::program_options::value<T>()->default_value(t), m.at(s).data());
 }
 
 //______________________________________________________________________________
 template <typename T, typename DescriptionMap>
 void add_options(boost::program_options::options_description &o, std::string_view s, const DescriptionMap &m, T &r, T t)
 {
-   o.add_options()(s.data(), boost::program_options::value<T>(&r)->default_value(t), m.at(s).data());
+    o.add_options()(s.data(), boost::program_options::value<T>(&r)->default_value(t), m.at(s).data());
 }
 
 //______________________________________________________________________________
 template <typename DescriptionMap>
 void add_options(boost::program_options::options_description &o, std::string_view s, const DescriptionMap &m)
 {
-   o.add_options()(s.data(), m.at(s).data());
+    o.add_options()(s.data(), m.at(s).data());
 }
 
 //______________________________________________________________________________

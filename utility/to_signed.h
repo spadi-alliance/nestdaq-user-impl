@@ -7,8 +7,8 @@ namespace nestdaq {
 template <typename T, int N, typename U>
 constexpr T to_signed(U a)
 {
-   static_assert(N > 0);
-   return ((-(a >> (N - 1))) << (N - 1)) | a;
+    static_assert(N > 0);
+    return ((-(a >> (N - 1))) << (N - 1)) | a;
 }
 
 } // namespace nestdaq
