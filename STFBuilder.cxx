@@ -92,8 +92,10 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
         if (h == Data::Heartbeat) {
             int32_t hbframe = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
-            if ((fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) && (fHBFrame<0)) {
-                fHBFrame = hbframe;
+            if (fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) {
+                if (fHBFrame<0) {
+                    fHBFrame = hbframe;
+                }
             } else {
                 fHBFrame = hbframe;
             }
