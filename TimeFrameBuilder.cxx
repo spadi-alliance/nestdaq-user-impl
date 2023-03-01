@@ -6,6 +6,7 @@
 #include <numeric>
 #include <sstream>
 
+#include <fairmq/Poller.h>
 #include <fairmq/runDevice.h>
 
 #include "utility/HexDump.h"
@@ -24,6 +25,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("100000"),        "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
+    (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"), "Timeout (in msec) of send-socket polling")
     ;
 }
 
@@ -105,21 +107,20 @@ bool TimeFrameBuilder::ConditionalRun()
                     }
                 }
                 tfBuf.clear();
-                auto direction = fNumIteration % fNumDestination;
-                while ( Send(outParts, fOutputChannelName, direction) < 0) {
-                    // timeout
-                    if (NewStatePending()) {
-                        LOG(info) << "Device is not RUNNING";
-                        return false;
-                    }
-                    LOG(error) << "Failed to queue time frame : TF = " << h->timeFrameId;
 
-                    // skip the peer
+                auto poller = NewPoller(fOutputChannelName);
+                while (!NewStatePending()) {
+                    poller->Poll(fPollTimeoutMS);
+                    auto direction = fNumIteration % fNumDestination;
+                    if (poller->CheckOutput(fOutputChannelName, direction)) {
+                        // output ready
+                        if (Send(outParts, fOutputChannelName, direction) < 0) {
+                            LOG(error) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
+                        }
+                    }
+                    // move to the next peer even if the peer is busy.
                     ++fNumIteration;
-                    direction = fNumIteration % fNumDestination;
                 }
-                // enqueuing succeeded. move to the next peer
-                ++fNumIteration;
             } else {
                 // discard incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
@@ -170,6 +171,7 @@ void TimeFrameBuilder::InitTask()
     LOG(debug) << " number of source = " << fNumSource;
 
     fNumDestination = fChannels.at(fOutputChannelName).size();
+    fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
 
 }
 

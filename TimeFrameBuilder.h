@@ -21,6 +21,7 @@ public:
         static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
         static constexpr std::string_view InputChannelName  {"in-chan-name"};
         static constexpr std::string_view OutputChannelName {"out-chan-name"};
+        static constexpr std::string_view PollTimeout       {"poll-timeout"};
     };
 
     struct STFBuffer {
@@ -47,6 +48,7 @@ private:
     std::string fOutputChannelName;
     int fNumDestination {0};
     int64_t fNumIteration{0}; // used to determine the sub-socket index
+    int fPollTimeoutMS {0};
 
     std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
     std::unordered_set<uint64_t> fDiscarded;
