@@ -90,6 +90,15 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
             continue;
         }
 
+        if (h == Data::Heartbeat) {
+            int32_t hbframe = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
+            if ((fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) && (fHBFrame<0)) {
+                fHBFrame = hbframe;
+            } else {
+                fHBFrame = hbframe;
+            }
+        }
+
         if ((h == Data::Heartbeat) || h == Data::SpillEnd) {
             if (fLastHeader == 0) {
                 fLastHeader = h;
@@ -210,7 +219,12 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
 {
     //LOG(debug) << " FinalizeSTF()";
     auto stfHeader          = std::make_unique<STF::Header>();
-    stfHeader->timeFrameId  = fSTFId;
+    if (fTimeFrameIdType==TimeFrameIdType::SequenceNumberOfTimeFrames) {
+        stfHeader->timeFrameId = fSTFId;
+    } else {
+        stfHeader->timeFrameId = fHBFrame;
+    }
+    fHBFrame = -1;
     stfHeader->FEMType      = fFEMType;
     stfHeader->FEMId        = fFEMId;
     stfHeader->length       = std::accumulate(fWorkingPayloads->begin(), fWorkingPayloads->end(), sizeof(STF::Header),
@@ -402,6 +416,9 @@ void AmQStrTdcSTFBuilder::InitTask()
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
     fDQMChannelName    = fConfig->GetProperty<std::string>(opt::DQMChannelName.data());
 
+    fTimeFrameIdType = static_cast<TimeFrameIdType>(std::stoi(fConfig->GetProperty<std::string>(opt::TimeFrameIdType.data())));
+    fHBFrame = -1;
+
 
     //////
     FairMQMessagePtr msginfo(NewMessage());
@@ -504,8 +521,9 @@ void addCustomOptions(bpo::options_description& options)
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
     (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value("dqm"), "Name of the data quality monitoring")
-    (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),             "maximum number of heartbeat frame in one sub time frame")
-    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),             "STF split method")
+    (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),   "maximum number of heartbeat frame in one sub time frame")
+    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),   "STF split method")
+    (opt::TimeFrameIdType.data(),   bpo::value<std::string>()->default_value("0"),   "Time frame ID type: 0 = first HB delimiter, 1 = last HB delimiter, 2 = sequence number of time frames")
     ;
 }
 
