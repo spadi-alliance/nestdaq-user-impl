@@ -38,12 +38,15 @@ protected:
     void Init() override;
     void InitTask() override;
     void PostRun() override;
+    void PreRun() override;
 
 private:
     int fNumSource {0};
     int fBufferTimeoutInMs {100000};
     std::string fInputChannelName;
     std::string fOutputChannelName;
+    int fNumDestination {0};
+    int64_t fNumIteration{0}; // used to determine the sub-socket index
 
     std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
     std::unordered_set<uint64_t> fDiscarded;

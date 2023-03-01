@@ -352,8 +352,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
         if (dqmSocketExists) {
             if (Send(dqmParts, fDQMChannelName) < 0) {
                 // timeout
-                //if (!CheckCurrentState(RUNNING)) {
-                if (GetCurrentState() != fair::mq::State::Running) {
+                if (NewStatePending()) {
                     LOG(info) << "Device is not RUNNING";
                     return false;
                 }
@@ -369,8 +368,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
         unsigned int err_count = 0;
         while (Send(parts, fOutputChannelName, direction, 0) < 0) {
             // timeout
-            //if (!CheckCurrentState(RUNNING)) {
-            if (GetCurrentState() != fair::mq::State::Running) {
+            if (NewStatePending()) {
                 LOG(info) << "Device is not RUNNING";
                 return false;
             }
