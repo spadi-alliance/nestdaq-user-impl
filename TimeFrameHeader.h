@@ -11,10 +11,10 @@ namespace TimeFrame {
 constexpr uint64_t Magic {0x444145482d465440};
 
 struct Header {
-  uint64_t magic       {Magic};
-  uint32_t timeFrameId {0};
-  uint32_t numSource   {0};
-  uint64_t length      {0};
+    uint64_t magic       {Magic};
+    uint32_t timeFrameId {0};
+    uint32_t numSource   {0};
+    uint64_t length      {0};
 };
 
 
