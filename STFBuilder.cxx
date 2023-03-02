@@ -461,8 +461,8 @@ void AmQStrTdcSTFBuilder::InitTask()
     fHBFCounter = 0;
 
     LOG(debug) << " output channels: name = " << fOutputChannelName
-               << " num = " << fChannels.at(fOutputChannelName).size();
-    fNumDestination = fChannels.at(fOutputChannelName).size();
+               << " num = " << GetNumSubChannels(fOutputChannelName);
+    fNumDestination = GetNumSubChannels(fOutputChannelName);
     LOG(debug) << " number of desntination = " << fNumDestination;
     if (fNumDestination<1) {
         LOG(warn) << " number of destination is non-positive";

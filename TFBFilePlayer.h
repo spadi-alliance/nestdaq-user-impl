@@ -14,9 +14,10 @@ class TFBFilePlayer : public fair::mq::Device
 {
 public:
     struct OptionKey {
-        static constexpr std::string_view InputFileName{"in-file"};
-        static constexpr std::string_view OutputChannelName{"out-chan-name"};
-        static constexpr std::string_view MaxIterations{"max-iterations"};
+        static constexpr std::string_view InputFileName     {"in-file"};
+        static constexpr std::string_view OutputChannelName {"out-chan-name"};
+        static constexpr std::string_view MaxIterations     {"max-iterations"};
+        static constexpr std::string_view PollTimeout       {"poll-timeout"};
     };
     TFBFilePlayer();
     TFBFilePlayer(const TFBFilePlayer&) = delete;
@@ -35,6 +36,8 @@ private:
     std::ifstream fInputFile;
     int64_t fNumIteration{0};
     int64_t fMaxIterations{0};
+    int fNumDestination {0};
+    int fPollTimeoutMS {0};
 };
 
 #endif
