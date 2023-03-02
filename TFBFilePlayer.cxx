@@ -71,7 +71,7 @@ bool TFBFilePlayer::ConditionalRun()
     }
     LOG(debug4) << " buf size = " << buf.size();
     auto bufBegin = buf.data();
-    std::for_each(reinterpret_cast<uint64_t*>(bufBegin), reinterpret_cast<uint64_t*>(bufBegin)+buf.size()/sizeof(uint64_t), nestdaq::HexDump());
+    //std::for_each(reinterpret_cast<uint64_t*>(bufBegin), reinterpret_cast<uint64_t*>(bufBegin)+buf.size()/sizeof(uint64_t), nestdaq::HexDump());
 
     for (auto i=0u; i<tfHeader->numSource; ++i) {
         outParts.AddPart(NewMessage(sizeof(STF::Header)));
@@ -92,7 +92,7 @@ bool TFBFilePlayer::ConditionalRun()
         auto nWords = bodyNBytes/sizeof(uint64_t);
         LOG(debug4) << " nWords = " << nWords;
 
-        std::for_each(wordBegin, wordBegin+nWords, nestdaq::HexDump());
+        //std::for_each(wordBegin, wordBegin+nWords, nestdaq::HexDump());
         auto wBegin = wordBegin;
         auto wEnd   = wordBegin + nWords;
         for (auto ptr = wBegin; ptr!=wEnd; ++ptr) {
@@ -101,13 +101,15 @@ bool TFBFilePlayer::ConditionalRun()
 //            LOG(debug4) << fmt::format(" data type = {:x}", type);
             switch (d->head) {
             //-----------------------------
+            case AmQStrTdc::Data::SpillEnd:
+            //-----------------------------
             case AmQStrTdc::Data::Heartbeat: {
                 outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                 auto & msg = outParts[outParts.Size()-1];
                 LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
                 std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
                 LOG(debug4) << " dump";
-                std::for_each(reinterpret_cast<uint64_t*>(msg.GetData()), reinterpret_cast<uint64_t*>(msg.GetData())+msg.GetSize()/sizeof(uint64_t), nestdaq::HexDump());
+                //std::for_each(reinterpret_cast<uint64_t*>(msg.GetData()), reinterpret_cast<uint64_t*>(msg.GetData())+msg.GetSize()/sizeof(uint64_t), nestdaq::HexDump());
                 wBegin = ptr+1;
                 break;
             }
