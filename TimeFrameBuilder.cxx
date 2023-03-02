@@ -111,8 +111,8 @@ bool TimeFrameBuilder::ConditionalRun()
                 auto poller = NewPoller(fOutputChannelName);
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
-                    auto direction = fNumIteration % fNumDestination;
-                    ++fNumIteration;
+                    auto direction = fDirection % fNumDestination;
+                    ++fDirection;
                     if (poller->CheckOutput(fOutputChannelName, direction)) {
                         // output ready
 
@@ -120,7 +120,7 @@ bool TimeFrameBuilder::ConditionalRun()
                             // successfully sent
                             break;
                         } else {
-                            LOG(error) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
+                            LOG(warn) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
                         }
                     }
                 }
@@ -173,7 +173,7 @@ void TimeFrameBuilder::InitTask()
 
     LOG(debug) << " number of source = " << fNumSource;
 
-    fNumDestination = fChannels.at(fOutputChannelName).size();
+    fNumDestination = GetNumSubChannels(fOutputChannelName);
     fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
 
 }
@@ -212,5 +212,5 @@ void TimeFrameBuilder::PostRun()
 //_____________________________________________________________________________
 void TimeFrameBuilder::PreRun()
 {
-    fNumIteration = 0;
+    fDirection    = 0;
 }

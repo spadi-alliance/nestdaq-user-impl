@@ -1,8 +1,9 @@
 #include <functional>
 
 //#include <fmt/core.h>
-#include <fairmq/runDevice.h>
 #include <fairmq/FairMQLogger.h>
+#include <fairmq/Poller.h>
+#include <fairmq/runDevice.h>
 
 #include "AmQStrTdcData.h"
 #include "FileSinkHeaderBlock.h"
@@ -23,7 +24,9 @@ void addCustomOptions(bpo::options_description& options)
     //
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the data output channel")
     //
-    (opt::MaxIterations.data(), bpo::value<std::string>()->default_value("0"), "maximum number of iterations");
+    (opt::MaxIterations.data(), bpo::value<std::string>()->default_value("0"), "maximum number of iterations")
+    //
+    (opt::PollTimeout.data(),   bpo::value<std::string>()->default_value("0"), "Timeout of send-socket polling (in msec)");
 }
 
 //_____________________________________________________________________________
@@ -121,16 +124,23 @@ bool TFBFilePlayer::ConditionalRun()
         bufBegin += stfHeader->length;
     }
     LOG(debug4) << " n-iteration = " << fNumIteration << ": out parts.size() = " << outParts.Size();
-    while (Send(outParts, fOutputChannelName) < 0) {
-        if (NewStatePending()) {
-            LOG(info) << "Device is not RUNNING";
-            return false;
+
+    auto poller = NewPoller(fOutputChannelName);
+    while (!NewStatePending()) {
+        poller->Poll(fPollTimeoutMS);
+        auto direction = fDirection % fNumDestination;
+        ++fDirection;
+        if (poller->CheckOutput(fOutputChannelName, direction)) {
+            if (Send(outParts, fOutputChannelName, direction) > 0) {
+                // successfully sent
+                break;
+            } else {
+                LOG(warn) << "Failed to enqueue time frame : TF = " << tfHeader->timeFrameId;
+            }
         }
-        LOG(error) << "Failed to enqueue messages : parts.size() = " << outParts.Size();
     }
 
     ++fNumIteration;
-
     if (fMaxIterations>0 && fMaxIterations <= fNumIteration) {
         LOG(info) << "number of iterations of ConditionalRun() reached maximum.";
         return false;
@@ -145,6 +155,9 @@ void TFBFilePlayer::InitTask()
     fInputFileName     = fConfig->GetProperty<std::string>(opt::InputFileName.data());
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
     fMaxIterations     = std::stoll(fConfig->GetProperty<std::string>(opt::MaxIterations.data()));
+    fPollTimeoutMS     = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
+
+    fNumDestination = GetNumSubChannels(fOutputChannelName);
 }
 
 // ----------------------------------------------------------------------------
@@ -161,6 +174,7 @@ void TFBFilePlayer::PostRun()
 void TFBFilePlayer::PreRun()
 {
     fNumIteration = 0;
+    fDirection = 0;
     fInputFile.open(fInputFileName.data(), std::ios::binary);
     if (!fInputFile) {
         LOG(error) << " failed to open file = " << fInputFileName;
