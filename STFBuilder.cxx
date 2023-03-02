@@ -40,7 +40,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
     if(mdebug) {
         LOG(debug)
-                << " buildframe STF = " << fSTFId << " HBF = " << fHBFCounter << "\n"
+                << " buildframe STF = " << fSTFSequenceNumber << " HBF = " << fHBFCounter << "\n"
                 << " input payload entries = " << fInputPayloads.size()
                 << " offset " << offset << std::endl;
     }
@@ -90,18 +90,6 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
             continue;
         }
 
-        if (h == Data::Heartbeat) {
-            int32_t hbframe = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
-            //LOG(debug) << " heartbeat delimiter comes " << std::hex << hbframe << ", raw = " << word->raw;
-            if (fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) {
-                if (fHBFrame<0) {
-                    fHBFrame = hbframe;
-                }
-            } else {
-                fHBFrame = hbframe;
-            }
-        }
-
         if ((h == Data::Heartbeat) || h == Data::SpillEnd) {
             if (fLastHeader == 0) {
                 fLastHeader = h;
@@ -110,6 +98,16 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 fLastHeader = 0;
             } else {
                 // unexpected @TODO
+            }
+
+            int32_t delimiterFrameId = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
+            //LOG(debug) << " heartbeat/spill-end delimiter comes " << std::hex << hbframe << ", raw = " << word->raw;
+            if (fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) { // first heartbeat delimiter or first spill-off delimiter
+                if (fSTFId<0) {
+                    fSTFId = delimiterFrameId;
+                }
+            } else { // last heartbeat delimiter or last spill-off delimiter, or sequence number
+                fSTFId = delimiterFrameId;
             }
 #if 0
             ++hbf_flag;
@@ -223,11 +221,11 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
     //LOG(debug) << " FinalizeSTF()";
     auto stfHeader          = std::make_unique<STF::Header>();
     if (fTimeFrameIdType==TimeFrameIdType::SequenceNumberOfTimeFrames) {
-        stfHeader->timeFrameId = fSTFId;
+        stfHeader->timeFrameId = fSTFSequenceNumber;
     } else {
-        stfHeader->timeFrameId = fHBFrame;
+        stfHeader->timeFrameId = fSTFId;
     }
-    fHBFrame = -1;
+    fSTFId = -1;
     stfHeader->FEMType      = fFEMType;
     stfHeader->FEMId        = fFEMId;
     stfHeader->length       = std::accumulate(fWorkingPayloads->begin(), fWorkingPayloads->end(), sizeof(STF::Header),
@@ -251,7 +249,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
 
     fOutputPayloads.emplace(std::move(fWorkingPayloads));
 
-    ++fSTFId;
+    ++fSTFSequenceNumber;
     fHBFCounter = 0;
 }
 
@@ -360,7 +358,9 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
             }
         }
 
-        auto direction = h->timeFrameId % fNumDestination;
+        auto direction = (fTimeFrameIdType==TimeFrameIdType::SequenceNumberOfTimeFrames)
+                         ? (h->timeFrameId % fNumDestination)
+                         : ((h->timeFrameId/fMaxHBF) % fNumDestination);
 
         if(mdebug)
             std::cout << "direction: " << direction << std::endl;
@@ -418,7 +418,7 @@ void AmQStrTdcSTFBuilder::InitTask()
     fDQMChannelName    = fConfig->GetProperty<std::string>(opt::DQMChannelName.data());
 
     fTimeFrameIdType = static_cast<TimeFrameIdType>(std::stoi(fConfig->GetProperty<std::string>(opt::TimeFrameIdType.data())));
-    fHBFrame = -1;
+    fSTFId = -1;
 
 
     //////
@@ -448,18 +448,25 @@ void AmQStrTdcSTFBuilder::InitTask()
 
     auto s_maxHBF = fConfig->GetProperty<std::string>(opt::MaxHBF.data());
     fMaxHBF = std::stoi(s_maxHBF);
+    if (fMaxHBF<1) {
+        LOG(warn) << "fMaxHBF: non-positive value was specified = " << fMaxHBF;
+        fMaxHBF = 1;
+    }
     LOG(debug) << "fMaxHBF = " <<fMaxHBF;
 
     auto s_splitMethod = fConfig->GetProperty<std::string>(opt::SplitMethod.data());
     fSplitMethod = std::stoi(s_splitMethod);
 
-    fSTFId      = 0;
+    fSTFSequenceNumber = 0;
     fHBFCounter = 0;
 
     LOG(debug) << " output channels: name = " << fOutputChannelName
                << " num = " << fChannels.at(fOutputChannelName).size();
     fNumDestination = fChannels.at(fOutputChannelName).size();
     LOG(debug) << " number of desntination = " << fNumDestination;
+    if (fNumDestination<1) {
+        LOG(warn) << " number of destination is non-positive";
+    }
 
     if (fChannels.count(fDQMChannelName)) {
         LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName

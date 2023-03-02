@@ -68,12 +68,12 @@ private:
     std::string fDQMChannelName;
     int fMaxHBF {1};
     int fHBFCounter {0};
-    uint64_t fSTFId {0};
+    uint32_t fSTFSequenceNumber {0};
     int fSplitMethod {0};
     uint8_t fLastHeader {0};
     // int fH_flag {0};
     TimeFrameIdType fTimeFrameIdType;
-    int32_t fHBFrame{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
+    int32_t fSTFId{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
 
     bool mdebug;
     RecvBuffer fInputPayloads;
