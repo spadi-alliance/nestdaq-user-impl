@@ -48,26 +48,22 @@ bool TimeFrameBuilder::ConditionalRun()
     namespace TF  = TimeFrame;
 
     // receive
-    auto poller = NewPoller(fInputChannelName, fOutputChannelName);
-    poller->Poll(fPollTimeoutMS);
-    if (poller->CheckInput(fInputChannelName, 0)) {
-        FairMQParts inParts;
-        if (Receive(inParts, fInputChannelName, 0) > 0) {
-            assert(inParts.Size() >= 2);
+    FairMQParts inParts;
+    if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
+        assert(inParts.Size() >= 2);
 
-            LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
+        LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
 
-            auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
-            auto stfId     = stfHeader->timeFrameId;
+        auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
+        auto stfId     = stfHeader->timeFrameId;
 
-            LOG(debug4) << "stfId: "<< stfId;
-            LOG(debug4) << "msg size: " << inParts.Size();
+        LOG(debug4) << "stfId: "<< stfId;
+        LOG(debug4) << "msg size: " << inParts.Size();
 
-            if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
-                fTFBuffer[stfId].reserve(fNumSource);
-            }
-            fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
+        if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
+            fTFBuffer[stfId].reserve(fNumSource);
         }
+        fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
     }
 
     // send
@@ -104,6 +100,7 @@ bool TimeFrameBuilder::ConditionalRun()
                 }
                 tfBuf.clear();
 
+                auto poller = NewPoller(fOutputChannelName);
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
                     auto direction = fDirection % fNumDestination;
