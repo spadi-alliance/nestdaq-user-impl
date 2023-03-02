@@ -111,8 +111,8 @@ bool TimeFrameBuilder::ConditionalRun()
                 auto poller = NewPoller(fOutputChannelName);
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
-                    auto direction = fNumIteration % fNumDestination;
-                    ++fNumIteration;
+                    auto direction = fDirection % fNumDestination;
+                    ++fDirection;
                     if (poller->CheckOutput(fOutputChannelName, direction)) {
                         // output ready
 
@@ -212,5 +212,5 @@ void TimeFrameBuilder::PostRun()
 //_____________________________________________________________________________
 void TimeFrameBuilder::PreRun()
 {
-    fNumIteration = 0;
+    fDirection    = 0;
 }

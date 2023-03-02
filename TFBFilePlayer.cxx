@@ -128,8 +128,8 @@ bool TFBFilePlayer::ConditionalRun()
     auto poller = NewPoller(fOutputChannelName);
     while (!NewStatePending()) {
         poller->Poll(fPollTimeoutMS);
-        auto direction = fNumIteration % fNumDestination;
-        ++fNumIteration;
+        auto direction = fDirection % fNumDestination;
+        ++fDirection;
         if (poller->CheckOutput(fOutputChannelName, direction)) {
             if (Send(outParts, fOutputChannelName, direction) > 0) {
                 // successfully sent
@@ -140,6 +140,7 @@ bool TFBFilePlayer::ConditionalRun()
         }
     }
 
+    ++fNumIteration;
     if (fMaxIterations>0 && fMaxIterations <= fNumIteration) {
         LOG(info) << "number of iterations of ConditionalRun() reached maximum.";
         return false;
@@ -173,6 +174,7 @@ void TFBFilePlayer::PostRun()
 void TFBFilePlayer::PreRun()
 {
     fNumIteration = 0;
+    fDirection = 0;
     fInputFile.open(fInputFileName.data(), std::ios::binary);
     if (!fInputFile) {
         LOG(error) << " failed to open file = " << fInputFileName;

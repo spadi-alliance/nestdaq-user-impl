@@ -34,10 +34,11 @@ private:
     std::string fOutputChannelName;
     std::string fInputFileName;
     std::ifstream fInputFile;
-    int64_t fNumIteration{0};
-    int64_t fMaxIterations{0};
-    int fNumDestination {0};
-    int fPollTimeoutMS {0};
+    int64_t fNumIteration  {0};
+    int64_t fMaxIterations {0};
+    int fDirection         {0};
+    int fNumDestination    {0};
+    int fPollTimeoutMS     {0};
 };
 
 #endif
