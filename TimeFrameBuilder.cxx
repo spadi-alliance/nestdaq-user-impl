@@ -25,7 +25,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("10000"), "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),    "Name of the input channel")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),   "Name of the output channel")
-    (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),     "Timeout (in msec) of send-socket polling")
+    (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),     "Timeout (in msec) of polling")
     ;
 }
 
@@ -49,29 +49,21 @@ bool TimeFrameBuilder::ConditionalRun()
 
     // receive
     FairMQParts inParts;
-    if (Receive(inParts, fInputChannelName, 0, 1000) > 0) {
+    if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
         assert(inParts.Size() >= 2);
 
-        LOG(debug) << " received message parts size = " << inParts.Size() << std::endl;
+        LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
 
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
 
-        LOG(debug) << "stfId: "<< stfId;
-        LOG(debug) << "msg size: " << inParts.Size();
-
-        //if (fDiscarded.find(stfId) == fDiscarded.end()) {
-        // accumulate sub time frame with same STF ID
+        LOG(debug4) << "stfId: "<< stfId;
+        LOG(debug4) << "msg size: " << inParts.Size();
 
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
             fTFBuffer[stfId].reserve(fNumSource);
         }
         fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
-        //}
-        //else {
-        //    // if received ID has been previously discarded.
-        //    LOG(warn) << "Received part from an already discarded timeframe with id " << stfId;
-        //}
     }
 
     // send
@@ -84,7 +76,7 @@ bool TimeFrameBuilder::ConditionalRun()
 
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
 
-                LOG(debug) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
+                LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
 
                 // move ownership to complete time frame
                 FairMQParts outParts;
@@ -112,7 +104,7 @@ bool TimeFrameBuilder::ConditionalRun()
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
                     auto direction = fDirection % fNumDestination;
-                    ++fDirection;
+                    fDirection = direction + 1;
                     if (poller->CheckOutput(fOutputChannelName, direction)) {
                         // output ready
 
@@ -122,6 +114,9 @@ bool TimeFrameBuilder::ConditionalRun()
                         } else {
                             LOG(warn) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
                         }
+                    }
+                    if (fNumDestination==1) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     }
                 }
             } else {

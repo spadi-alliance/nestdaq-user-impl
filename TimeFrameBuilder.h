@@ -47,7 +47,7 @@ private:
     std::string fInputChannelName;
     std::string fOutputChannelName;
     int fNumDestination   {0};
-    int fDirection        {0}; // used to determine the sub-socket index
+    uint32_t fDirection   {0}; // used to determine the sub-socket index
     int fPollTimeoutMS    {0};
 
     std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
