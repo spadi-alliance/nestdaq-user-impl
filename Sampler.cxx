@@ -224,7 +224,8 @@ bool Sampler::ConditionalRun()
         continue;
     }
 
-    if(fShow) {
+    //    if(fShow) {
+    if(true) {
         std::cout << "Out of cycle "<< std::endl;
         for(int ia = 0; ia < fnWordCount*fnByte; ia++) {
             printf("%02x ", buffer[ia]);
@@ -234,7 +235,7 @@ bool Sampler::ConditionalRun()
         }
     }
     
-    sleep(2);
+    sleep(1);
     
     FairMQMessagePtr msg( NewMessage((char*)buffer,
                                      //				  fnByte*nword
@@ -243,8 +244,8 @@ bool Sampler::ConditionalRun()
     {
         delete [] static_cast<uint8_t*>(object);
     }
-                                    )
-                        );
+				     )
+			  );
 
 
     LOG(info) << "Sending \"" << nByteSize << "\"";

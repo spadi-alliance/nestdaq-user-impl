@@ -258,7 +258,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
 bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 {
     namespace Data = AmQStrTdc::Data;
-    using Bits     = Data::Bits;
+    //    using Bits     = Data::Bits;
 
     if(mdebug)
         std::cout << "HandleData() HBF " << fHBFCounter << " input message " << msg->GetSize() << std::endl;
@@ -297,14 +297,21 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
                     msgCopy->Copy(*tmsg);
                     dqmParts.AddPart(std::move(msgCopy));
                 } else {
+		  /*
                     auto b = reinterpret_cast<Bits*>(tmsg->GetData());
                     if (b->head == Data::Heartbeat     ||
                             //	      b->head == Data::ErrorRecovery ||
-                            b->head == Data::SpillEnd) {
+			b->head == Data::Data     ||
+			b->head == Data::SpillEnd) {
                         FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
                         msgCopy->Copy(*tmsg);
                         dqmParts.AddPart(std::move(msgCopy));
-                    }
+		    }
+		  */
+		    
+		  FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+		  msgCopy->Copy(*tmsg);
+		  dqmParts.AddPart(std::move(msgCopy));		  
                 }
             }
 
