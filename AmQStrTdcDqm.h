@@ -53,6 +53,8 @@ private:
     void InitTask() override;
     void PostRun() override;
 
+    bool fDebug  {false};
+  
     int fNumSource {1};
     int fBufferTimeoutInMs {100000};
     std::string fInputChannelName;

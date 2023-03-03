@@ -36,7 +36,7 @@ namespace AmQStrTdc::Data {
       struct {
 	uint64_t hrtdc      : 29; // [28:0]
 	uint64_t hrtot      : 22; // [50:29]
-	uint64_t hrch       : 10; // [57:51]
+	uint64_t hrch       :  7; // [57:51]
 	uint64_t hrdtype    :  6; // [63:58]
       };
 

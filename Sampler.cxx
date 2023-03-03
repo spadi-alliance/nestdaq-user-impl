@@ -117,7 +117,7 @@ void Sampler::SendFEMInfo() {
     memcpy(&fbuf[16], &resv, sizeof(char)*8);
 
     //memcpy(fbuf, &fem_info_, sizeof(fem_info_));
-
+    
     FairMQMessagePtr initmsg( NewMessage((char*)fbuf,
                                          fnByte*3,
                                          [](void* object, void*)
@@ -224,8 +224,7 @@ bool Sampler::ConditionalRun()
         continue;
     }
 
-    //    if(fShow) {
-    if(true) {
+    if(fShow) {
         std::cout << "Out of cycle "<< std::endl;
         for(int ia = 0; ia < fnWordCount*fnByte; ia++) {
             printf("%02x ", buffer[ia]);
@@ -235,7 +234,6 @@ bool Sampler::ConditionalRun()
         }
     }
     
-    sleep(1);
     
     FairMQMessagePtr msg( NewMessage((char*)buffer,
                                      //				  fnByte*nword

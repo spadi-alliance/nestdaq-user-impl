@@ -86,10 +86,8 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 {
 
   namespace STF = SubTimeFrame;
-
-  LOG(debug) << "Check";
   namespace Data = AmQStrTdc::Data;
-  //using Word     = Data::Word;
+
   using Bits     = Data::Bits;
 
   // [time-stamp, femId-list]
@@ -110,14 +108,17 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     auto& [stf, t] = stfs[istf];
     auto h = reinterpret_cast<STF::Header*>(stf.At(0)->GetData());
     auto nmsg  = stf.Size();
-    LOG(debug) << "nmsg: " << nmsg;
-    LOG(debug) << "magic: " << std::hex << h->magic << std::dec;
-    LOG(debug) << "timeFrameId: " << h->timeFrameId;
-    LOG(debug) << "FEMType: " << h->FEMType;
-    LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
-    LOG(debug) << "length: " << h->length;
-    LOG(debug) << "time_sec: " << h->time_sec;
-    LOG(debug) << "time_sec: " << h->time_usec;
+
+    if(fDebug){
+      LOG(debug) << "nmsg: " << nmsg;      
+      LOG(debug) << "magic: " << std::hex << h->magic << std::dec;
+      LOG(debug) << "timeFrameId: " << h->timeFrameId;
+      LOG(debug) << "FEMType: " << h->FEMType;
+      LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
+      LOG(debug) << "length: " << h->length;
+      LOG(debug) << "time_sec: " << h->time_sec;
+      LOG(debug) << "time_sec: " << h->time_usec;
+    }
     
     //auto len   = h->length - sizeof(STF::Header); // data size including tdc measurement
     //auto nword = len/sizeof(Word);
@@ -125,26 +126,26 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     //    auto femIdx = fFEMId[h->FEMId];
     auto femIdx = (h->FEMId & 0x0f) - 1;
 
-    //    auto femIdx = (h->FEMId & 0x0f) - 1;
-    LOG(debug) << "femIdx: "<< femIdx;
-    LOG(debug) << "femIdx_bit: "<< (h->FEMId & 0x0f) - 1;
-      
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
 	    
     for (int imsg=1; imsg<nmsg; ++imsg) {
       const auto& msg = stf.At(imsg);
       auto wb =  reinterpret_cast<Bits*>(msg->GetData());
-      LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
-      LOG(debug) << " head =" << std::hex << wb->head << std::dec;
+      if(fDebug){
+	LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
+	LOG(debug) << " head =" << std::hex << wb->head << std::dec;
+      }
       
       switch (wb->head) {
       case Data::Heartbeat:
-	LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
-	LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
-	LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
-	LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
-	LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	
+	if(fDebug){
+	  LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
+	  LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
+	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
+	  LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
+	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;
+	}
 
         if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
           LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
@@ -171,17 +172,25 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
         spillEnd.insert(femIdx);
 
         break;
-      case Data::Data: 
-        LOG(debug) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
-                   << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
-
-	//	LOG(debug) << "lrtdc: "   << std::hex << wb->zero_t1 << std::dec;
-	//	LOG(debug) << "lrtdcCh: " << std::hex << wb->ch << std::dec;
-	LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
-	LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
+      case Data::Data:
 	
-	if (wb->zero_t1) lrtdcCnt[wb->ch].insert(femIdx);
-	if (wb->hrtdc)   hrtdcCnt[wb->hrch].insert(femIdx);
+	if(fDebug){
+	  LOG(debug) << "FEMtype: "<< h->FEMType;
+	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	  
+	  LOG(debug) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
+		     << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
+	}
+
+	if(fDebug){
+	  if(h->FEMType==1)
+	    LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
+
+	  if(h->FEMType==2)	  
+	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
+	}
+	
+	if(h->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
+	if(h->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
 	
         break;
       default:
@@ -217,11 +226,11 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
   
-  for (const auto& [t, fems] : heartbeatCnt10) {
-    for (auto femId : fems) {
-      HF1(fH1Map, 1000+femId, t);
-    }
-  }
+  // for (const auto& [t, fems] : heartbeatCnt10) {
+  //   for (auto femId : fems) {
+  //     HF1(fH1Map, 1000+femId, t);
+  //   }
+  // }
 
   for (const auto femId : spillOn) {
     HF1(fH1Map, 2, femId);
@@ -231,6 +240,12 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     HF1(fH1Map, 3, femId);
   }
 
+  for (const auto& [t, fems] : heartbeatCnt10) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 4, femId, t);
+    }
+  }
+  
   for (const auto& [t, fems] : lrtdcCnt) {
     for (auto femId : fems) {
       HF1(fH1Map, 2000+femId, t);
@@ -263,7 +278,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
   std::cout << "out of switch5"<< std::endl;  
   */
 
-  LOG(debug) << __FUNCTION__ << " : " << __LINE__;
+  //  LOG(debug) << __FUNCTION__ << " : " << __LINE__;
 
   HF1(fH1Map, 0, OK);
 }
@@ -273,9 +288,7 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
 {
 
   namespace STF = SubTimeFrame;
-  namespace Data = AmQStrTdc::Data;
-  
-  LOG(debug) << "start " ;
+  namespace Data = AmQStrTdc::Data;  
 
   (void)index;
   assert(parts.Size()>=2);
@@ -289,8 +302,6 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
     }
   }
 
-  LOG(debug) << "Received data n msgs = " << parts.Size();
-  
   auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
   auto stfId    = stfHeader->timeFrameId;
 
@@ -327,7 +338,6 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
 	if (fFEMId.empty()) {
 	  for (auto& [id, buf] : fTFBuffer) {
 	    fFEMId[id] = fFEMId.size();
-	    LOG(debug) << "id: " << id << "  fFEMId: "<< fFEMId[id];
 	  }
 	}
 	Check(std::move(stfs));
@@ -403,11 +413,12 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
     };
 #endif
 
-    HB1(0, "status",           3,          -0.5, 3-0.5, "");
-    //    HB1(1, "# Heatbeat",       fNumSource, -0.5, fNumSource-0.5, "");
-    HB1(1, "# Heatbeat",       10, -0.5, 10-0.5, "");
-    HB1(2, "# spill On",       10, -0.5, 10-0.5, "");
-    HB1(3, "# spill end",      10, -0.5, 10-0.5, "");
+    HB1(0, "status",             3, -0.5, 3-0.5, "");
+    HB1(1, "# Heatbeat",        11, -0.5, 10+0.5, "");
+    HB1(2, "# spill On",        11, -0.5, 10+0.5, "");
+    HB1(3, "# spill end",       11, -0.5, 10+0.5, "");
+    HB1(4, "# HB Delimiter",    11, -0.5, 10+0.5, "");
+    HB1(5, "# Spill Delimiter", 11, -0.5, 10+0.5, "");
 
     //    for (int i=0; i<fNumSource; ++i) {
     for (int i=0; i<10; ++i) {
@@ -437,25 +448,25 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         HB1(300+i, hname.c_str(), 1000, -0.5, 2000-0.5, "Length");
     }
 
-    for (int i=0; i<10; ++i) {
-        boost::format name("delimiter_flag_%d");
-        name % i;
-        std::string hname = boost::str(name);
-        HB1(1000+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
-    }
+    // for (int i=0; i<10; ++i) {
+    //     boost::format name("delimiter_flag_%d");
+    //     name % i;
+    //     std::string hname = boost::str(name);
+    //     HB1(1000+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
+    // }
 
     for (int i=0; i<10; ++i) {
         boost::format name("lrtdcCnt_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(2000+i, hname.c_str(), 130, -0.5, 130-0.5, "LR-TDC Counts");
+        HB1(2000+i, hname.c_str(), 131, -1.5, 130-0.5, "LR-TDC Counts");
     }
 
     for (int i=0; i<10; ++i) {
         boost::format name("hrtdcCnt_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(2100+i, hname.c_str(), 130, -0.5, 130-0.5, "HR-TDC Counts");
+        HB1(2100+i, hname.c_str(), 131, -1.5, 130-0.5, "HR-TDC Counts");
     }
 
     gSystem->ProcessEvents();
