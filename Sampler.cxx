@@ -233,7 +233,9 @@ bool Sampler::ConditionalRun()
             }
         }
     }
-
+    
+    sleep(2);
+    
     FairMQMessagePtr msg( NewMessage((char*)buffer,
                                      //				  fnByte*nword
                                      nByteSize,
@@ -246,6 +248,7 @@ bool Sampler::ConditionalRun()
 
 
     LOG(info) << "Sending \"" << nByteSize << "\"";
+
 
     if (Send(msg, fOutputChannelName) < 0) {
         LOG(warn) << " event:  " << fNumIterations;

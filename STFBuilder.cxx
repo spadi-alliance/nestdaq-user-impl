@@ -468,10 +468,14 @@ void AmQStrTdcSTFBuilder::InitTask()
         LOG(warn) << " number of destination is non-positive";
     }
 
-    if (fChannels.count(fDQMChannelName)) {
-        LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName
-                   << " num = " << fChannels.at(fDQMChannelName).size();
-    }
+
+    LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName;
+      //	       << " num = " << fChannels.count(fDQMChannelName); 
+    
+    //    if (fChannels.count(fDQMChannelName)) {
+    //        LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName
+    //                   << " num = " << fChannels.at(fDQMChannelName).size();      
+    //    }
 
     OnData(fInputChannelName, &AmQStrTdcSTFBuilder::HandleData);
 

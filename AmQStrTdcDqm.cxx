@@ -19,18 +19,46 @@
 #include "STFBuilder.h"
 #include "AmQStrTdcData.h"
 #include "utility/Reporter.h"
+#include "utility/HexDump.h"
+#include "utility/MessageUtil.h"
+
 #include "AmQStrTdcDqm.h"
 
-TH1* HF1(std::unordered_map<std::string, TH1*>& h1Map,
+
+namespace bpo = boost::program_options;
+
+//______________________________________________________________________________
+
+void addCustomOptions(bpo::options_description& options)
+{
+  using opt = AmQStrTdcDqm::OptionKey;
+  options.add_options()
+    (opt::NumSource.data(),          bpo::value<std::string>()->default_value("1"), "Number of source endpoint")
+    (opt::BufferTimeoutInMs.data(),  bpo::value<std::string>()->default_value("100000"), "Buffer timeout in milliseconds")
+    (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
+    (opt::Http.data(),               bpo::value<std::string>()->default_value("http:192.168.2.53:5999"), "http engine and port, etc.")
+    (opt::UpdateInterval.data(),     bpo::value<std::string>()->default_value("1000"), "Canvas update rate in milliseconds")
+    ;
+}
+
+
+//______________________________________________________________________________
+std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
+{
+   return std::make_unique<AmQStrTdcDqm>();
+}
+
+
+TH1* HF1(std::unordered_map<std::string, TH1*>& h1Map, 
          int id, double x, double w=1.0)
 {
-    //  auto name = TString::Form("h%04d", id);
-    boost::format name("h%06d");
-    name % id;
-    auto h    = h1Map.at(name.str());
-    if (h) h->Fill(x, w);
+  //  auto name = TString::Form("h%04d", id);
+  boost::format name("h%04d");
+  name % id;
+  auto h    = h1Map.at(name.str());
+  if (h) h->Fill(x, w);
 
-    return h;
+  return h;
 }
 
 
@@ -56,94 +84,141 @@ AmQStrTdcDqm::AmQStrTdcDqm()
 //______________________________________________________________________________
 void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 {
-    namespace STF = SubTimeFrame;
 
-    // LOG(debug) << "Check";
-    namespace Data = AmQStrTdc::Data;
-    //using Word     = Data::Word;
-    using Bits     = Data::Bits;
+  namespace STF = SubTimeFrame;
 
-    // [time-stamp, femId-list]
-    std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
-    std::unordered_map<uint16_t, std::unordered_set<uint32_t>> errorRecoveryCnt;
-    std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hb_or_err;
-    std::unordered_set<uint32_t> spillEnd;
+  LOG(debug) << "Check";
+  namespace Data = AmQStrTdc::Data;
+  //using Word     = Data::Word;
+  using Bits     = Data::Bits;
 
-    for (int istf=0; istf<fNumSource; ++istf) {
-        auto& [stf, t] = stfs[istf];
-        auto h = reinterpret_cast<STF::Header*>(stf.At(0)->GetData());
-        auto nmsg  = stf.Size();
-        //auto len   = h->length - sizeof(STF::Header); // data size including tdc measurement
-        //auto nword = len/sizeof(Word);
-        //auto nhit  = nword - nmsg;
-        auto femIdx = fFEMId[h->FEMId];
+  // [time-stamp, femId-list]
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
+  // std::unordered_map<uint16_t, std::unordered_set<uint32_t>> errorRecoveryCnt;
+  // std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hb_or_err;
+  std::unordered_set<uint32_t> spillEnd;
+  std::unordered_set<uint32_t> spillOn;
 
-        for (int imsg=1; imsg<nmsg; ++imsg) {
-            const auto& msg = stf.At(imsg);
-            auto wb =  reinterpret_cast<Bits*>(msg->GetData());
-            // LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
-            switch (wb->head) {
-            case Data::Heartbeat:
-                if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
-                    LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
-                }
-                heartbeatCnt[wb->hbframe].insert(femIdx);
-                hb_or_err[wb->hbframe].insert(femIdx);
-                break;
-            case Data::SpillEnd:
-                if (spillEnd.count(femIdx)) {
-                    LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
-                }
-                spillEnd.insert(femIdx);
-                break;
-            case Data::Data:
-                LOG(error) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
-                           << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
-                break;
-            default:
-                LOG(error) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec  << " " << femIdx
-                           << " unknown Head : " << std::hex << wb->head << std::dec;
-                break;
-            }
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt10;
+  
+  
+  for (int istf=0; istf<fNumSource; ++istf) {
+    auto& [stf, t] = stfs[istf];
+    auto h = reinterpret_cast<STF::Header*>(stf.At(0)->GetData());
+    auto nmsg  = stf.Size();
+    LOG(debug) << "nmsg: " << nmsg;
+    LOG(debug) << "magic: " << std::hex << h->magic << std::dec;
+    LOG(debug) << "timeFrameId: " << h->timeFrameId;
+    LOG(debug) << "FEMType: " << h->FEMType;
+    LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
+    LOG(debug) << "length: " << h->length;
+    LOG(debug) << "time_sec: " << h->time_sec;
+    LOG(debug) << "time_sec: " << h->time_usec;
+    
+    //auto len   = h->length - sizeof(STF::Header); // data size including tdc measurement
+    //auto nword = len/sizeof(Word);
+    //auto nhit  = nword - nmsg;
+    auto femIdx = fFEMId[h->FEMId];
+
+    for (int imsg=1; imsg<nmsg; ++imsg) {
+      const auto& msg = stf.At(imsg);
+      auto wb =  reinterpret_cast<Bits*>(msg->GetData());
+      LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
+      LOG(debug) << " head =" << std::hex << wb->head << std::dec;
+      
+      switch (wb->head) {
+      case Data::Heartbeat:
+	LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
+	LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
+	LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
+	LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
+	LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	
+
+        if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
+          LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
         }
-    }
+        heartbeatCnt[wb->hbframe].insert(femIdx);
 
-    for (const auto& [t, fems] :  heartbeatCnt) {
-        for (auto femId : fems) {
-            HF1(fH1Map, 1, femId);
-            HF1(fH1Map, 100+femId, t);
+	heartbeatCnt10[wb->hbflag].insert(femIdx);
+
+        //hb_or_err[wb->hbframe].insert(femIdx);
+        break;
+      case Data::SpillOn: 
+        if (spillEnd.count(femIdx)) {
+          LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
         }
-    }
-
-    for (const auto& [t, fems] : errorRecoveryCnt) {
-        for (auto femId : fems) {
-            HF1(fH1Map, 2, femId);
-            HF1(fH1Map, 200+femId, t);
+        spillOn.insert(femIdx);
+        break;
+      case Data::SpillEnd: 
+        if (spillEnd.count(femIdx)) {
+          LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
         }
+        spillEnd.insert(femIdx);
+        break;
+      case Data::Data: 
+        LOG(debug) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
+                   << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
+        break;
+      default:
+        LOG(error) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec  << " " << femIdx
+                   << " unknown Head : " << std::hex << wb->head << std::dec;
+        break;
+      }
     }
+  }
 
-    bool mismatch=false;
-    for (const auto& [t, fems] : hb_or_err) {
-        for (auto femId : fems) {
-            HF1(fH1Map, 3, femId);
-            HF1(fH1Map, 300+femId, t);
-        }
-        if (static_cast<int>(fems.size()) != fNumSource) {
-            mismatch = true;
-        }
+  for (const auto& [t, fems] : heartbeatCnt) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 1, femId+1);
+      HF1(fH1Map, 100+femId, t);
     }
+  }
 
-    for (const auto femId : spillEnd) {
-        HF1(fH1Map, 4, femId);
+  for (const auto& [t, fems] : heartbeatCnt10) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 200+femId, 10);
     }
+  }
 
-    if (mismatch) {
-        HF1(fH1Map, 0, Mismatch);
-        return;
-    }
+  for (const auto femId : spillOn) {
+    HF1(fH1Map, 2, femId+1);
+  }
 
-    LOG(debug) << __FUNCTION__ << " : " << __LINE__;
-    HF1(fH1Map, 0, OK);
+  for (const auto femId : spillEnd) {
+    HF1(fH1Map, 3, femId+1);
+  }
+
+  
+  // for (const auto& [t, fems] : errorRecoveryCnt) {
+  //   for (auto femId : fems) {
+  //     HF1(fH1Map, 2, femId);
+  //     HF1(fH1Map, 200+femId, t);
+  //   }
+  // }
+
+  /*
+  bool mismatch=false;
+  for (const auto& [t, fems] : hb_or_err) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 3, femId);
+      HF1(fH1Map, 300+femId, t);
+  }
+  std::cout << "out of switch3"<< std::endl;
+  
+  for (const auto femId : spillEnd) {
+    HF1(fH1Map, 4, femId);
+  }
+  std::cout << "out of switch4"<< std::endl;
+  if (mismatch) { 
+    HF1(fH1Map, 0, Mismatch);
+    return;
+  }
+  std::cout << "out of switch5"<< std::endl;  
+  */
+
+  LOG(debug) << __FUNCTION__ << " : " << __LINE__;
+
+  HF1(fH1Map, 0, OK);
 }
 
 //______________________________________________________________________________
@@ -218,8 +293,8 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
 
     }
 
-
     return true;
+
 }
 
 //______________________________________________________________________________
@@ -231,10 +306,13 @@ void AmQStrTdcDqm::Init()
 //______________________________________________________________________________
 void AmQStrTdcDqm::InitServer(std::string_view server)
 {
-    if (!fServer) {
-        LOG(warn) << "THttpServer = " << server;
-        fServer = std::make_unique<THttpServer>(server.data());
-    }
+
+  if (!fServer) {
+    LOG(warn) << "THttpServer = " << server;
+    fServer = std::make_unique<THttpServer>(server.data());
+    if(!fServer)
+      LOG(debug) << "fServer failed..";
+  }
 
     auto HB1 = [this](int id, std::string_view title, int nbin, double xmin, double xmax, std::string_view folder) -> TH1* {
         //auto name = TString::Form("h%04d", id);
@@ -249,17 +327,18 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         h->SetDirectory(0);
         fH1Map.emplace(hist_name, h);
 
-        if (folder.empty()) {
-            fServer->Register("/huldqm",  h);
-        } else {
-            boost::format dirname("/huldqm/%s");
-            dirname % folder.data();
-            std::string dir_name = boost::str(dirname);
-            fServer->Register(dir_name.c_str(), h);
-        }
 
-        LOG(debug) << " create histogram " << name;
-        return h;
+    if (folder.empty()) {
+      fServer->Register("/amqdqm",  h);
+    } else {
+      boost::format dirname("/amqdqm/%s");
+      dirname % folder.data();
+      std::string dir_name = boost::str(dirname);
+      fServer->Register(dir_name.c_str(), h);
+    }
+
+    LOG(debug) << " create histogram " << name;
+    return h;
     };
 
 #if 0
@@ -276,24 +355,35 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
 
     HB1(0, "status",           3,          -0.5, 3-0.5, "");
     HB1(1, "# Heatbeat",       fNumSource, -0.5, fNumSource-0.5, "");
-    HB1(2, "# HB + ERR",       fNumSource, -0.5, fNumSource-0.5, "");
+    HB1(2, "# spill On",       fNumSource, -0.5, fNumSource-0.5, "");
     HB1(3, "# spill end",      fNumSource, -0.5, fNumSource-0.5, "");
+
+    // HB1(2, "# HB + ERR",       fNumSource, -0.5, fNumSource-0.5, "");
+    // HB1(3, "# spill end",      fNumSource, -0.5, fNumSource-0.5, "");
 
     for (int i=0; i<fNumSource; ++i) {
         boost::format name("heartbeat_%d");
         name % i;
         std::string hname = boost::str(name);
-
-        HB1(100+i, hname.c_str(), 21000, -0.5, 21000-0.5, "Heartbeat");
+	
+        HB1(100+i, hname.c_str(), 300, -0.5, 300-0.5, "Heartbeat");
     }
 
     for (int i=0; i<fNumSource; ++i) {
-        boost::format name("HB + ERR %d");
+        boost::format name("delimiter_flag_%d");
         name % i;
         std::string hname = boost::str(name);
-
-        HB1(200+i, hname.c_str(), 21000, -0.5, 21000-0.5, "HB+ERR");
+	
+        HB1(200+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
     }
+
+    // for (int i=0; i<fNumSource; ++i) {
+    //     boost::format name("HB + ERR %d");
+    //     name % i;
+    //     std::string hname = boost::str(name);
+
+    //     HB1(200+i, hname.c_str(), 21000, -0.5, 21000-0.5, "HB+ERR");
+    // }
 
     gSystem->ProcessEvents();
     fPrevUpdate = std::chrono::steady_clock::now();
@@ -303,13 +393,18 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
 void AmQStrTdcDqm::InitTask()
 {
     using opt = OptionKey;
-    fNumSource         = fConfig->GetProperty<int>(opt::NumSource.data());
+    fNumSource         = std::stoi(fConfig->GetProperty<std::string>(opt::NumSource.data()));
     assert(fNumSource>=1);
-
-    fBufferTimeoutInMs  = fConfig->GetProperty<int>(opt::BufferTimeoutInMs.data());
+    LOG(debug) << "fNumSource: "<< fNumSource ;
+    
+    fBufferTimeoutInMs  = std::stoi(fConfig->GetProperty<std::string>(opt::BufferTimeoutInMs.data()));
+    LOG(debug) << "fBufferTimeoutInMs: "<< fBufferTimeoutInMs ;    
     fInputChannelName   = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
+    LOG(debug) << "fInputChannelName: "<< fInputChannelName ;        
     auto server         = fConfig->GetProperty<std::string>(opt::Http.data());
-    fUpdateIntervalInMs = fConfig->GetProperty<int>(opt::UpdateInterval.data());
+    LOG(debug) << "Http Server Name: "<< server ;                
+    fUpdateIntervalInMs = std::stoi(fConfig->GetProperty<std::string>(opt::UpdateInterval.data()));
+    LOG(debug) << "fUpdateIntervalInMs: "<< fUpdateIntervalInMs ;            
 
     fHbc.resize(fNumSource);
 
@@ -324,32 +419,5 @@ void AmQStrTdcDqm::InitTask()
 void AmQStrTdcDqm::PostRun()
 {
     fDiscarded.clear();
-}
-
-
-//______________________________________________________________________________
-namespace bpo = boost::program_options;
-
-void addCustomOptions(bpo::options_description& options)
-{
-    using opt = AmQStrTdcDqm::OptionKey;
-    options.add_options()
-    (opt::NumSource.data(),          bpo::value<int>()->default_value(1),          \
-     "Number of source endpoint")
-    (opt::BufferTimeoutInMs.data(),  bpo::value<int>()->default_value(100000),     \
-     "Buffer timeout in milliseconds")
-    (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in")\
-     ,                       "Name of the input channel")
-    (opt::Http.data(),               bpo::value<std::string>()->default_value("http\
-:8888?monitoring=500"), "http engine and port, etc.")
-    (opt::UpdateInterval.data(),     bpo::value<int>()->default_value(1000),       \
-     "Canvas update rate in milliseconds")
-    ;
-}
-
-//______________________________________________________________________________
-std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions&)
-{
-    return std::make_unique<AmQStrTdcDqm>();
 }
 
