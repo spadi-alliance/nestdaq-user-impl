@@ -52,7 +52,6 @@ std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
 TH1* HF1(std::unordered_map<std::string, TH1*>& h1Map, 
          int id, double x, double w=1.0)
 {
-  //  auto name = TString::Form("h%04d", id);
   boost::format name("h%04d");
   name % id;
   auto h    = h1Map.at(name.str());
@@ -255,7 +254,6 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
         // if received ID has been previously discarded.
         LOG(warn) << "Received part from an already discarded timeframe with id " << std::hex << stfId << std::dec;
     }
-
 
     // check TF-build completion
     if (!fTFBuffer.empty()) {
