@@ -36,7 +36,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::NumSource.data(),          bpo::value<std::string>()->default_value("1"), "Number of source endpoint")
     (opt::BufferTimeoutInMs.data(),  bpo::value<std::string>()->default_value("100000"), "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
-    (opt::Http.data(),               bpo::value<std::string>()->default_value("http:192.168.2.53:5999"), "http engine and port, etc.")
+    (opt::Http.data(),               bpo::value<std::string>()->default_value("http:5999"), "http engine and port, etc.")
     (opt::UpdateInterval.data(),     bpo::value<std::string>()->default_value("1000"), "Canvas update rate in milliseconds")
     ;
 }
@@ -200,6 +200,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
       }
     }
   }
+
 
   for (const auto& [t, fems] : heartbeatCnt) {
     for (auto femId : fems) {
@@ -428,6 +429,7 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         HB1(100+i, hname.c_str(), 300, -0.5, 300-0.5, "Heartbeat");
     }
 
+    //    for (int i=0; i<fNumSource; ++i) {
     for (int i=0; i<10; ++i) {
         boost::format name("heartbeat0_%d");
         name % i;
@@ -435,12 +437,15 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         HB1(150+i, hname.c_str(), 100, -3.0, -3.0, "Heartbeat0");
     }
     
+    //    for (int i=0; i<fNumSource; ++i) {
     for (int i=0; i<10; ++i) {
         boost::format name("timeFrameId_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(200+i, hname.c_str(), 300, -0.5, 300-0.5, "TimeFrameId");
     }
+
+    //    for (int i=0; i<fNumSource; ++i) {
     for (int i=0; i<10; ++i) {
         boost::format name("length_%d");
         name % i;
@@ -455,6 +460,7 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
     //     HB1(1000+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
     // }
 
+    //    for (int i=0; i<fNumSource; ++i) {
     for (int i=0; i<10; ++i) {
         boost::format name("lrtdcCnt_%d");
         name % i;
@@ -462,6 +468,7 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         HB1(2000+i, hname.c_str(), 131, -1.5, 130-0.5, "LR-TDC Counts");
     }
 
+    //    for (int i=0; i<fNumSource; ++i) {
     for (int i=0; i<10; ++i) {
         boost::format name("hrtdcCnt_%d");
         name % i;
@@ -477,14 +484,27 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
 void AmQStrTdcDqm::InitTask()
 {
     using opt = OptionKey;
-    fNumSource         = std::stoi(fConfig->GetProperty<std::string>(opt::NumSource.data()));
-    assert(fNumSource>=1);
-    LOG(debug) << "fNumSource: "<< fNumSource ;
     
     fBufferTimeoutInMs  = std::stoi(fConfig->GetProperty<std::string>(opt::BufferTimeoutInMs.data()));
     LOG(debug) << "fBufferTimeoutInMs: "<< fBufferTimeoutInMs ;    
+
     fInputChannelName   = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
-    LOG(debug) << "fInputChannelName: "<< fInputChannelName ;        
+
+    //    fNumSource         = std::stoi(fConfig->GetProperty<std::string>(opt::NumSource.data()));
+    //    assert(fNumSource>=1);
+    auto numSubChannels = GetNumSubChannels(fInputChannelName);
+    fNumSource = 0;
+    for (auto i=0u; i<numSubChannels; ++i) {
+      fNumSource += GetNumberOfConnectedPeers(fInputChannelName, i);
+    }
+    LOG(debug) << "fNumSource: "<< fNumSource;
+
+    LOG(debug) << " input channel : name = " << fInputChannelName
+               << " num = " << GetNumSubChannels(fInputChannelName)
+               << " num peer = " << GetNumberOfConnectedPeers(fInputChannelName,0);
+
+    LOG(debug) << " number of source = " << fNumSource;
+
     auto server         = fConfig->GetProperty<std::string>(opt::Http.data());
     LOG(debug) << "Http Server Name: "<< server ;                
     fUpdateIntervalInMs = std::stoi(fConfig->GetProperty<std::string>(opt::UpdateInterval.data()));
