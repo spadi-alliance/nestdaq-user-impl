@@ -53,11 +53,15 @@ private:
     void InitTask() override;
     void PostRun() override;
 
+    bool fDebug  {false};
+  
     int fNumSource {1};
     int fBufferTimeoutInMs {100000};
+    int fId {0};
     std::string fInputChannelName;
     std::unique_ptr<THttpServer> fServer;
     std::map<uint64_t, int> fFEMId;
+    std::map<int, uint64_t> fModuleIp;
     std::vector<uint16_t> fHbc;
     std::unordered_map<std::string, TH1*> fH1Map;
     int fUpdateIntervalInMs {1000};
