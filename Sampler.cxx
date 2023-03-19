@@ -117,7 +117,7 @@ void Sampler::SendFEMInfo() {
     memcpy(&fbuf[16], &resv, sizeof(char)*8);
 
     //memcpy(fbuf, &fem_info_, sizeof(fem_info_));
-
+    
     FairMQMessagePtr initmsg( NewMessage((char*)fbuf,
                                          fnByte*3,
                                          [](void* object, void*)
@@ -233,7 +233,8 @@ bool Sampler::ConditionalRun()
             }
         }
     }
-
+    
+    
     FairMQMessagePtr msg( NewMessage((char*)buffer,
                                      //				  fnByte*nword
                                      nByteSize,
@@ -241,11 +242,12 @@ bool Sampler::ConditionalRun()
     {
         delete [] static_cast<uint8_t*>(object);
     }
-                                    )
-                        );
+				     )
+			  );
 
 
     LOG(info) << "Sending \"" << nByteSize << "\"";
+
 
     if (Send(msg, fOutputChannelName) < 0) {
         LOG(warn) << " event:  " << fNumIterations;
