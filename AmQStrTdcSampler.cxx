@@ -45,7 +45,13 @@ bool AmQStrTdcSampler::ConditionalRun()
     int n_word = 0;
     uint8_t* buffer = new uint8_t[kOutBufByte*fnWordPerCycle] {};
 
-    while( -1 == ( n_word = Event_Cycle(buffer))) continue;
+    while( -1 == ( n_word = Event_Cycle(buffer))) {
+        if (NewStatePending()) {
+            break;
+	} else {
+            continue;
+	}
+    }
 
     //  if(n_word == -4){
     //    n_word = remain;
@@ -294,8 +300,10 @@ int AmQStrTdcSampler::ConnectSocket(const char* ip)
     SiTCP_ADDR.sin_addr.s_addr = inet_addr(ip);
 
     struct timeval tv;
-    tv.tv_sec  = 0;
-    tv.tv_usec = 250000;
+    //tv.tv_sec  = 0;
+    //tv.tv_usec = 250000;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(tv));
 
     int flag = 1;
@@ -337,7 +345,7 @@ int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length)
             perror("TCP receive");
             if(errbuf == EAGAIN) {
                 // this is time out
-                std::cout << "#D : TCP recv time out" << std::endl;
+                // std::cout << "#D : TCP recv time out" << std::endl;
                 //	remain = revd_size;
                 return -4;
             } else {
