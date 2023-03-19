@@ -208,6 +208,7 @@ target_link_libraries(AmQStrTdcSampler  PUBLIC
                         ${fmt_LIB};
                         FairMQ;
                         FairLogger;
+                        FairMQStateMachine;
                         ${Boost_LIBRARIES};
 			Utility;
 )

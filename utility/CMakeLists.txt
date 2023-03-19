@@ -103,8 +103,8 @@ target_link_libraries(Utility
   ${Boost_LIBRARIES};
   ${YAML_CPP_LIBRARIES};
   ${fmt_LIB};
-  ${FairLogger_LIBDIR};
-  ${FairMQ_LIBDIR};
+#  ${FairLogger_LIBDIR};
+#  ${FairMQ_LIBDIR};
 )
 
 

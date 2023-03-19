@@ -91,6 +91,7 @@ void FileUtil::AddOptions(bpo::options_description &options, const std::unordere
     add_option(a, opt::FirstBranchNumber, bpo::value<std::string>(), d(opt::FirstBranchNumber), v, {"0"});
     add_option(a, opt::MaxSize, bpo::value<std::string>(), d(opt::MaxSize), v, {"10000"});
     add_option(a, opt::Openmode, bpo::value<std::string>(), d(opt::Openmode), v, {oopt::Recreate.data()});
+    //add_option(a, opt::Openmode, bpo::value<std::string>(), d(opt::Openmode), v, {oopt::Create.data()});
     add_option(a, opt::Permissions, bpo::value<std::string>(), d(opt::Permissions), v);
 }
 
