@@ -8,7 +8,6 @@
 #include <TH1.h>
 #include <TH2.h>
 #include <TProfile.h>
-
 #include <TString.h>
 #include <iostream>
 #include <boost/format.hpp>
@@ -119,12 +118,21 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
       LOG(debug) << "time_sec: " << h->time_sec;
       LOG(debug) << "time_sec: " << h->time_usec;
     }
-    
+
+    if (!fFEMId.count(h->FEMId)) {
+      LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
+      fFEMId[h->FEMId] = fId;
+      fModuleIp[fId] = h->FEMId & 0xff;
+      LOG(debug) << "fId: "<< fId <<  " mIp: " << fModuleIp[fId];
+      
+      fId++;
+    }
+
     //auto len   = h->length - sizeof(STF::Header); // data size including tdc measurement
     //auto nword = len/sizeof(Word);
     //auto nhit  = nword - nmsg;
-    //    auto femIdx = fFEMId[h->FEMId];
-    auto femIdx = (h->FEMId & 0x0f) - 1;
+    auto femIdx = fFEMId[h->FEMId];
+    //    auto femIdx = (h->FEMId & 0x0f) - 1;
 
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
@@ -201,9 +209,9 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
 
-
   for (const auto& [t, fems] : heartbeatCnt) {
     for (auto femId : fems) {
+      //      HF1(fH1Map, 1, femId, fModuleIp[femId])
       HF1(fH1Map, 1, femId);
       HF1(fH1Map, 100+femId, t);
     }
@@ -415,38 +423,38 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
 #endif
 
     HB1(0, "status",             3, -0.5, 3-0.5, "");
-    HB1(1, "# Heatbeat",        11, -0.5, 10+0.5, "");
-    HB1(2, "# spill On",        11, -0.5, 10+0.5, "");
-    HB1(3, "# spill end",       11, -0.5, 10+0.5, "");
-    HB1(4, "# HB Delimiter",    11, -0.5, 10+0.5, "");
-    HB1(5, "# Spill Delimiter", 11, -0.5, 10+0.5, "");
+    HB1(1, "# Heatbeat",        11, -0.5, fNumSource+0.5, "");
+    HB1(2, "# spill On",        11, -0.5, fNumSource+0.5, "");
+    HB1(3, "# spill end",       11, -0.5, fNumSource+0.5, "");
+    HB1(4, "# HB Delimiter",    11, -0.5, fNumSource+0.5, "");
+    HB1(5, "# Spill Delimiter", 11, -0.5, fNumSource+0.5, "");
 
-    //    for (int i=0; i<fNumSource; ++i) {
-    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fNumSource; ++i) {
+      //    for (int i=0; i<10; ++i) {
         boost::format name("heartbeat_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(100+i, hname.c_str(), 300, -0.5, 300-0.5, "Heartbeat");
     }
 
-    //    for (int i=0; i<fNumSource; ++i) {
-    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fNumSource; ++i) {
+    //    for (int i=0; i<10; ++i) {
         boost::format name("heartbeat0_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(150+i, hname.c_str(), 100, -3.0, -3.0, "Heartbeat0");
     }
     
-    //    for (int i=0; i<fNumSource; ++i) {
-    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fNumSource; ++i) {
+    //    for (int i=0; i<10; ++i) {
         boost::format name("timeFrameId_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(200+i, hname.c_str(), 300, -0.5, 300-0.5, "TimeFrameId");
     }
 
-    //    for (int i=0; i<fNumSource; ++i) {
-    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fNumSource; ++i) {
+    //    for (int i=0; i<10; ++i) {
         boost::format name("length_%d");
         name % i;
         std::string hname = boost::str(name);
@@ -460,16 +468,16 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
     //     HB1(1000+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
     // }
 
-    //    for (int i=0; i<fNumSource; ++i) {
-    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fNumSource; ++i) {
+    //    for (int i=0; i<10; ++i) {
         boost::format name("lrtdcCnt_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(2000+i, hname.c_str(), 131, -1.5, 130-0.5, "LR-TDC Counts");
     }
 
-    //    for (int i=0; i<fNumSource; ++i) {
-    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fNumSource; ++i) {
+    //    for (int i=0; i<10; ++i) {
         boost::format name("hrtdcCnt_%d");
         name % i;
         std::string hname = boost::str(name);
