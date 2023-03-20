@@ -325,7 +325,7 @@ int AmQStrTdcSampler::Event_Cycle(uint8_t* buffer)
     //  static const unsigned int sizeData = fnByte*fnWordPerCycle*sizeof(uint8_t);
     static const unsigned int sizeData = optnByte*fnWordPerCycle*sizeof(uint8_t);
     int ret = receive(fAmqSocket, (char*)buffer, sizeData);
-    if(ret < 0) return ret;
+    if(ret <= 0) return ret;
 
     return fnWordPerCycle;
 }
