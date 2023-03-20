@@ -209,9 +209,9 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
         }
     }
 
-    if (!isSpillEnd) {
+    //if (!isSpillEnd) {
         fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
-    }
+    //}
 
 }
 
