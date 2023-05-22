@@ -76,6 +76,7 @@ bool AmQStrTdcSampler::ConditionalRun()
         return true;
     }
 
+    /*    
     if(fTdcType == 1) {
         //    auto data5 = reinterpret_cast<lrWord*>(buffer);
         //    auto data8 = reinterpret_cast<uint64_t*>(data5);
@@ -87,7 +88,7 @@ bool AmQStrTdcSampler::ConditionalRun()
         memcpy(&buffer[0], &nbuffer[0], kOutBufByte*n_word);
         delete[] nbuffer;
     }
-
+    */
     FairMQMessagePtr msg(NewMessage((char*)buffer,
                                     //fnByte*fnWordPerCycle,
                                     kOutBufByte*n_word,
@@ -214,6 +215,10 @@ void AmQStrTdcSampler::InitTask()
     LOG(info) << fIpSiTCP;
     SendFEMInfo();
 
+    header_pos = 7;
+    optnByte = 8;
+
+    /*
     if(fTdcType == 1) {
         header_pos = 4;
         optnByte = 5;
@@ -223,7 +228,7 @@ void AmQStrTdcSampler::InitTask()
         optnByte = 8;
         LOG(info) << "HRTDC nByte: " << optnByte << "  header_pos: " << header_pos << std::endl;
     }
-
+    */
 
     /*
     rbcp_header rbcpHeader;
