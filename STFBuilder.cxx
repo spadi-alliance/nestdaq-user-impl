@@ -26,7 +26,7 @@ namespace STF  = SubTimeFrame;
 AmQStrTdcSTFBuilder::AmQStrTdcSTFBuilder()
     : fair::mq::Device()
 {
-    mdebug = false;
+    mdebug = true;
 }
 
 //______________________________________________________________________________
@@ -52,10 +52,10 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
     if(mdebug) {
         LOG(debug) << " msg size " << msgSize << " bytes " << nWord << " words" << std::endl;
         {
-            std::for_each(reinterpret_cast<Word*>(msgBegin),
-                          msgBegin+nWord,
-                          nestdaq::HexDump{4});
-        }
+	  std::for_each(reinterpret_cast<Word*>(msgBegin),
+			msgBegin+nWord,
+			nestdaq::HexDump{4});
+	}
     }
 
     for (long unsigned int i = 0 ; i < nWord ; ++i) {
@@ -175,20 +175,26 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 {
     namespace Data = AmQStrTdc::Data;
     // construct send buffer with remained data on heap
-    auto buf = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
+    auto buf  = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
+    auto sbuf = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));    
 
     if(mdebug) {
         LOG(debug) << " FillData " ;
         std::for_each(first, last, nestdaq::HexDump{4});
     }
 
-    if (last != first) {
-        if(mdebug)
+    //    if (last != first) {
+    if ( (last - first) > 1 ) {
+      if(mdebug){
             LOG(debug) << " first: "<< first << "  last: " << last;
+	    LOG(debug) << " last - 1 --> "<< last - 1 ;
+      }
         // insert new data to send buffer
-        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
+	//        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
+        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));	
     }
 
+    sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));	    
     NewData();
     if (!buf->empty()) {
         fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(buf)));
@@ -209,9 +215,13 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
         }
     }
 
-    //if (!isSpillEnd) {
-        fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
-    //}
+    /* insert 64bit*2 delimiter */
+    if (!sbuf->empty()) {
+      fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(sbuf)));
+    }
+    ////if (!isSpillEnd) {
+    //    fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
+    ////}
 
 }
 
@@ -286,10 +296,11 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
         auto& payload = fOutputPayloads.front();
 
+	std::cout << " ====== payload ======= "<< std::endl;
         for (auto& tmsg : *payload) {
-            //      std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
-            //                    reinterpret_cast<uint64_t*>(tmsg->GetData() + tmsg->GetSize()),
-            //                    nestdaq::HexDump{4});
+	    std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
+			  reinterpret_cast<uint64_t*>(tmsg->GetData() + tmsg->GetSize()),
+			  nestdaq::HexDump{4});
 
             if (dqmSocketExists) {
                 if (tmsg->GetSize()==sizeof(STF::Header)) {

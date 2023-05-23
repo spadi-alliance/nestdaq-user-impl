@@ -245,7 +245,7 @@ bool Sampler::ConditionalRun()
 				     )
 			  );
 
-
+    sleep(1);
     LOG(info) << "Sending \"" << nByteSize << "\"";
 
 
