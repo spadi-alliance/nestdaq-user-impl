@@ -26,7 +26,7 @@ namespace STF  = SubTimeFrame;
 AmQStrTdcSTFBuilder::AmQStrTdcSTFBuilder()
     : fair::mq::Device()
 {
-    mdebug = true;
+    mdebug = false;
 }
 
 //______________________________________________________________________________
@@ -296,11 +296,11 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
         auto& payload = fOutputPayloads.front();
 
-	std::cout << " ====== payload ======= "<< std::endl;
         for (auto& tmsg : *payload) {
-	    std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
-			  reinterpret_cast<uint64_t*>(tmsg->GetData() + tmsg->GetSize()),
-			  nestdaq::HexDump{4});
+
+	  //	   std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
+	  //			  reinterpret_cast<uint64_t*>(tmsg->GetData() + tmsg->GetSize()),
+	  //			  nestdaq::HexDump{4});
 
             if (dqmSocketExists) {
                 if (tmsg->GetSize()==sizeof(STF::Header)) {

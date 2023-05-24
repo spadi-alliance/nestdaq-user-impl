@@ -89,6 +89,7 @@ bool AmQStrTdcSampler::ConditionalRun()
         delete[] nbuffer;
     }
     */
+    
     FairMQMessagePtr msg(NewMessage((char*)buffer,
                                     //fnByte*fnWordPerCycle,
                                     kOutBufByte*n_word,
