@@ -21,6 +21,7 @@ public:
         static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
         static constexpr std::string_view InputChannelName  {"in-chan-name"};
         static constexpr std::string_view OutputChannelName {"out-chan-name"};
+        static constexpr std::string_view DQMChannelName    {"dqm-chan-name"};      
         static constexpr std::string_view PollTimeout       {"poll-timeout"};
     };
 
@@ -46,6 +47,7 @@ private:
     int fBufferTimeoutInMs {10000};
     std::string fInputChannelName;
     std::string fOutputChannelName;
+    std::string fDQMChannelName;  
     int fNumDestination   {0};
     uint32_t fDirection   {0}; // used to determine the sub-socket index
     int fPollTimeoutMS    {0};

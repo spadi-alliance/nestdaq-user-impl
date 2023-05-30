@@ -24,7 +24,8 @@ void addCustomOptions(bpo::options_description& options)
     options.add_options()
     (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("10000"), "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),    "Name of the input channel")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),   "Name of the output channel")
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),   "Name of the output channel") 
+    (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value("dqm"),   "Name of the data quality monitoring channel")      
     (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),     "Timeout (in msec) of polling")
     ;
 }
@@ -69,6 +70,8 @@ bool TimeFrameBuilder::ConditionalRun()
     // send
     if (!fTFBuffer.empty()) {
 
+        bool dqmSocketExists = fChannels.count(fDQMChannelName);
+
         // find time frame in ready
         for (auto itr = fTFBuffer.begin(); itr!=fTFBuffer.end();) {
             auto stfId  = itr->first;
@@ -80,6 +83,8 @@ bool TimeFrameBuilder::ConditionalRun()
 
                 // move ownership to complete time frame
                 FairMQParts outParts;
+                FairMQParts dqmParts;
+		
                 auto h = std::make_unique<TF::Header>();
                 h->magic       = TF::Magic;
                 h->timeFrameId = stfId;
@@ -91,6 +96,18 @@ bool TimeFrameBuilder::ConditionalRun()
                         return (!m) ? jinit : jinit + m->GetSize();
                     });
                 });
+
+		// for dqm
+		if (dqmSocketExists){		  
+		    for (auto& stfBuf: tfBuf) {
+		      for (auto& m: stfBuf.parts) {
+			FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+			msgCopy->Copy(*m);
+			
+			dqmParts.AddPart(std::move(msgCopy));
+		      }
+		    }
+		}
                 // LOG(debug) << " length = " << h->length;
                 outParts.AddPart(nestdaq::MessageUtil::NewMessage(*this, std::move(h)));
                 for (auto& stfBuf: tfBuf) {
@@ -100,6 +117,16 @@ bool TimeFrameBuilder::ConditionalRun()
                 }
                 tfBuf.clear();
 
+		if (dqmSocketExists) {
+		  if (Send(dqmParts, fDQMChannelName) < 0) {
+		    if (NewStatePending()) {
+		      LOG(info) << "Device is not RUNNING";
+		      return false;
+		    }
+		    LOG(error) << "Failed to enqueue TFB (DQM) ";
+		  }
+		}
+		
                 auto poller = NewPoller(fOutputChannelName);
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
@@ -158,10 +185,12 @@ void TimeFrameBuilder::InitTask()
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
     auto numSubChannels = GetNumSubChannels(fInputChannelName);
     fNumSource = 0;
-    for (auto i=0; i<numSubChannels; ++i) {
+    for (auto i=0u; i<numSubChannels; ++i) {
         fNumSource += GetNumberOfConnectedPeers(fInputChannelName, i);
     }
 
+    fDQMChannelName    = fConfig->GetProperty<std::string>(opt::DQMChannelName.data());
+    
     LOG(debug) << " input channel : name = " << fInputChannelName
                << " num = " << GetNumSubChannels(fInputChannelName)
                << " num peer = " << GetNumberOfConnectedPeers(fInputChannelName,0);
