@@ -25,9 +25,9 @@ namespace AmQStrTdc::Data {
    
       // lrtdc
       struct {
-	uint64_t zero_t1    : 24;	  	  
-	uint64_t tdc        : 19; // [42:24]
-	uint64_t tot        :  8; // [50:43]
+	uint64_t zero_t1    : 16; // [15:0]	  	  
+	uint64_t tdc        : 19; // [34:16]
+	uint64_t tot        : 16; // [50:35]
 	uint64_t ch         :  7; // [57:51]
 	uint64_t dtype      :  6; // [63:58]
       };
@@ -64,6 +64,7 @@ namespace AmQStrTdc::Data {
   enum HeadTypes {
     Data          = 0x0B,
     Heartbeat     = 0x1C,
+    Trailer       = 0x0D,
     //      ErrorRecovery = 0xE,
     SpillOn       = 0x18,
     SpillEnd      = 0x14

@@ -68,7 +68,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
         bool isHeadValid = false;
         for (auto validHead : {
-                    Data::Data, Data::Heartbeat, Data::SpillOn, Data::SpillEnd
+	    Data::Data, Data::Heartbeat, Data::Trailer, Data::SpillOn, Data::SpillEnd
                 }) {
             if (h == validHead) isHeadValid = true;
         }

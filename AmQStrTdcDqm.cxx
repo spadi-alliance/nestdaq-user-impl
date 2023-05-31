@@ -11,6 +11,7 @@
 #include <TString.h>
 #include <iostream>
 #include <boost/format.hpp>
+#include <cmath>
 
 #include <fairmq/runDevice.h>
 
@@ -55,7 +56,8 @@ TH1* HF1(std::unordered_map<std::string, TH1*>& h1Map,
   boost::format name("h%04d");
   name % id;
   auto h    = h1Map.at(name.str());
-  if (h) h->Fill(x, w);
+  if (h)  h->Fill(x, w);
+  
 
   return h;
 }
@@ -91,14 +93,14 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 
   // [time-stamp, femId-list]
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
-  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt0;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatNum;
   std::unordered_set<uint32_t> spillEnd;
   std::unordered_set<uint32_t> spillOn;
 
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> timeFrameId;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> length;
 
-  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt10;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatFlag;
 
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> lrtdcCnt;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hrtdcCnt;
@@ -136,7 +138,10 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
-	    
+
+    int nspillOn  = 0;
+    int nspillOff = 0;
+    
     for (int imsg=1; imsg<nmsg; ++imsg) {
       const auto& msg = stf.At(imsg);
       auto wb =  reinterpret_cast<Bits*>(msg->GetData());
@@ -160,25 +165,46 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
         }
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
-	heartbeatCnt0[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
-	heartbeatCnt10[wb->hbflag].insert(femIdx);
+
+	if(false){
+	  LOG(debug) << "============================";
+	  LOG(debug) << "femIdx: "  << femIdx;
+	  LOG(debug) << "HB frame : " << wb->hbframe;		
+	  LOG(debug) << "timeFrameId : " << h->timeFrameId;	
+	  LOG(debug) << "# of HB: " << wb->hbframe - h->timeFrameId;
+	  //	  LOG(debug) << "hbflag: "  << wb->hbflag;
+	}
+
+	//	heartbeatNum[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
+
+	if(wb->hbframe >= h->timeFrameId)
+	  heartbeatNum[ wb->hbframe - h->timeFrameId + 1 ].insert(femIdx);
+
+	heartbeatFlag[wb->hbflag].insert(femIdx);
+	
 
         break;
       case Data::SpillOn: 
-        if (spillEnd.count(femIdx)) {
+        if (spillOn.count(femIdx) && (nspillOn > 1) ) {
           LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
-        }
+        }else if (spillOn.count(femIdx) && nspillOn == 1) {
+	  nspillOn = 0;
+	}
 
         spillOn.insert(femIdx);
-
+	nspillOn++;
+	
         break;
       case Data::SpillEnd: 
-        if (spillEnd.count(femIdx)) {
+        if (spillEnd.count(femIdx) && (nspillOff > 1) ) {
           LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
-        }
+        }else if(spillEnd.count(femIdx) && (nspillOff == 1) ) {
+	  nspillOff = 0;
+	}
 
         spillEnd.insert(femIdx);
-
+	nspillOff++;
+	
         break;
       case Data::Data:
 	
@@ -196,6 +222,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 	  if(h->FEMType==2)	  
 	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
 	}
+
 	
 	if(h->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
 	if(h->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
@@ -217,7 +244,22 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
 
-  for (const auto& [t, fems] : heartbeatCnt0) {
+  for (const auto femId : spillOn) {
+    HF1(fH1Map, 2, femId);
+  }
+
+  for (const auto femId : spillEnd) {
+    HF1(fH1Map, 3, femId);
+  }
+
+  for (const auto& [t, fems] : heartbeatFlag) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 4, femId, t);
+    }
+  }
+
+  for (const auto& [t, fems] : heartbeatNum) {
+
     for (auto femId : fems) {
       HF1(fH1Map, 150+femId, t);
     }
@@ -235,25 +277,6 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
   
-  // for (const auto& [t, fems] : heartbeatCnt10) {
-  //   for (auto femId : fems) {
-  //     HF1(fH1Map, 1000+femId, t);
-  //   }
-  // }
-
-  for (const auto femId : spillOn) {
-    HF1(fH1Map, 2, femId);
-  }
-
-  for (const auto femId : spillEnd) {
-    HF1(fH1Map, 3, femId);
-  }
-
-  for (const auto& [t, fems] : heartbeatCnt10) {
-    for (auto femId : fems) {
-      HF1(fH1Map, 4, femId, t);
-    }
-  }
   
   for (const auto& [t, fems] : lrtdcCnt) {
     for (auto femId : fems) {
@@ -266,6 +289,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
       HF1(fH1Map, 2100+femId, t);
     }
   }
+ 
 
   /*
   bool mismatch=false;
@@ -421,52 +445,44 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         return c;
     };
 #endif
+    
+    HB1(0, "status",                 3, -0.5, 3-0.5, "");
+    HB1(1, "# Heatbeat",             fNumSource+2, -1, fNumSource+1, "");
+    HB1(2, "# spill On",             fNumSource+2, -1, fNumSource+1, "");
+    HB1(3, "# spill end",            fNumSource+2, -1, fNumSource+1, "");
+    HB1(4, "# HB Delimiter Flag",    fNumSource+2, -1, fNumSource+1, "");
+    //    HB1(5, "# Spill Delimiter",      fNumSource+2, -1, fNumSource+1, "");
 
-    HB1(0, "status",             3, -0.5, 3-0.5, "");
-    HB1(1, "# Heatbeat",        11, -0.5, fNumSource+0.5, "");
-    HB1(2, "# spill On",        11, -0.5, fNumSource+0.5, "");
-    HB1(3, "# spill end",       11, -0.5, fNumSource+0.5, "");
-    HB1(4, "# HB Delimiter",    11, -0.5, fNumSource+0.5, "");
-    HB1(5, "# Spill Delimiter", 11, -0.5, fNumSource+0.5, "");
 
     for (int i=0; i<fNumSource; ++i) {
       //    for (int i=0; i<10; ++i) {
         boost::format name("heartbeat_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(100+i, hname.c_str(), 300, -0.5, 300-0.5, "Heartbeat");
+        HB1(100+i, hname.c_str(), 500, -0.5, 500-0.5, "Heartbeat");
     }
 
     for (int i=0; i<fNumSource; ++i) {
-    //    for (int i=0; i<10; ++i) {
-        boost::format name("heartbeat0_%d");
+        boost::format name("number_of_hb_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(150+i, hname.c_str(), 100, -3.0, -3.0, "Heartbeat0");
+        HB1(150+i, hname.c_str(), 10, 0, 10, "#OfHB_STF");
     }
     
     for (int i=0; i<fNumSource; ++i) {
-    //    for (int i=0; i<10; ++i) {
         boost::format name("timeFrameId_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(200+i, hname.c_str(), 300, -0.5, 300-0.5, "TimeFrameId");
+        HB1(200+i, hname.c_str(), 500, -0.5, 500-0.5, "TimeFrameId");
     }
 
     for (int i=0; i<fNumSource; ++i) {
-    //    for (int i=0; i<10; ++i) {
         boost::format name("length_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(300+i, hname.c_str(), 1000, -0.5, 2000-0.5, "Length");
     }
-
-    // for (int i=0; i<10; ++i) {
-    //     boost::format name("delimiter_flag_%d");
-    //     name % i;
-    //     std::string hname = boost::str(name);
-    //     HB1(1000+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
-    // }
+    
 
     for (int i=0; i<fNumSource; ++i) {
     //    for (int i=0; i<10; ++i) {
@@ -483,7 +499,7 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         std::string hname = boost::str(name);
         HB1(2100+i, hname.c_str(), 131, -1.5, 130-0.5, "HR-TDC Counts");
     }
-
+    
     gSystem->ProcessEvents();
     fPrevUpdate = std::chrono::steady_clock::now();
 }
