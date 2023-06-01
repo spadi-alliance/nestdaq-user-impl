@@ -16,6 +16,7 @@
 #include <fairmq/runDevice.h>
 
 #include "SubTimeFrameHeader.h"
+#include "TimeFrameHeader.h"
 #include "STFBuilder.h"
 #include "AmQStrTdcData.h"
 #include "utility/Reporter.h"
@@ -85,8 +86,8 @@ AmQStrTdcDqm::AmQStrTdcDqm()
 //______________________________________________________________________________
 void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 {
-
-  namespace STF = SubTimeFrame;
+  namespace TF   = TimeFrame;  
+  namespace STF  = SubTimeFrame;
   namespace Data = AmQStrTdc::Data;
 
   using Bits     = Data::Bits;
@@ -104,8 +105,10 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> lrtdcCnt;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hrtdcCnt;
+
   
   for (int istf=0; istf<fNumSource; ++istf) {
+    
     auto& [stf, t] = stfs[istf];
     auto h = reinterpret_cast<STF::Header*>(stf.At(0)->GetData());
     auto nmsg  = stf.Size();
@@ -320,6 +323,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
 {
 
+  namespace TF  = TimeFrame;
   namespace STF = SubTimeFrame;
   namespace Data = AmQStrTdc::Data;  
 
@@ -334,7 +338,7 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
       fPrevUpdate = std::chrono::steady_clock::now();
     }
   }
-
+        
   auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
   auto stfId    = stfHeader->timeFrameId;
 
@@ -350,7 +354,8 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
     // if received ID has been previously discarded.
     LOG(warn) << "Received part from an already discarded timeframe with id " << std::hex << stfId << std::dec;
   }
-  
+
+    
   // check TF-build completion
   if (!fTFBuffer.empty()) {
     // find time frame in ready
@@ -384,7 +389,7 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
 	++itr;
       }
     }
-    
+
   }
   
   return true;
@@ -529,6 +534,7 @@ void AmQStrTdcDqm::InitTask()
 
     LOG(debug) << " number of source = " << fNumSource;
 
+    
     auto server         = fConfig->GetProperty<std::string>(opt::Http.data());
     LOG(debug) << "Http Server Name: "<< server ;                
     fUpdateIntervalInMs = std::stoi(fConfig->GetProperty<std::string>(opt::UpdateInterval.data()));
@@ -547,5 +553,26 @@ void AmQStrTdcDqm::InitTask()
 void AmQStrTdcDqm::PostRun()
 {
     fDiscarded.clear();
+
+    int nrecv = 0;
+
+    while(true) {
+        FairMQMessagePtr msg(NewMessage());
+
+        if (Receive(msg, fInputChannelName) <= 0) {
+            LOG(debug) << __func__ << " no data received " << nrecv;
+            ++nrecv;
+            if (nrecv>10) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        } else {
+            LOG(debug) << __func__ << " print data";
+            //      HandleData(msg, 0);
+        }
+    }
+
+    LOG(debug) << __func__ << " done";
+
 }
 
