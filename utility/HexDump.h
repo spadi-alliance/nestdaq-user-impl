@@ -7,8 +7,6 @@
 #include <vector>
 #include <string>
 
-namespace nestdaq {
-
 class HexDump {
 public:
     template <typename T>
@@ -45,7 +43,7 @@ public:
                 ret += p[b];
             }
         } else {
-            sattic_assert(false_v<T>);
+            static_assert(false_v<T>);
         }
         return ret;
     }
@@ -101,7 +99,5 @@ private:
     bool fIsLittleEndian{true};
     std::string fAscii;
 };
-
-} // namespace nestdaq
 
 #endif

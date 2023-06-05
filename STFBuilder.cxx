@@ -54,7 +54,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
         {
             std::for_each(reinterpret_cast<Word*>(msgBegin),
                           msgBegin+nWord,
-                          nestdaq::HexDump{4});
+                          ::HexDump{4});
         }
     }
 
@@ -83,7 +83,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 // std::cout << " fill valid part "  << std::setw(10) << offset << " -> " << std::setw(10) << i << std::endl;
                 auto first = msgBegin + offset;
                 auto last  = msgBegin + i;
-                std::for_each(first, last, nestdaq::HexDump{4});
+                std::for_each(first, last, ::HexDump{4});
                 fInputPayloads.insert(fInputPayloads.end(), std::make_move_iterator(first), std::make_move_iterator(last));
             }
             offset = i+1;
@@ -179,7 +179,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 
     if(mdebug) {
         LOG(debug) << " FillData " ;
-        std::for_each(first, last, nestdaq::HexDump{4});
+        std::for_each(first, last, ::HexDump{4});
     }
 
     if (last != first) {
@@ -191,7 +191,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 
     NewData();
     if (!buf->empty()) {
-        fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(buf)));
+        fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(buf)));
     }
 
     if(mdebug) {
@@ -209,6 +209,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
         }
     }
 
+    (void)isSpillEnd;
     //if (!isSpillEnd) {
         fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
     //}
@@ -245,7 +246,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
     //  std::cout << "usec: "<< stfHeader->time_usec << std::endl;
 
     // replace first element with STF header
-    fWorkingPayloads->at(0) = nestdaq::MessageUtil::NewMessage(*this, std::move(stfHeader));
+    fWorkingPayloads->at(0) = MessageUtil::NewMessage(*this, std::move(stfHeader));
 
     fOutputPayloads.emplace(std::move(fWorkingPayloads));
 
@@ -270,7 +271,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
     //  auto indata_size = msg->GetSize();
     //  std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
     //		reinterpret_cast<uint64_t*>(msg->GetData() + msg->GetSize()),
-    //		nestdaq::HexDump{4});
+    //		::HexDump{4});
 
     BuildFrame(msg, index);
 
@@ -289,7 +290,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
         for (auto& tmsg : *payload) {
             //      std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
             //                    reinterpret_cast<uint64_t*>(tmsg->GetData() + tmsg->GetSize()),
-            //                    nestdaq::HexDump{4});
+            //                    ::HexDump{4});
 
             if (dqmSocketExists) {
                 if (tmsg->GetSize()==sizeof(STF::Header)) {
@@ -335,7 +336,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
           auto msize = msg->GetSize();
           std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
         		reinterpret_cast<uint64_t*>(msg->GetData() + msize),
-        		nestdaq::HexDump{4});
+        		:HexDump{4});
         } else {
           LOG(debug) << " body " << i << " " << msg->GetSize() << " "
         	     << std::showbase << std::hex <<  msg->GetSize() << std::noshowbase<< std::dec << std::endl;
@@ -343,7 +344,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
           std::for_each(reinterpret_cast<Data::Word*>(msg->GetData()),
         		reinterpret_cast<Data::Word*>(msg->GetData()) + n,
-        		nestdaq::HexDump{4});
+        		::HexDump{4});
         }
           }
         } // for debug-end
