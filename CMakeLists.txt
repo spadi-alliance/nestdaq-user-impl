@@ -149,7 +149,8 @@ endif()
 foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
-  fltcoin; AmQStrTdcDqm)
+  fltcoin; tfdump;
+  AmQStrTdcDqm)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
