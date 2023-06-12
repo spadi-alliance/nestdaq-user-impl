@@ -1,9 +1,9 @@
 /********************************************************************************
  *    Copyright (C) 2014 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH    *
- *									      *
- *	      This software is distributed under the terms of the	     *
- *	      GNU Lesser General Public Licence (LGPL) version 3,	     *
- *		  copied verbatim in the file "LICENSE"		       *
+ *										*
+ *	      This software is distributed under the terms of the		*
+ *	      GNU Lesser General Public Licence (LGPL) version 3,		*
+ *		  copied verbatim in the file "LICENSE"				*
  ********************************************************************************/
 
 #include <fairmq/Device.h>
@@ -37,8 +37,10 @@ struct FltCoin : fair::mq::Device
 	struct OptionKey {
 		static constexpr std::string_view InputChannelName   {"in-chan-name"};
 		static constexpr std::string_view OutputChannelName  {"out-chan-name"};
-		static constexpr std::string_view DataSupress        {"data-supress"};
+		static constexpr std::string_view DataSuppress       {"data-suppress"};
+		static constexpr std::string_view RemoveHB           {"remove-hb"};
 		static constexpr std::string_view PollTimeout        {"poll-timeout"};
+		static constexpr std::string_view SplitMethod        {"split"};
 	};
 
 	FltCoin()
@@ -50,7 +52,6 @@ struct FltCoin : fair::mq::Device
 		fKt1 = new KTimer(1000);
 		fKt2 = new KTimer(1000);
 		fKt3 = new KTimer(1000);
-		fKt4 = new KTimer(1000);
 	}
 
 	void InitTask() override;
@@ -105,14 +106,15 @@ private:
 	int fNumDestination {0};
 	uint32_t fDirection {0};
 	int fPollTimeoutMS  {0};
+	int fSplitMethod    {0};
 
 	uint32_t fId {0};
 	Trigger *fTrig;
-	bool fIsDataSupress = true;
+	bool fIsDataSuppress = true;
+	bool fIsRemoveHB = true;
 	KTimer *fKt1;
 	KTimer *fKt2;
 	KTimer *fKt3;
-	KTimer *fKt4;
 };
 
 
@@ -129,25 +131,47 @@ void FltCoin::InitTask()
 	fNumDestination = GetNumSubChannels(fOutputChannelName);
 	fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
 
-        fName = fConfig->GetProperty<std::string>("id");
-        std::istringstream ss(fName.substr(fName.rfind("-") + 1));
-        ss >> fId;
+	fName = fConfig->GetProperty<std::string>("id");
+	std::istringstream ss(fName.substr(fName.rfind("-") + 1));
+	ss >> fId;
 
-	std::string sIsDataSupress = fConfig->GetValue<std::string>(opt::DataSupress.data());
-	if (sIsDataSupress == "true") {
-		fIsDataSupress = true;
+	fSplitMethod    = std::stoi(
+		fConfig->GetProperty<std::string>(opt::SplitMethod.data()));
+	LOG(info) << "InitTask: SplitMethod : " << fSplitMethod;
+
+	std::string sIsDataSuppress = fConfig->GetValue<std::string>(opt::DataSuppress.data());
+	if (sIsDataSuppress == "true") {
+		fIsDataSuppress = true;
 	} else {
-		fIsDataSupress = false;
+		fIsDataSuppress = false;
 	}
-	LOG(info) << "InitTask: DataSupress : " << fIsDataSupress;
+	LOG(info) << "InitTask: DataSuppress : " << fIsDataSuppress;
+
+	std::string sIsRemoveHB = fConfig->GetValue<std::string>(opt::RemoveHB.data());
+	if (sIsRemoveHB == "true") {
+		fIsRemoveHB = true;
+	} else {
+		fIsRemoveHB = false;
+	}
+	LOG(info) << "InitTask: RemoveHB : " << fIsRemoveHB;
 
 	//fTrig->SetTimeRegion(1024 * 512);
 	fTrig->SetTimeRegion(1024 * 128);
 	fTrig->ClearEntry();
+
+#if 1
 	fTrig->Entry(0xc0a802a8, 2, 0);
 	fTrig->Entry(0xc0a802a8, 4, 0);
 	fTrig->Entry(0xc0a802a8, 6, 0);
 	fTrig->Entry(0xc0a802a8, 8, 0);
+
+	fTrig->SetLogic(4);
+#else
+	fTrig->Entry(0xc0a802a8, 0, 0);
+	fTrig->Entry(0xc0a802a8, 1, 0);
+
+	fTrig->SetLogic(2);
+#endif
 
 }
 
@@ -309,10 +333,6 @@ bool FltCoin::ConditionalRun()
 
 	if (Receive(inParts, fInputChannelName, 0, 1000) > 0) {
 		assert(inParts.Size() >= 2);
-		if (fKt1->Check()) {
-			std::cout << "#Nmsg: " << std::dec << inParts.Size() << std::endl;
-		}
-
 		sw_start = std::chrono::system_clock::now();
 
 		struct DataBlock {
@@ -326,23 +346,25 @@ bool FltCoin::ConditionalRun()
 
 		std::vector<struct DataBlock> blocks;
 		std::vector< std::vector<struct DataBlock> > block_map;
-
 		std::vector<struct SubTimeFrame::Header> stf;
-
-		uint64_t femid = 0;
-		uint64_t devtype = 0;
-		int ifem = 0;
 
 
 		#if 1
-		if (fKt4->Check()) {
-			std::cout << "#DDDD " << std::hex;
+		if (fKt1->Check()) {
+			std::cout << "#Nmsg: " << std::dec << inParts.Size() << std::endl;
+			std::cout << "# " << std::dec;
 			for(int i = 0 ; i < inParts.Size() ; i++) {
 				uint64_t *top = reinterpret_cast<uint64_t *>(inParts[i].GetData());
+				struct TimeFrame::Header *tbh
+					= reinterpret_cast<TimeFrame::Header *>(inParts[i].GetData());
 				struct SubTimeFrame::Header *stbh
 					= reinterpret_cast<SubTimeFrame::Header *>(inParts[i].GetData());
+				if (tbh->magic == TimeFrame::Magic) {
+					std::cout << "TF Id: "
+						<< tbh->timeFrameId  << " Nsrc: " << tbh->numSource;
+				} else
 				if (stbh->magic == SubTimeFrame::Magic) {
-					std::cout << std::endl << "* FId: "
+					std::cout << std::endl << "* STF : " << std::hex
 						<< std::setw(8) << stbh->timeFrameId << " :"; 
 				} else {
 					std::cout << " " << std::setw(8) << std::setfill('0')
@@ -354,9 +376,10 @@ bool FltCoin::ConditionalRun()
 		#endif
 
 
+		uint64_t femid = 0;
+		uint64_t devtype = 0;
+		int ifem = 0;
 		std::vector<bool> flag_sending;
-
-		//for(auto& vmsg : inParts) {
 		for(int i = 0 ; i < inParts.Size() ; i++) {
 			flag_sending.push_back(true);
 			#if 0
@@ -387,11 +410,13 @@ bool FltCoin::ConditionalRun()
 				// make block map;
 
 				uint64_t *data = reinterpret_cast<uint64_t *>(inParts[i].GetData());
-
 				int hbframe = IsHartBeat(data[0], devtype);
 
-				//std::cout << "#DDD msg " << std::dec << i << ": "
-				//	<< " HBframe: " << hbframe << std::endl;
+				#if 0
+				std::cout << "#DDD msg " << std::dec << i << ": "
+					<< " HBFrame: " << hbframe
+					<< " blocks.size(): " << blocks.size() << std::endl;
+				#endif
 
 				if (hbframe < 0) {
 					dblock.FEMId = femid;
@@ -401,7 +426,36 @@ bool FltCoin::ConditionalRun()
 					dblock.nTrig = 0;
 					dblock.HBFrame = 0;
 				} else {
-					//data ga nakattatokimo push_back
+					if (fSplitMethod > 0) {
+						//data ga nakattatokimo push_back dummy
+						if (   (blocks.size() == 0)
+							|| ((blocks.size() > 0)
+							&& (blocks.back().is_HB == true)) ) {
+
+							#if 0
+							std::cout << "#W no data frame Msg:"
+								<< std::dec << i
+								<< " " << inParts.Size()
+								<< " " << blocks.size()
+								<< " is_HB:" << hbframe
+								<< " " << std::hex << data[0];
+							if (blocks.size() > 0) {
+								std::cout << " p_is_HB:"
+									<< blocks.back().is_HB;
+							}
+							std::cout << std::endl;
+							//assert(0);
+							#endif
+
+							dblock.FEMId = femid;
+							dblock.Type = SubTimeFrame::NULDEV;
+							dblock.is_HB = false;
+							dblock.msg_index = i - 1;
+							dblock.nTrig = 0;
+							dblock.HBFrame = 0;
+							blocks.push_back(dblock);
+						}
+					}
 
 					dblock.HBFrame = hbframe;
 					dblock.FEMId = femid;
@@ -416,7 +470,6 @@ bool FltCoin::ConditionalRun()
 		block_map.push_back(blocks);
 
 		#if 0
-		int nblock = blocks.size();
 		std::cout << "#D bloack_map.size: " << block_map.size() << std::endl;
 		for (auto& blk : block_map) {
 			std::cout << "#D block " << blk.size() << " / ";
@@ -428,7 +481,9 @@ bool FltCoin::ConditionalRun()
 		std::cout << std::endl;
 		#endif
 
-		//std::cout << "blocks: " << nblock << std::endl;
+		#if 0
+		std::cout << "blocks: " << blocks.size() << std::endl;
+		#endif
 		int totalhits = 0;
 		for (size_t i = 0 ; i < blocks.size() ; i++) {
 
@@ -459,11 +514,13 @@ bool FltCoin::ConditionalRun()
 					<< std::endl;
 					#endif
 
-					fTrig->Mark(
-						reinterpret_cast<unsigned char *>(
-							inParts[mindex].GetData()),
-						inParts[mindex].GetSize(),
-						vfemid, dbl->Type);
+					if (mindex >= 0) {
+						fTrig->Mark(
+							reinterpret_cast<unsigned char *>(
+								inParts[mindex].GetData()),
+							inParts[mindex].GetSize(),
+							vfemid, dbl->Type);
+					}
 				}
 			}
 
@@ -484,11 +541,11 @@ bool FltCoin::ConditionalRun()
 			std::cout << "# HB: " << std::dec << i;
 			for (size_t iifem = 0 ; iifem < block_map.size() ; iifem++) {
 				struct DataBlock *dbl = &block_map[iifem][i];
-				//uint64_t vfemid = dbl->FEMId;
+				uint64_t vfemid = dbl->FEMId;
 				uint64_t vhbframe = dbl->HBFrame;
 				//std::cout << "# HB: " << std::dec << i
 				//<< " FEM: " << std::hex << vfemid
-				std::cout << " " << std::dec << vhbframe;
+				std::cout << " " << std::dec << (vfemid  & 0xff) << ":" << vhbframe;
 			}
 			std::cout << std::endl;
 			#endif
@@ -522,8 +579,8 @@ bool FltCoin::ConditionalRun()
 				if (nhits == 0) {
 					int mindex = block_map[iifem][i].msg_index;
 					bool is_HB = block_map[iifem][i].is_HB;
+					uint32_t dtype = block_map[iifem][i].Type;
 
-					//std::cout << "#D msg_index: " << mindex << std::end;;
 					//std::cout << "#D mindex: " << mindex
 					//	<< " h: " << is_HB
 					//	<< " t: " << block_map[iifem][i].Type
@@ -531,14 +588,20 @@ bool FltCoin::ConditionalRun()
 					//	<< std::dec << std::endl;;
 
 					if ((mindex > 0) && (! is_HB)) {
-						flag_sending[mindex] = false;
-						flag_sending[mindex + 1] = false;
+						if (dtype != SubTimeFrame::NULDEV) {
+							flag_sending[mindex] = false;
+						}
+						if (fIsRemoveHB) {
+							flag_sending[mindex + 1] = false;
+						}
 					}
 
+					#if 0
 					// HB wo otoshitemiru
 					if ((mindex > 0) && is_HB) {
 						flag_sending[mindex] = false;
 					}
+					#endif
 				} else {
 					//int mindex = block_map[iifem][i].msg_index;
 					//bool is_HB = block_map[iifem][i].is_HB;
@@ -607,7 +670,6 @@ bool FltCoin::ConditionalRun()
 		uint32_t elapse = std::chrono::duration_cast<std::chrono::microseconds>(
 			sw_end - sw_start).count();
 		if (fKt3->Check()) {
-		//if (totalhits > 0) {
 			std::cout << "#Elapse: " << std::dec << elapse << " us"
 				<< " Hits: " << totalhits << std::endl;
 		}
@@ -615,12 +677,13 @@ bool FltCoin::ConditionalRun()
 
 		//Modify SubTimeFrameHeader, TimeFrameHeader
 		uint32_t tf_len = 0;
-		if (fIsDataSupress) {
+		if (fIsDataSuppress) {
 			for (int ii = 0 ; ii < inParts.Size() ; ii++) {
 				auto stfh = reinterpret_cast<struct SubTimeFrame::Header *>
 					(inParts[ii].GetData());
 				if (stfh->magic == SubTimeFrame::Magic) {
 					uint32_t len_stf = 0;
+					uint32_t nmsg_stf = 0;
 					int kk = ii + 1;
 					for (int jj = ii + 1 ; jj < inParts.Size() ; jj++) {
 						auto sstf =
@@ -632,14 +695,16 @@ bool FltCoin::ConditionalRun()
 						} else
 						if (flag_sending[jj]) {
 							len_stf += inParts[jj].GetSize();
+							nmsg_stf++;
 						}
 					}
-					if (len_stf == 0 ) {
+					if (len_stf == 0) { // STF header kara ankunaru? OK?
 						flag_sending[ii] = false;
 					} else {
 						stfh->length
 							= len_stf
 							+ sizeof(struct SubTimeFrame::Header);
+						stfh->numMessages = nmsg_stf;
 					}
 					ii = kk - 1;
 				}
@@ -647,7 +712,7 @@ bool FltCoin::ConditionalRun()
 
 			// TimeFrameHeader
 			for (int ii = 0 ; ii < inParts.Size() ; ii++) {
-				if (flag_sending[ii] || (! fIsDataSupress)) {
+				if (flag_sending[ii] || (! fIsDataSuppress)) {
 					tf_len += (inParts.AtRef(ii)).GetSize();
 				}
 			}
@@ -677,7 +742,7 @@ bool FltCoin::ConditionalRun()
 
 		//uint64_t dlen = 0;
 		//for (int ii = 0 ; ii < inParts.Size() ; ii++) {
-		//	if (flag_sending[ii] || (! fIsDataSupress)) {
+		//	if (flag_sending[ii] || (! fIsDataSuppress)) {
 		//		dlen += (inParts.AtRef(ii)).GetSize();
 		//	}
 		//}
@@ -698,14 +763,34 @@ bool FltCoin::ConditionalRun()
 		//Copy
 		unsigned int msg_size = inParts.Size();
 		for (unsigned int ii = 0 ; ii < msg_size ; ii++) {
-			if (flag_sending[ii] || (! fIsDataSupress)) {
+			if (flag_sending[ii] || (! fIsDataSuppress)) {
 				FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
 				msgCopy->Copy(inParts.AtRef(ii));
 				outParts.AddPart(std::move(msgCopy));
 			}
 		}
 
-		//std::cout << "#DDD outParts.Size: " << outParts.Size() << std::endl;
+		#if 0
+		std::cout << "#D Blocks" << std::endl;
+		for (unsigned int ii = 0 ; ii < block_map.size() ; ii++) {
+			auto lblocks = block_map[ii];
+			for (unsigned int jj = 0 ; jj < lblocks.size() ; jj++) {
+				std::cout << " " << lblocks[jj].is_HB << ":" << lblocks[jj].HBFrame;
+			}
+			std::cout << std::endl;
+		}
+		std::cout << "#DD outParts.Size: " << outParts.Size() << std::endl;
+		std::cout << "#DD flag_sending: ";
+		int flagcount = 0;
+		for (unsigned int ii = 0 ; ii < msg_size ; ii++) {
+			auto stfHeader = reinterpret_cast<struct SubTimeFrame::Header *>
+				(inParts[ii].GetData());
+			if (stfHeader->magic == SubTimeFrame::Magic) std::cout << std::endl;
+			std::cout << flag_sending[ii];
+			if (flag_sending[ii]) flagcount++;
+		}
+		std::cout << " : " << flagcount << std::endl;
+		#endif
 	
 		//Send
 		#if 0
@@ -790,12 +875,17 @@ void addCustomOptions(bpo::options_description& options)
 		(opt::OutputChannelName.data(),
 			bpo::value<std::string>()->default_value("out"),
 			"Name of the output channel")
-		(opt::DataSupress.data(),
+		(opt::DataSuppress.data(),
 			bpo::value<std::string>()->default_value("true"),
-			"Data supression enable")
+			"Data suppression enable")
+		(opt::RemoveHB.data(),
+			bpo::value<std::string>()->default_value("true"),
+			"Remove HB without hit")
 		(opt::PollTimeout.data(), 
 			bpo::value<std::string>()->default_value("1"),
 			"Timeout of polling (in msec)")
+		(opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("1"),
+			"STF split method")
     		;
 
 }

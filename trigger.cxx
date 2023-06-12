@@ -13,6 +13,7 @@
 
 #include "UnpackTdc.h"
 #include "SubTimeFrameHeader.h"
+#include "TriggerMap.cxx"
 
 
 class Trigger
@@ -32,6 +33,7 @@ public:
 	std::vector<uint32_t> *Scan();
 	void SetMarkLen(int val) {fMarkLen = val;};
 	int GetMarkLen() {return fMarkLen;};
+	void SetLogic(int);
 protected:
 private:
 	//std::vector<struct CoinCh> fEntry;
@@ -48,6 +50,8 @@ private:
 	//uint32_t fMarkMask = 0;
 	std::vector<uint32_t> fHits;
 	int fMarkLen = 5;
+
+	TriggerMap fTMap;
 };
 
 Trigger::Trigger()
@@ -61,6 +65,13 @@ Trigger::~Trigger()
 		delete[] fTimeRegion;
 		fTimeRegion = nullptr;
 	}
+
+	return;
+}
+
+void Trigger::SetLogic(int nsignal)
+{
+	fTMap.MakeTable(nsignal);
 	return;
 }
 
@@ -273,27 +284,18 @@ std::vector<uint32_t> *Trigger::Scan()
 	fHits.clear();
 	fHits.resize(0);
 
-	#if 0
-	for (unsigned int i = 0 ; i < fTimeRegionSize ; i++) {
-		//if ((fMarkMask & fTimeRegion[i]) == fMarkMask) {
-		if ((fEntryMask & fTimeRegion[i]) == fEntryMask) {
-			if ((i == 0) || (fHits.size() == 0)) {
-				fHits.emplace_back(i);
-			} else 
-			if ((fHits.size() > 0)
-				&& (fHits.back() != (i - 1))
-				&& (fHits.back() != (i - 2))) {
-				fHits.emplace_back(i);
-			}
-		}
-	#else
 	for (unsigned int i = 0 ; i < fTimeRegionSize - 1; i++) {
+		#if 1
 		if (((fEntryMask & fTimeRegion[i]) != fEntryMask)
 		&& ((fEntryMask & fTimeRegion[i + 1]) == fEntryMask)) {
 			fHits.emplace_back(i + 1);
 		}
-	#endif
-
+		#else
+		if ((! fTMap.LookUp(fTimeRegion[i]))
+		 && (fTMap.LookUp(fTimeRegion[i + 1]))) {
+			fHits.emplace_back(i + 1);
+		}
+		#endif
 
 		#if 0
 		if (fTimeRegion[i] != 0) {
