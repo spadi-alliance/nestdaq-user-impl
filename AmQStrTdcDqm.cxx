@@ -373,7 +373,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
     auto stfh    = reinterpret_cast<STF::Header*>(stfmsg->GetData());
     auto msgSize = stfh->numMessages;
     nmsg++;
-    LOG(debug4) << " STF msg size : " << msgSize ;
+    //    LOG(debug) << " STF msg size : " << msgSize ;
 
     if (!fFEMId.count(stfh->FEMId)) {
       LOG(debug) << "FEMTId: " << std::hex << stfh->FEMId << std::dec;
@@ -636,7 +636,7 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
 #endif
     
     HB1(0, "status",                 3, -0.5, 3-0.5, "");
-    HB1(1, "# Heatbeat",             fBins+2, -1, fBins+1, "");
+    HB1(1, "# Heartbeat",            fBins+2, -1, fBins+1, "");
     HB1(2, "# spill On",             fBins+2, -1, fBins+1, "");
     HB1(3, "# spill end",            fBins+2, -1, fBins+1, "");
     HB1(4, "# HB Delimiter Flag",    fBins+2, -1, fBins+1, "");
