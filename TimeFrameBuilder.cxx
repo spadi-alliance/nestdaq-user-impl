@@ -47,19 +47,19 @@ bool TimeFrameBuilder::ConditionalRun()
 {
     namespace STF = SubTimeFrame;
     namespace TF  = TimeFrame;
-
+        
     // receive
     FairMQParts inParts;
     if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
         assert(inParts.Size() >= 2);
-
-        LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
+	
+	LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
 
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
 
-	//        LOG(debug4) << "stfId: "<< stfId;
-	//        LOG(debug4) << "msg size: " << inParts.Size();
+	LOG(debug4) << "stfId: "<< stfId;
+	LOG(debug4) << "msg size: " << inParts.Size();
 
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
             fTFBuffer[stfId].reserve(fNumSource);
@@ -79,7 +79,7 @@ bool TimeFrameBuilder::ConditionalRun()
 
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
 
-	      LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
+	        LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
 
                 // move ownership to complete time frame
                 FairMQParts outParts;
