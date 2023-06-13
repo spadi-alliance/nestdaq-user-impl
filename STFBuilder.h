@@ -60,6 +60,8 @@ private:
     void NewData();
     void PostRun() override;
 
+    int fa {0};
+    uint64_t fRemain  {0};
     uint64_t fFEMId   {0};
     uint64_t fFEMType {0};
     int         fNumDestination {0};
@@ -68,6 +70,7 @@ private:
     std::string fDQMChannelName;
     int fMaxHBF {1};
     int fHBFCounter {0};
+    int hbf_flag {0};
     uint32_t fSTFSequenceNumber {0};
     int fSplitMethod {0};
     uint8_t fLastHeader {0};

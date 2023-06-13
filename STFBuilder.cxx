@@ -75,9 +75,11 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
         if (!isHeadValid) {
 
-            LOG(warning)
-                    << " " << i << " " << offset << " invalid head = " << std::hex << static_cast<uint16_t>(h)
-                    << " " << word->raw << std::dec << std::endl;
+            LOG(error)   << " " << i << " " << offset << " invalid head = " << std::hex << static_cast<uint16_t>(h)
+			 << " " << word->raw << std::dec << std::endl;
+	    
+            LOG(warning) << " " << i << " " << offset << " invalid head = " << std::hex << static_cast<uint16_t>(h)
+			 << " " << word->raw << std::dec << std::endl;
 
             if (i - offset > 0) {
                 // std::cout << " fill valid part "  << std::setw(10) << offset << " -> " << std::setw(10) << i << std::endl;
@@ -91,11 +93,14 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
         }
 
         if ((h == Data::Heartbeat) || h == Data::SpillEnd) {
-            if (fLastHeader == 0) {
+
+	    if (fLastHeader == 0) {
                 fLastHeader = h;
+		hbf_flag++;
                 continue;
             } else if (fLastHeader == h) {
                 fLastHeader = 0;
+		hbf_flag++;
             } else {
                 // unexpected @TODO
             }
@@ -109,15 +114,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
             } else { // last heartbeat delimiter or last spill-off delimiter, or sequence number
                 fSTFId = delimiterFrameId;
             }
-#if 0
-            ++hbf_flag;
-            if( hbf_flag == 1 ) {
-                continue;
 
-            } else if(hbf_flag == 2) {
-                hbf_flag = 0;
-            }
-#endif
             if(mdebug) {
                 LOG(debug) << " Fill " << std::setw(10) << offset << " -> " << std::setw(10) << i << " : " << std::hex << word->raw << std::dec;
             }
@@ -127,7 +124,8 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
             offset     = i+1;
 
             FillData(first, last, (h==Data::SpillEnd));
-
+	    hbf_flag = 0;
+	    
             if ( h == Data::SpillEnd ) {
                 FinalizeSTF();
                 continue;
@@ -156,14 +154,24 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 #endif
     }
 
-    if(mdebug)
+    if(true)
         std::cout << " data remains: " << (nWord - offset) << " offset =  " << offset << std::endl;
 
     if (offset < nWord) { // && !isSpillEnd)) {
+      if(hbf_flag != 1){
         fInputPayloads.insert(fInputPayloads.end(),
                               std::make_move_iterator(msgBegin + offset),
                               std::make_move_iterator(msgBegin + nWord));
-    }
+      }else {	
+        fInputPayloads.insert(fInputPayloads.end(),
+                              std::make_move_iterator(msgBegin + offset),
+                              std::make_move_iterator(msgBegin + nWord - 1));
+
+	fRemain = reinterpret_cast<Data::Bits*>(msgBegin + nWord - 1)->raw;
+	LOG(error) << "fRemain : " << std::hex << fRemain << std::dec << std::endl;
+	fa = 1;
+      }
+    } 
 
 }
 
@@ -178,26 +186,53 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     auto buf  = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
     auto sbuf = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));    
 
-    if(mdebug) {
-        LOG(debug) << " FillData " ;
-        std::for_each(first, last, nestdaq::HexDump{4});
-    }
-
     //    if (last != first) {
     if ( (last - first) > 1 ) {
-      if(mdebug){
+      if(true){
             LOG(debug) << " first: "<< first << "  last: " << last;
 	    LOG(debug) << " last - 1 --> "<< last - 1 ;
       }
-        // insert new data to send buffer
-	//        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
-        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));	
+      // insert new data to send buffer
+      //        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
+      buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));
     }
 
-    sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));	    
+    auto delim1 = reinterpret_cast<Data::Bits*>(last-1)->raw;
+    auto delim2 = reinterpret_cast<Data::Bits*>(last)->raw;
+
+    if( delim1 != delim2 ){
+      LOG(error) << "del1 : " << std::hex << delim1 << std::dec << std::endl;
+      LOG(error) << "del2 : " << std::hex << delim2 << std::dec << std::endl;
+
+      LOG(debug) << " first: "<< first << "  last: " << last;
+      LOG(debug) << " last - 1 --> "<< last - 1 ;
+      LOG(debug) << " hbf_flag --> "<< hbf_flag ;
+      
+      if(true) {
+        LOG(debug) << " FillData " ;
+        std::for_each(first, last+1, nestdaq::HexDump{4});
+      }
+      
+    }
+    
+    if ( last != first ) {      
+      sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));
+    }else if( last == first ) {
+
+      LOG(debug) << "hbf_flag: " << hbf_flag;
+      LOG(error) << "fRemain : " << std::hex << fRemain << std::dec << std::endl;      
+
+      const auto& tRemain = reinterpret_cast<Data::Word*>(&fRemain);
+      LOG(error) << "tRemain : " << std::hex 
+		 << reinterpret_cast<Data::Bits*>(tRemain)->raw << std::dec << std::endl;      
+      
+      sbuf->insert(sbuf->end(), *tRemain);
+      sbuf->insert(sbuf->end(), *last);
+    }
+    
     NewData();
     if (!buf->empty()) {
-        fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(buf)));
+      fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(buf)));
     }
 
     if(mdebug) {
@@ -216,9 +251,14 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     }
 
     /* insert 64bit*2 delimiter */
-    if (!sbuf->empty()) {
-      fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(sbuf)));
-    }
+    fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(sbuf)));
+    
+    //    if ( !sbuf->empty() && (last!=first) ) {
+    //      fWorkingPayloads->emplace_back(nestdaq::MessageUtil::NewMessage(*this, std::move(sbuf)));
+    //    }else if( sbuf->empty() && (last ==first) ) {
+    //      fWorkingPayloads->emplace_back(NewSimpleMessage(*last));      
+    //    }
+    
     ////if (!isSpillEnd) {
     //    fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
     ////}
@@ -333,32 +373,34 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
         auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
-        /*
-        { // for debug-begin
+	
+        if(fa == 1) { // for debug-begin
 
           std::cout << " parts size = " << parts.Size() << std::endl;
           for (int i=0; i<parts.Size(); ++i){
-        const auto& msg = parts.At(i);
+	    const auto& msg = parts.At(i);
 
-        if (i==0) {
-          auto stfh = reinterpret_cast<STF::Header*>(msg->GetData());
-          LOG(debug) << "STF " << stfh->timeFrameId << " length " << stfh->length << " header " << msg->GetSize() << std::endl;
-          auto msize = msg->GetSize();
-          std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
-        		reinterpret_cast<uint64_t*>(msg->GetData() + msize),
-        		nestdaq::HexDump{4});
-        } else {
-          LOG(debug) << " body " << i << " " << msg->GetSize() << " "
-        	     << std::showbase << std::hex <<  msg->GetSize() << std::noshowbase<< std::dec << std::endl;
-          auto n = msg->GetSize()/sizeof(Data::Word);
-
-          std::for_each(reinterpret_cast<Data::Word*>(msg->GetData()),
-        		reinterpret_cast<Data::Word*>(msg->GetData()) + n,
-        		nestdaq::HexDump{4});
-        }
+	    if (i==0) {
+	      auto stfh = reinterpret_cast<STF::Header*>(msg->GetData());
+	      LOG(debug) << "STF " << stfh->timeFrameId << " length " << stfh->length << " header " << msg->GetSize() << std::endl;
+	      auto msize = msg->GetSize();
+	      std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
+			    reinterpret_cast<uint64_t*>(msg->GetData() + msize),
+			    nestdaq::HexDump{4});
+	    } else {
+	      LOG(debug) << " body " << i << " " << msg->GetSize() << " "
+			 << std::showbase << std::hex <<  msg->GetSize() << std::noshowbase<< std::dec << std::endl;
+	      auto n = msg->GetSize()/sizeof(Data::Word);
+	      
+	      std::for_each(reinterpret_cast<Data::Word*>(msg->GetData()),
+			    reinterpret_cast<Data::Word*>(msg->GetData()) + n,
+			    nestdaq::HexDump{4});
+	    }
           }
+
+
         } // for debug-end
-        */
+	fa = 0;
 
         // Push multipart message into send queue
         // LOG(debug) << "send multipart message ";
@@ -524,14 +566,14 @@ void AmQStrTdcSTFBuilder::PostRun()
         FairMQMessagePtr msg(NewMessage());
 
         if (Receive(msg, fInputChannelName) <= 0) {
-            LOG(debug) << __func__ << " no data received " << nrecv;
+	  //            LOG(debug) << __func__ << " no data received " << nrecv;
             ++nrecv;
             if (nrecv>10) {
                 break;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         } else {
-            LOG(debug) << __func__ << " print data";
+	  //            LOG(debug) << __func__ << " print data";
             //      HandleData(msg, 0);
         }
     }

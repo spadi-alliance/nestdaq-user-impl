@@ -88,7 +88,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
   namespace Data = AmQStrTdc::Data;
 
   using Bits     = Data::Bits;
-
+  
   // [time-stamp, femId-list]
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt0;
@@ -136,7 +136,21 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
-	    
+
+    /*
+    for (int i=1; i<nmsg; ++i) {
+      const auto& tmsg = stf.At(i);
+      LOG(debug) << " body " << i << " " << tmsg->GetSize() << " "
+		 << std::showbase << std::hex <<  tmsg->GetSize() << std::noshowbase<< std::dec << std::endl;
+      auto n = tmsg->GetSize()/sizeof(Data::Word);
+
+      std::for_each(reinterpret_cast<Data::Word*>(tmsg->GetData()),
+		    reinterpret_cast<Data::Word*>(tmsg->GetData()) + n,
+		    nestdaq::HexDump{4});
+      
+    }
+    */
+    
     for (int imsg=1; imsg<nmsg; ++imsg) {
       const auto& msg = stf.At(imsg);
       auto wb =  reinterpret_cast<Bits*>(msg->GetData());
