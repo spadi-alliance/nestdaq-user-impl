@@ -50,6 +50,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
     auto nWord     = msgSize / sizeof(Word);
 
     if(mdebug) {
+    
         LOG(debug) << " msg size " << msgSize << " bytes " << nWord << " words" << std::endl;
         {
             std::for_each(reinterpret_cast<Word*>(msgBegin),
@@ -157,9 +158,10 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
     if (offset < nWord) { // && !isSpillEnd)) {
 
       if(hbf_flag == 1){
-        fInputPayloads.insert(fInputPayloads.end(),
-                              std::make_move_iterator(msgBegin + offset),
-                              std::make_move_iterator(msgBegin + nWord - 1));
+	if( (nWord - offset) != 1 )
+	  fInputPayloads.insert(fInputPayloads.end(),
+				std::make_move_iterator(msgBegin + offset),
+				std::make_move_iterator(msgBegin + nWord - 1));
 
 	fRemain = reinterpret_cast<Data::Bits*>(msgBegin + nWord - 1)->raw;
 	//LOG(debug) << "fRemain : " << std::hex << fRemain << std::dec << std::endl;
@@ -182,8 +184,8 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     namespace Data = AmQStrTdc::Data;
     // construct send buffer with remained data on heap
     auto buf  = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
-    auto sbuf = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));    
-
+    auto sbuf = std::make_unique<decltype(fInputDelimiter)>(std::move(fInputDelimiter));
+    
     if ( (last - first) > 1 ) { // data + two delimiters
       // insert new data to send buffer
       //        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
@@ -208,7 +210,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
       
       sbuf->insert(sbuf->end(), *tRemain);
       sbuf->insert(sbuf->end(), *last);
-
+      
     }
     
     NewData();
@@ -350,10 +352,8 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
         auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
-
-	/*	
-	if(fa == 1) { // for debug-begin
-
+	/*
+	{ // for debug-begin
           std::cout << " parts size = " << parts.Size() << std::endl;
           for (int i=0; i<parts.Size(); ++i){
 	    const auto& msg = parts.At(i);
@@ -364,7 +364,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	      auto msize = msg->GetSize();
 	      std::for_each(reinterpret_cast<uint64_t*>(msg->GetData()),
 			    reinterpret_cast<uint64_t*>(msg->GetData() + msize),
-			    :HexDump{4});
+			    ::HexDump{4});
 	    } else {
 	      LOG(debug) << " body " << i << " " << msg->GetSize() << " "
 			 << std::showbase << std::hex <<  msg->GetSize() << std::noshowbase<< std::dec << std::endl;
@@ -376,9 +376,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	    }
 	  }
 
-
         } // for debug-end
-    	fa = 0;
 	*/
 	
         // Push multipart message into send queue

@@ -79,6 +79,7 @@ private:
 
     bool mdebug;
     RecvBuffer fInputPayloads;
+    RecvBuffer fInputDelimiter;
     WorkBuffer fWorkingPayloads;
     SendBuffer fOutputPayloads;
 };

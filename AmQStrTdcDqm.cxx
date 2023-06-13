@@ -603,6 +603,9 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         name % id;
         std::string hist_name = boost::str(name);
 
+	//	LOG(debug) <<"hist name: " << hist_name;
+	//	LOG(debug) << "gdir: " << gDirectory->Get(hist_name.c_str());
+	
         if (gDirectory->Get(hist_name.c_str())) return nullptr;
 
         auto h = new TH1F(hist_name.c_str(), title.data(), nbin, xmin, xmax);
@@ -610,17 +613,17 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         fH1Map.emplace(hist_name, h);
 
 
-    if (folder.empty()) {
-      fServer->Register("/amqdqm",  h);
-    } else {
-      boost::format dirname("/amqdqm/%s");
-      dirname % folder.data();
-      std::string dir_name = boost::str(dirname);
-      fServer->Register(dir_name.c_str(), h);
-    }
+        if (folder.empty()) {
+          fServer->Register("/amqdqm",  h);
+	} else {
+	  boost::format dirname("/amqdqm/%s");
+	  dirname % folder.data();
+	  std::string dir_name = boost::str(dirname);
+	  fServer->Register(dir_name.c_str(), h);
+	}
 
-    LOG(debug) << " create histogram " << name;
-    return h;
+	LOG(debug) << " create histogram " << name;
+	return h;
     };
 
 #if 0
@@ -737,6 +740,8 @@ void AmQStrTdcDqm::InitTask()
     }else {
       LOG(error) << " invalid source-type "<< std::endl;
     }
+
+    if(!fH1Map.empty()) fH1Map.clear();      
     
     InitServer(server);
 
@@ -747,6 +752,7 @@ void AmQStrTdcDqm::InitTask()
 void AmQStrTdcDqm::PostRun()
 {
     fDiscarded.clear();
+    fTFBuffer.clear();
 
     int nrecv=0;
     if (fChannels.count(fInputChannelName) > 0) {
