@@ -406,6 +406,12 @@ bool FltCoin::ConditionalRun()
 				blocks.clear();
 				blocks.resize(0);
 				ifem++;
+
+				#if 0
+				std::cout << "#D STF Nmsg: " << stfHeader->numMessages
+					<< " Tid: " << stfHeader->timeFrameId << std::endl;
+				#endif
+
 			} else {
 				// make block map;
 
@@ -413,8 +419,8 @@ bool FltCoin::ConditionalRun()
 				int hbframe = IsHartBeat(data[0], devtype);
 
 				#if 0
-				std::cout << "#DDD msg " << std::dec << i << ": "
-					<< " HBFrame: " << hbframe
+				std::cout << "#DDD msg" << std::dec << std::setw(3) << i << ":"
+					<< " HBFrame:" << std::setw(6) << hbframe
 					<< " blocks.size(): " << blocks.size() << std::endl;
 				#endif
 
@@ -450,7 +456,8 @@ bool FltCoin::ConditionalRun()
 							dblock.FEMId = femid;
 							dblock.Type = SubTimeFrame::NULDEV;
 							dblock.is_HB = false;
-							dblock.msg_index = i - 1;
+							//dblock.msg_index = i - 1;
+							dblock.msg_index = -2;
 							dblock.nTrig = 0;
 							dblock.HBFrame = 0;
 							blocks.push_back(dblock);
@@ -470,22 +477,33 @@ bool FltCoin::ConditionalRun()
 		block_map.push_back(blocks);
 
 		#if 0
-		std::cout << "#D bloack_map.size: " << block_map.size() << std::endl;
+		std::cout << "#D block_map.size: " << std::dec << block_map.size() << std::endl;
 		for (auto& blk : block_map) {
-			std::cout << "#D block " << blk.size() << " / ";
+			std::cout << "#D block " << std::setw(2) << blk.size() << " /";
 			for (auto& b : blk) {
-				std::cout << " " << b.msg_index << " is_HB:" << b.is_HB;
+				std::cout << " " << std::setw(3) << b.msg_index << " HB:" << b.is_HB;
 			}
 			std::cout << std::endl;
 		}
 		std::cout << std::endl;
 		#endif
 
+		size_t bsize_min = block_map[0].size();
+		for (auto& blk : block_map) {
+			if (blk.size() < bsize_min) {
+				LOG(warn) << "Unmatched number of stf in TF "
+					<< bsize_min << " " << blk.size() << std::endl;
+				bsize_min = blk.size();
+			}
+		}
+
 		#if 0
 		std::cout << "blocks: " << blocks.size() << std::endl;
 		#endif
+
 		int totalhits = 0;
-		for (size_t i = 0 ; i < blocks.size() ; i++) {
+		//for (size_t i = 0 ; i < blocks.size() ; i++) {
+		for (size_t i = 0 ; i < bsize_min ; i++) {
 
 			fTrig->CleanUpTimeRegion();
 
