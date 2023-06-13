@@ -330,7 +330,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
   }
   
   // [time-stamp, femId-list]
-  /*
+  
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatNum;
   std::unordered_set<uint32_t> spillEnd;
@@ -343,9 +343,9 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
 
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> lrtdcCnt;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hrtdcCnt;
-  */
 
 
+  /*
   { // for debug-begin
 
     std::cout << " parts size = " << parts.Size() << std::endl;
@@ -362,7 +362,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
 
     }
   } // for debug-end
-
+  */
   
   int nmsg = 0;
   
@@ -385,36 +385,19 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
     }
 
     auto femIdx = fFEMId[stfh->FEMId];
-    //    auto femIdx = (h->FEMId & 0x0f) - 1;
 
-    //    timeFrameId[stfh->timeFrameId].insert(femIdx);
-    //    length[stfh->length].insert(femIdx);
+    timeFrameId[stfh->timeFrameId].insert(femIdx);
+    length[stfh->length].insert(femIdx);
     
     // STF part
-    int loop=0;
     for(unsigned int imsg = nmsg; imsg < nmsg + msgSize - 1; ++imsg){
 
       const auto& tmsg = parts.At(imsg);
       auto wb = reinterpret_cast<Bits*>(tmsg->GetData());
 
-      LOG(debug4) << " =========================" ;
-      LOG(debug4) << " nmsg : " << imsg ;
-      LOG(debug4) << " word = " << std::hex << wb->raw << std::dec;
-      LOG(debug4) << " head = " << std::hex << wb->head << std::dec;
-      LOG(debug4) << " loop : " << loop ;            
-
-      loop++;
-
       switch (wb->head) {
 
       case Data::Heartbeat:
-	/*	if(fDebug){
-	  LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
-	  LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
-	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
-	  LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
-	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;
-	}
 
         if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
           LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
@@ -422,27 +405,16 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
 
-	if(false){
-	  LOG(debug) << "============================";
-	  LOG(debug) << "femIdx: "  << femIdx;
-	  LOG(debug) << "HB frame : " << wb->hbframe;		
-	  LOG(debug) << "timeFrameId : " << stfh->timeFrameId;	
-	  LOG(debug) << "# of HB: " << wb->hbframe - stfh->timeFrameId;
-	  //	  LOG(debug) << "hbflag: "  << wb->hbflag;
-	}
-
-	//	heartbeatNum[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
-
 	if(wb->hbframe >= stfh->timeFrameId)
 	  heartbeatNum[ wb->hbframe - stfh->timeFrameId + 1 ].insert(femIdx);
 
 	heartbeatFlag[wb->hbflag].insert(femIdx);
 	
-	*/
         break;
       case Data::SpillOn: 
-	/*        if (spillOn.count(femIdx)) {
-          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
+	if (spillOn.count(femIdx)) {
+          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId
+		     << std::dec << " " << femIdx;
         }
 
         spillOn.insert(femIdx);
@@ -450,33 +422,18 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
         break;
       case Data::SpillEnd: 
         if (spillEnd.count(femIdx)) {
-          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
+          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId
+		     << std::dec << " " << femIdx;
         }
 
         spillEnd.insert(femIdx);
-	*/
+
         break;
       case Data::Data:
-	/*	
-	if(fDebug){
-	  LOG(debug) << "FEMtype: "<< stfh->FEMType;
-	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	  
-	  LOG(debug) << "AmQStrTdc : " << std::hex << stfh->FEMId << std::dec << " " << femIdx
-		     << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
-	}
-
-	if(fDebug){
-	  if(stfh->FEMType==1)
-	    LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
-
-	  if(stfh->FEMType==2)	  
-	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
-	}
-
 	
 	if(stfh->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
 	if(stfh->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
-	*/
+
         break;
       default:
         LOG(error) << "AmQStrTdc : " << std::hex << stfh->FEMId << std::dec  << " " << femIdx
@@ -487,9 +444,64 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
     }
       
     nmsg = nmsg + msgSize - 1;
-    //    istf++;
+    
   }
 
+  // Fill hist
+  for (const auto& [t, fems] : heartbeatCnt) {
+    for (auto femId : fems) {
+      //      HF1(fH1Map, 1, femId, fModuleIp[femId])
+      HF1(fH1Map, 1, femId);
+      HF1(fH1Map, 100+femId, t);
+    }
+  }
+
+  for (const auto femId : spillOn) {
+    HF1(fH1Map, 2, femId);
+  }
+
+  for (const auto femId : spillEnd) {
+    HF1(fH1Map, 3, femId);
+  }
+
+  for (const auto& [t, fems] : heartbeatFlag) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 4, femId, t);
+    }
+  }
+
+  for (const auto& [t, fems] : heartbeatNum) {
+
+    for (auto femId : fems) {
+      HF1(fH1Map, 150+femId, t);
+    }
+  }
+
+  for (const auto& [t, fems] : timeFrameId) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 200+femId, t);
+    }
+  }
+
+  for (const auto& [t, fems] : length) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 300+femId, t);
+    }
+  }
+  
+  
+  for (const auto& [t, fems] : lrtdcCnt) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 2000+femId, t);
+    }
+  }
+
+  for (const auto& [t, fems] : hrtdcCnt) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 2100+femId, t);
+    }
+  }
+   
   return true;
 }
 
@@ -720,7 +732,7 @@ void AmQStrTdcDqm::InitTask()
       fBins = fNumSource;
       OnData(fInputChannelName, &AmQStrTdcDqm::HandleData);
     }else if(fSourceType == "tfb") {
-      fBins = 10;      
+      fBins = 5;      
       OnData(fInputChannelName, &AmQStrTdcDqm::HandleDataTFB);      
     }else {
       LOG(error) << " invalid source-type "<< std::endl;
