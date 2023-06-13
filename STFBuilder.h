@@ -60,7 +60,6 @@ private:
     void NewData();
     void PostRun() override;
 
-    int fa {0};
     uint64_t fRemain  {0};
     uint64_t fFEMId   {0};
     uint64_t fFEMType {0};
