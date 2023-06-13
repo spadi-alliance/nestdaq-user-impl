@@ -13,7 +13,7 @@
 
 #include "HexDump.h"
 
-namespace nestdaq::MessageUtil {
+namespace MessageUtil {
 
 // false value for static assert to invoke compilation error
 template <typename T>
@@ -47,7 +47,7 @@ inline void HexDump(const FairMQMessagePtr &msg)
 {
     auto first = reinterpret_cast<const T *>(msg->GetData());
     auto last = first + msg->GetSize();
-    std::for_each(first, last, nestdaq::HexDump());
+    std::for_each(first, last, ::HexDump());
 }
 
 //______________________________________________________________________________
@@ -154,6 +154,6 @@ inline std::vector<char> ToVector(FairMQMessagePtr &&msg)
             std::make_move_iterator(reinterpret_cast<char *>(msg->GetData()) + msg->GetSize())};
 }
 
-} // namespace nestdaq::MessageUtil
+} // namespace MessageUtil
 
 #endif

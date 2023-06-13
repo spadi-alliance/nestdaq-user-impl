@@ -26,7 +26,7 @@ uint64_t Reporter::AddInputMessageSize(uint64_t n)
 //_______________________________________________________________________________
 uint64_t Reporter::AddInputMessageSize(const FairMQParts& parts)
 {
-    return AddInputMessageSize(nestdaq::MessageUtil::TotalLength(parts));
+    return AddInputMessageSize(MessageUtil::TotalLength(parts));
 }
 
 //_______________________________________________________________________________
@@ -48,7 +48,7 @@ uint64_t Reporter::AddOutputMessageSize(uint64_t n)
 //_______________________________________________________________________________
 uint64_t Reporter::AddOutputMessageSize(const FairMQParts& parts)
 {
-    return AddOutputMessageSize(nestdaq::MessageUtil::TotalLength(parts));
+    return AddOutputMessageSize(MessageUtil::TotalLength(parts));
 }
 
 //_______________________________________________________________________________

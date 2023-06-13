@@ -23,6 +23,7 @@ class AmQStrTdcDqm : public fair::mq::Device
 public:
     struct OptionKey {
         static constexpr std::string_view NumSource         {"num-source"};
+        static constexpr std::string_view SourceType        {"source-type"};      
         static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
         static constexpr std::string_view InputChannelName  {"in-chan-name"};
         static constexpr std::string_view Http              {"http"};
@@ -48,6 +49,7 @@ public:
 private:
     void Check(std::vector<STFBuffer>&& stfs);
     bool HandleData(FairMQParts& parts, int index);
+    bool HandleDataTFB(FairMQParts& parts, int index);
     void Init() override;
     void InitServer(std::string_view server);
     void InitTask() override;
@@ -56,9 +58,11 @@ private:
     bool fDebug  {false};
   
     int fNumSource {1};
+    int fBins {1};  
     int fBufferTimeoutInMs {100000};
     int fId {0};
     std::string fInputChannelName;
+    std::string fSourceType;  
     std::unique_ptr<THttpServer> fServer;
     std::map<uint64_t, int> fFEMId;
     std::map<int, uint64_t> fModuleIp;

@@ -64,6 +64,7 @@ namespace AmQStrTdc::Data {
   enum HeadTypes {
     Data          = 0x0B,
     Heartbeat     = 0x1C,
+    Trailer       = 0x0D,
     //      ErrorRecovery = 0xE,
     SpillOn       = 0x18,
     SpillEnd      = 0x14

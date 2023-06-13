@@ -122,6 +122,7 @@ endif()
 message(STATUS "FairLogger_INCDIR: ${FairLogger_INCDIR}")
 message(STATUS "FairLogger_LIBDIR: ${FairLogger_LIBDIR}")
 
+find_package(fmt)
 if(fmt_DIR)
   message(STATUS "fmt_DIR: ${fmt_DIR}")
   set(fmt_LIB fmt::fmt)
@@ -145,7 +146,11 @@ endif()
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
-foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder; TFBFilePlayer; AmQStrTdcDqm)
+foreach(lvar IN ITEMS
+  Sampler; Sink; FileSink; STFBuilder;
+  TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
+  fltcoin; tfdump;
+  AmQStrTdcDqm)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
@@ -153,26 +158,26 @@ foreach(lvar IN ITEMS Sampler; Sink; FileSink; STFBuilder; TimeFrameBuilder; TFB
 
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
-    ${FairLogger_INCDIR};
     ${FairMQ_INCDIR};
-    ${ROOT_INCLUDE_DIRS}
+    ${ROOT_INCLUDE_DIRS};
     ${CMAKE_SOURCE_DIR};
+#    ${FairLogger_INCDIR};
   )
 
   target_link_directories(${EXEC} PUBLIC
     ${Boost_LIBRARY_DIRS}; 
-    ${FairLogger_LIBDIR};
     ${FairMQ_LIBDIR};
+#    ${FairLogger_LIBDIR};
   )
 
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     ${fmt_LIB};
     ${ROOT_LIBRARIES};
+    FairMQ;
     FairMQStateMachine;
     FairLogger;
     Utility;
-    FairMQ;
     stdc++fs;
     AmQTdcModule;
   )

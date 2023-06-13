@@ -109,7 +109,7 @@ bool TimeFrameBuilder::ConditionalRun()
 		    }
 		}
                 // LOG(debug) << " length = " << h->length;
-                outParts.AddPart(nestdaq::MessageUtil::NewMessage(*this, std::move(h)));
+                outParts.AddPart(MessageUtil::NewMessage(*this, std::move(h)));
                 for (auto& stfBuf: tfBuf) {
                     for (auto& m: stfBuf.parts) {
                         outParts.AddPart(std::move(m));

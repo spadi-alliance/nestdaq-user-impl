@@ -11,9 +11,11 @@
 #include <TString.h>
 #include <iostream>
 #include <boost/format.hpp>
+#include <cmath>
 
 #include <fairmq/runDevice.h>
 
+#include "TimeFrameHeader.h"
 #include "SubTimeFrameHeader.h"
 #include "STFBuilder.h"
 #include "AmQStrTdcData.h"
@@ -33,6 +35,7 @@ void addCustomOptions(bpo::options_description& options)
   using opt = AmQStrTdcDqm::OptionKey;
   options.add_options()
     (opt::NumSource.data(),          bpo::value<std::string>()->default_value("1"), "Number of source endpoint")
+    (opt::SourceType.data(),         bpo::value<std::string>()->default_value("stf"), "Type of source endpoint")    
     (opt::BufferTimeoutInMs.data(),  bpo::value<std::string>()->default_value("100000"), "Buffer timeout in milliseconds")
     (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
     (opt::Http.data(),               bpo::value<std::string>()->default_value("http:5999"), "http engine and port, etc.")
@@ -55,7 +58,8 @@ TH1* HF1(std::unordered_map<std::string, TH1*>& h1Map,
   boost::format name("h%04d");
   name % id;
   auto h    = h1Map.at(name.str());
-  if (h) h->Fill(x, w);
+  if (h)  h->Fill(x, w);
+  
 
   return h;
 }
@@ -88,17 +92,17 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
   namespace Data = AmQStrTdc::Data;
 
   using Bits     = Data::Bits;
-  
+
   // [time-stamp, femId-list]
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
-  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt0;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatNum;
   std::unordered_set<uint32_t> spillEnd;
   std::unordered_set<uint32_t> spillOn;
 
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> timeFrameId;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> length;
 
-  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt10;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatFlag;
 
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> lrtdcCnt;
   std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hrtdcCnt;
@@ -137,20 +141,6 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
 
-    /*
-    for (int i=1; i<nmsg; ++i) {
-      const auto& tmsg = stf.At(i);
-      LOG(debug) << " body " << i << " " << tmsg->GetSize() << " "
-		 << std::showbase << std::hex <<  tmsg->GetSize() << std::noshowbase<< std::dec << std::endl;
-      auto n = tmsg->GetSize()/sizeof(Data::Word);
-
-      std::for_each(reinterpret_cast<Data::Word*>(tmsg->GetData()),
-		    reinterpret_cast<Data::Word*>(tmsg->GetData()) + n,
-		    nestdaq::HexDump{4});
-      
-    }
-    */
-    
     for (int imsg=1; imsg<nmsg; ++imsg) {
       const auto& msg = stf.At(imsg);
       auto wb =  reinterpret_cast<Bits*>(msg->GetData());
@@ -174,17 +164,32 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
         }
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
-	heartbeatCnt0[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
-	heartbeatCnt10[wb->hbflag].insert(femIdx);
+
+	if(false){
+	  LOG(debug) << "============================";
+	  LOG(debug) << "femIdx: "  << femIdx;
+	  LOG(debug) << "HB frame : " << wb->hbframe;		
+	  LOG(debug) << "timeFrameId : " << h->timeFrameId;	
+	  LOG(debug) << "# of HB: " << wb->hbframe - h->timeFrameId;
+	  //	  LOG(debug) << "hbflag: "  << wb->hbflag;
+	}
+
+	//	heartbeatNum[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
+
+	if(wb->hbframe >= h->timeFrameId)
+	  heartbeatNum[ wb->hbframe - h->timeFrameId + 1 ].insert(femIdx);
+
+	heartbeatFlag[wb->hbflag].insert(femIdx);
+	
 
         break;
       case Data::SpillOn: 
-        if (spillEnd.count(femIdx)) {
+        if (spillOn.count(femIdx)) {
           LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
         }
 
         spillOn.insert(femIdx);
-
+	
         break;
       case Data::SpillEnd: 
         if (spillEnd.count(femIdx)) {
@@ -192,7 +197,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
         }
 
         spillEnd.insert(femIdx);
-
+	
         break;
       case Data::Data:
 	
@@ -210,6 +215,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 	  if(h->FEMType==2)	  
 	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
 	}
+
 	
 	if(h->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
 	if(h->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
@@ -223,6 +229,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
 
+  // Fill hist
   for (const auto& [t, fems] : heartbeatCnt) {
     for (auto femId : fems) {
       //      HF1(fH1Map, 1, femId, fModuleIp[femId])
@@ -231,7 +238,22 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
 
-  for (const auto& [t, fems] : heartbeatCnt0) {
+  for (const auto femId : spillOn) {
+    HF1(fH1Map, 2, femId);
+  }
+
+  for (const auto femId : spillEnd) {
+    HF1(fH1Map, 3, femId);
+  }
+
+  for (const auto& [t, fems] : heartbeatFlag) {
+    for (auto femId : fems) {
+      HF1(fH1Map, 4, femId, t);
+    }
+  }
+
+  for (const auto& [t, fems] : heartbeatNum) {
+
     for (auto femId : fems) {
       HF1(fH1Map, 150+femId, t);
     }
@@ -249,25 +271,6 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     }
   }
   
-  // for (const auto& [t, fems] : heartbeatCnt10) {
-  //   for (auto femId : fems) {
-  //     HF1(fH1Map, 1000+femId, t);
-  //   }
-  // }
-
-  for (const auto femId : spillOn) {
-    HF1(fH1Map, 2, femId);
-  }
-
-  for (const auto femId : spillEnd) {
-    HF1(fH1Map, 3, femId);
-  }
-
-  for (const auto& [t, fems] : heartbeatCnt10) {
-    for (auto femId : fems) {
-      HF1(fH1Map, 4, femId, t);
-    }
-  }
   
   for (const auto& [t, fems] : lrtdcCnt) {
     for (auto femId : fems) {
@@ -280,6 +283,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
       HF1(fH1Map, 2100+femId, t);
     }
   }
+ 
 
   /*
   bool mismatch=false;
@@ -304,6 +308,189 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
   //  LOG(debug) << __FUNCTION__ << " : " << __LINE__;
 
   HF1(fH1Map, 0, OK);
+}
+//______________________________________________________________________________
+bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
+{
+  namespace STF = SubTimeFrame;
+  namespace Data = AmQStrTdc::Data;
+
+  using Bits     = Data::Bits;
+
+  (void)index;
+  assert(parts.Size()>=2);
+  Reporter::AddInputMessageSize(parts);
+  {
+    auto dt = std::chrono::steady_clock::now() - fPrevUpdate;
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fUpdateIntervalInMs) {
+
+      gSystem->ProcessEvents();
+      fPrevUpdate = std::chrono::steady_clock::now();
+    }
+  }
+  
+  // [time-stamp, femId-list]
+  /*
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatCnt;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatNum;
+  std::unordered_set<uint32_t> spillEnd;
+  std::unordered_set<uint32_t> spillOn;
+
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> timeFrameId;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> length;
+
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> heartbeatFlag;
+
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> lrtdcCnt;
+  std::unordered_map<uint16_t, std::unordered_set<uint32_t>> hrtdcCnt;
+  */
+
+
+  { // for debug-begin
+
+    std::cout << " parts size = " << parts.Size() << std::endl;
+    for (int i=0; i<parts.Size(); ++i){
+      const auto& msg = parts.At(i);
+
+      LOG(debug) << " part " << i << " " << msg->GetSize() << " "
+		 << std::showbase << std::hex <<  msg->GetSize() << std::noshowbase<< std::dec << std::endl;
+      auto n = msg->GetSize()/sizeof(Data::Word);
+
+      std::for_each(reinterpret_cast<Data::Word*>(msg->GetData()),
+		    reinterpret_cast<Data::Word*>(msg->GetData()) + n,
+		    ::HexDump{4});
+
+    }
+  } // for debug-end
+
+  
+  int nmsg = 0;
+  
+  while(nmsg < parts.Size()){
+    
+    const auto& stfmsg = parts.At(nmsg);
+
+    auto stfh    = reinterpret_cast<STF::Header*>(stfmsg->GetData());
+    auto msgSize = stfh->numMessages;
+    nmsg++;
+    LOG(debug4) << " STF msg size : " << msgSize ;
+
+    if (!fFEMId.count(stfh->FEMId)) {
+      LOG(debug) << "FEMTId: " << std::hex << stfh->FEMId << std::dec;
+      fFEMId[stfh->FEMId] = fId;
+      fModuleIp[fId] = stfh->FEMId & 0xff;
+      LOG(debug) << "fId: "<< fId <<  " mIp: " << fModuleIp[fId];
+      
+      fId++;
+    }
+
+    auto femIdx = fFEMId[stfh->FEMId];
+    //    auto femIdx = (h->FEMId & 0x0f) - 1;
+
+    //    timeFrameId[stfh->timeFrameId].insert(femIdx);
+    //    length[stfh->length].insert(femIdx);
+    
+    // STF part
+    int loop=0;
+    for(unsigned int imsg = nmsg; imsg < nmsg + msgSize - 1; ++imsg){
+
+      const auto& tmsg = parts.At(imsg);
+      auto wb = reinterpret_cast<Bits*>(tmsg->GetData());
+
+      LOG(debug4) << " =========================" ;
+      LOG(debug4) << " nmsg : " << imsg ;
+      LOG(debug4) << " word = " << std::hex << wb->raw << std::dec;
+      LOG(debug4) << " head = " << std::hex << wb->head << std::dec;
+      LOG(debug4) << " loop : " << loop ;            
+
+      loop++;
+
+      switch (wb->head) {
+
+      case Data::Heartbeat:
+	/*	if(fDebug){
+	  LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
+	  LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
+	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
+	  LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
+	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;
+	}
+
+        if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
+          LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
+        }
+	
+        heartbeatCnt[wb->hbframe].insert(femIdx);
+
+	if(false){
+	  LOG(debug) << "============================";
+	  LOG(debug) << "femIdx: "  << femIdx;
+	  LOG(debug) << "HB frame : " << wb->hbframe;		
+	  LOG(debug) << "timeFrameId : " << stfh->timeFrameId;	
+	  LOG(debug) << "# of HB: " << wb->hbframe - stfh->timeFrameId;
+	  //	  LOG(debug) << "hbflag: "  << wb->hbflag;
+	}
+
+	//	heartbeatNum[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
+
+	if(wb->hbframe >= stfh->timeFrameId)
+	  heartbeatNum[ wb->hbframe - stfh->timeFrameId + 1 ].insert(femIdx);
+
+	heartbeatFlag[wb->hbflag].insert(femIdx);
+	
+	*/
+        break;
+      case Data::SpillOn: 
+	/*        if (spillOn.count(femIdx)) {
+          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
+        }
+
+        spillOn.insert(femIdx);
+	
+        break;
+      case Data::SpillEnd: 
+        if (spillEnd.count(femIdx)) {
+          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
+        }
+
+        spillEnd.insert(femIdx);
+	*/
+        break;
+      case Data::Data:
+	/*	
+	if(fDebug){
+	  LOG(debug) << "FEMtype: "<< stfh->FEMType;
+	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	  
+	  LOG(debug) << "AmQStrTdc : " << std::hex << stfh->FEMId << std::dec << " " << femIdx
+		     << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
+	}
+
+	if(fDebug){
+	  if(stfh->FEMType==1)
+	    LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
+
+	  if(stfh->FEMType==2)	  
+	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
+	}
+
+	
+	if(stfh->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
+	if(stfh->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
+	*/
+        break;
+      default:
+        LOG(error) << "AmQStrTdc : " << std::hex << stfh->FEMId << std::dec  << " " << femIdx
+                   << " unknown Head : " << std::hex << wb->head << std::dec
+		   << " word = " << std::hex << wb->raw << std::dec;
+        break;
+      }
+    }
+      
+    nmsg = nmsg + msgSize - 1;
+    //    istf++;
+  }
+
+  return true;
 }
 
 //______________________________________________________________________________
@@ -435,54 +622,46 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         return c;
     };
 #endif
+    
+    HB1(0, "status",                 3, -0.5, 3-0.5, "");
+    HB1(1, "# Heatbeat",             fBins+2, -1, fBins+1, "");
+    HB1(2, "# spill On",             fBins+2, -1, fBins+1, "");
+    HB1(3, "# spill end",            fBins+2, -1, fBins+1, "");
+    HB1(4, "# HB Delimiter Flag",    fBins+2, -1, fBins+1, "");
+    //    HB1(5, "# Spill Delimiter",      fNumSource+2, -1, fNumSource+1, "");
 
-    HB1(0, "status",             3, -0.5, 3-0.5, "");
-    HB1(1, "# Heatbeat",        11, -0.5, fNumSource+0.5, "");
-    HB1(2, "# spill On",        11, -0.5, fNumSource+0.5, "");
-    HB1(3, "# spill end",       11, -0.5, fNumSource+0.5, "");
-    HB1(4, "# HB Delimiter",    11, -0.5, fNumSource+0.5, "");
-    HB1(5, "# Spill Delimiter", 11, -0.5, fNumSource+0.5, "");
 
-    for (int i=0; i<fNumSource; ++i) {
+    for (int i=0; i<fBins; ++i) {
       //    for (int i=0; i<10; ++i) {
         boost::format name("heartbeat_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(100+i, hname.c_str(), 300, -0.5, 300-0.5, "Heartbeat");
+        HB1(100+i, hname.c_str(), 500, -0.5, 500-0.5, "Heartbeat");
     }
 
-    for (int i=0; i<fNumSource; ++i) {
-    //    for (int i=0; i<10; ++i) {
-        boost::format name("heartbeat0_%d");
+    //    for (int i=0; i<fNumSource; ++i) {
+    for (int i=0; i<fBins; ++i) {    
+        boost::format name("number_of_hb_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(150+i, hname.c_str(), 100, -3.0, -3.0, "Heartbeat0");
+        HB1(150+i, hname.c_str(), 10, 0, 10, "#OfHB_STF");
     }
     
-    for (int i=0; i<fNumSource; ++i) {
-    //    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fBins; ++i) {      
         boost::format name("timeFrameId_%d");
         name % i;
         std::string hname = boost::str(name);
-        HB1(200+i, hname.c_str(), 300, -0.5, 300-0.5, "TimeFrameId");
+        HB1(200+i, hname.c_str(), 500, -0.5, 500-0.5, "TimeFrameId");
     }
 
-    for (int i=0; i<fNumSource; ++i) {
-    //    for (int i=0; i<10; ++i) {
+    for (int i=0; i<fBins; ++i) {          
         boost::format name("length_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(300+i, hname.c_str(), 1000, -0.5, 2000-0.5, "Length");
     }
-
-    // for (int i=0; i<10; ++i) {
-    //     boost::format name("delimiter_flag_%d");
-    //     name % i;
-    //     std::string hname = boost::str(name);
-    //     HB1(1000+i, hname.c_str(), 10, -0.5, 10-0.5, "Delimiter Flag");
-    // }
-
-    for (int i=0; i<fNumSource; ++i) {
+    
+    for (int i=0; i<fBins; ++i) {          
     //    for (int i=0; i<10; ++i) {
         boost::format name("lrtdcCnt_%d");
         name % i;
@@ -490,14 +669,14 @@ void AmQStrTdcDqm::InitServer(std::string_view server)
         HB1(2000+i, hname.c_str(), 131, -1.5, 130-0.5, "LR-TDC Counts");
     }
 
-    for (int i=0; i<fNumSource; ++i) {
+    for (int i=0; i<fBins; ++i) {              
     //    for (int i=0; i<10; ++i) {
         boost::format name("hrtdcCnt_%d");
         name % i;
         std::string hname = boost::str(name);
         HB1(2100+i, hname.c_str(), 131, -1.5, 130-0.5, "HR-TDC Counts");
     }
-
+    
     gSystem->ProcessEvents();
     fPrevUpdate = std::chrono::steady_clock::now();
 }
@@ -527,6 +706,9 @@ void AmQStrTdcDqm::InitTask()
 
     LOG(debug) << " number of source = " << fNumSource;
 
+    fSourceType = fConfig->GetProperty<std::string>(opt::SourceType.data());    
+    LOG(debug) << " type of source = " << fSourceType;
+    
     auto server         = fConfig->GetProperty<std::string>(opt::Http.data());
     LOG(debug) << "Http Server Name: "<< server ;                
     fUpdateIntervalInMs = std::stoi(fConfig->GetProperty<std::string>(opt::UpdateInterval.data()));
@@ -534,8 +716,16 @@ void AmQStrTdcDqm::InitTask()
 
     fHbc.resize(fNumSource);
 
-    OnData(fInputChannelName, &AmQStrTdcDqm::HandleData);
-
+    if(fSourceType == "stf") {
+      fBins = fNumSource;
+      OnData(fInputChannelName, &AmQStrTdcDqm::HandleData);
+    }else if(fSourceType == "tfb") {
+      fBins = 10;      
+      OnData(fInputChannelName, &AmQStrTdcDqm::HandleDataTFB);      
+    }else {
+      LOG(error) << " invalid source-type "<< std::endl;
+    }
+    
     InitServer(server);
 
     Reporter::Reset();
@@ -545,5 +735,30 @@ void AmQStrTdcDqm::InitTask()
 void AmQStrTdcDqm::PostRun()
 {
     fDiscarded.clear();
+
+    int nrecv=0;
+    if (fChannels.count(fInputChannelName) > 0) {
+        auto n = fChannels.count(fInputChannelName);
+
+        for (auto i = 0u; i < n; ++i) {
+            std::cout << " #i : "<< i << std::endl;
+            while(true) {
+
+                FairMQParts part;
+                if (Receive(part, fInputChannelName, i, 1000) <= 0) {
+		  //                    LOG(debug) << __func__ << " no data received " << nrecv;
+                    ++nrecv;
+                    if (nrecv > 10) {
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                } else {
+		  //                    LOG(debug) << __func__ << " data comes..";
+                }
+            }
+        }
+    }// for clean up
+
+    LOG(debug) << __func__ << " done";
 }
 
