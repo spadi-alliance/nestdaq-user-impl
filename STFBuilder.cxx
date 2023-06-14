@@ -98,6 +98,10 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	    if (fLastHeader == 0) {
                 fLastHeader = h;
 		hbf_flag++;
+
+		if(h == Data::SpillEnd )
+		  fdelimiterFrameId = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
+		
                 continue;
             } else if (fLastHeader == h) {
                 fLastHeader = 0;
@@ -106,8 +110,17 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 // unexpected @TODO
             }
 
-            int32_t delimiterFrameId = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
-            //LOG(debug) << " heartbeat/spill-end delimiter comes " << std::hex << hbframe << ", raw = " << word->raw;
+
+	    int32_t delimiterFrameId = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
+	    
+	    if(h == Data::SpillEnd){
+	      delimiterFrameId = fdelimiterFrameId;
+	      fdelimiterFrameId = 0;
+	      
+	      LOG(debug) << " spill-end delimiter comes " << std::hex << word->hbframe << ", raw = " << word->raw;
+	      LOG(debug) << " delimiterFrameId:    " << std::hex << delimiterFrameId;
+	    }
+	    
             if (fTimeFrameIdType == TimeFrameIdType::FirstHeartbeatDelimiter) { // first heartbeat delimiter or first spill-off delimiter
                 if (fSTFId<0) {
                     fSTFId = delimiterFrameId;
@@ -534,6 +547,7 @@ void AmQStrTdcSTFBuilder::NewData()
 void AmQStrTdcSTFBuilder::PostRun()
 {
     fInputPayloads.clear();
+    fInputDelimiter.clear();
     fWorkingPayloads.reset();
     SendBuffer ().swap(fOutputPayloads);
 
@@ -551,7 +565,7 @@ void AmQStrTdcSTFBuilder::PostRun()
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         } else {
 	  //            LOG(debug) << __func__ << " print data";
-            //      HandleData(msg, 0);
+	  //      HandleData(msg, 0);
         }
     }
 

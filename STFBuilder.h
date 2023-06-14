@@ -70,6 +70,8 @@ private:
     int fMaxHBF {1};
     int fHBFCounter {0};
     int hbf_flag {0};
+
+    int32_t  fdelimiterFrameId {0};
     uint32_t fSTFSequenceNumber {0};
     int fSplitMethod {0};
     uint8_t fLastHeader {0};

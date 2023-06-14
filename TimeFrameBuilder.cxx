@@ -15,6 +15,8 @@
 #include "TimeFrameHeader.h"
 #include "TimeFrameBuilder.h"
 
+#include "AmQStrTdcData.h"
+
 namespace bpo = boost::program_options;
 
 //______________________________________________________________________________
@@ -150,12 +152,32 @@ bool TimeFrameBuilder::ConditionalRun()
                 // discard incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
-                    LOG(warn) << "Timeframe #" << stfId << " incomplete after " << fBufferTimeoutInMs << " milliseconds, discarding";
+		  LOG(warn) << "Timeframe #" <<  std::hex << stfId << " incomplete after "
+			    << std::dec << fBufferTimeoutInMs << " milliseconds, discarding";
                     //fDiscarded.insert(stfId);
+
+		  /*
+		    namespace Data = AmQStrTdc::Data;
+		    using Word     = Data::Word;
+        
+		    { // for debug-begin
+
+		      for (auto& stfBuf: tfBuf) {
+			for (auto& m: stfBuf.parts) {
+			  
+			  std::for_each(reinterpret_cast<uint64_t*>(m->GetData()),
+					reinterpret_cast<uint64_t*>(m->GetData() + m->GetSize()),
+					::HexDump{4});
+
+			}
+		      }
+		    }// for debug-end
+		  */
+		    
                     tfBuf.clear();
                     //LOG(warn) << "Number of discarded timeframes: " << fDiscarded.size();
-                }
-            }
+		}
+	    }	
 
             // remove empty buffer
             if (tfBuf.empty()) {
@@ -164,8 +186,8 @@ bool TimeFrameBuilder::ConditionalRun()
             else {
                 ++itr;
             }
-        }
-
+	}
+	
     }
     return true;
 }
