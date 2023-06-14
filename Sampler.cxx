@@ -245,9 +245,9 @@ bool Sampler::ConditionalRun()
 				     )
 			  );
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
-    LOG(info) << "Sending \"" << nByteSize << "\"";
+    LOG(debug) << "Sending \"" << nByteSize << "\"";
 
 
     if (Send(msg, fOutputChannelName) < 0) {
@@ -260,7 +260,7 @@ bool Sampler::ConditionalRun()
             return false;
         }
     }
-    LOG(info) << " processed events:  " << fNumIterations;
+    LOG(debug) << " processed events:  " << fNumIterations;
 
 
     return true;

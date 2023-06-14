@@ -741,7 +741,16 @@ void AmQStrTdcDqm::InitTask()
       LOG(error) << " invalid source-type "<< std::endl;
     }
 
-    if(!fH1Map.empty()) fH1Map.clear();      
+    if(!fH1Map.empty()){
+
+      for(auto& hobj: fH1Map){
+	LOG(debug) << "name: " << hobj.first << " obj:" << hobj.second ;
+
+	fServer->Unregister(hobj.second);	
+	delete hobj.second;
+      }
+      fH1Map.clear();
+    }
     
     InitServer(server);
 
