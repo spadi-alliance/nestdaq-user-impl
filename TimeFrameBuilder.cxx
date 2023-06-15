@@ -54,14 +54,14 @@ bool TimeFrameBuilder::ConditionalRun()
     FairMQParts inParts;
     if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
         assert(inParts.Size() >= 2);
-	
-	LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
+
+        LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
 
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
 
-	LOG(debug4) << "stfId: "<< stfId;
-	LOG(debug4) << "msg size: " << inParts.Size();
+        LOG(debug4) << "stfId: "<< stfId;
+        LOG(debug4) << "msg size: " << inParts.Size();
 
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
             fTFBuffer[stfId].reserve(fNumSource);
@@ -81,12 +81,12 @@ bool TimeFrameBuilder::ConditionalRun()
 
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
 
-	        LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
+                LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
 
                 // move ownership to complete time frame
                 FairMQParts outParts;
                 FairMQParts dqmParts;
-		
+                
                 auto h = std::make_unique<TF::Header>();
                 h->magic       = TF::Magic;
                 h->timeFrameId = stfId;
@@ -99,17 +99,17 @@ bool TimeFrameBuilder::ConditionalRun()
                     });
                 });
 
-		// for dqm
-		if (dqmSocketExists){		  
-		    for (auto& stfBuf: tfBuf) {
-		      for (auto& m: stfBuf.parts) {
-			FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
-			msgCopy->Copy(*m);
-			
-			dqmParts.AddPart(std::move(msgCopy));
-		      }
-		    }
-		}
+                // for dqm
+                if (dqmSocketExists){
+                    for (auto& stfBuf: tfBuf) {
+                      for (auto& m: stfBuf.parts) {
+                        FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+                        msgCopy->Copy(*m);
+                        
+                        dqmParts.AddPart(std::move(msgCopy));
+                      }
+                    }
+                }
                 // LOG(debug) << " length = " << h->length;
                 outParts.AddPart(MessageUtil::NewMessage(*this, std::move(h)));
                 for (auto& stfBuf: tfBuf) {
@@ -119,16 +119,16 @@ bool TimeFrameBuilder::ConditionalRun()
                 }
                 tfBuf.clear();
 
-		if (dqmSocketExists) {
-		  if (Send(dqmParts, fDQMChannelName) < 0) {
-		    if (NewStatePending()) {
-		      LOG(info) << "Device is not RUNNING";
-		      return false;
-		    }
-		    LOG(error) << "Failed to enqueue TFB (DQM) ";
-		  }
-		}
-		
+                if (dqmSocketExists) {
+                  if (Send(dqmParts, fDQMChannelName) < 0) {
+                    if (NewStatePending()) {
+                      LOG(info) << "Device is not RUNNING";
+                      return false;
+                    }
+                    LOG(error) << "Failed to enqueue TFB (DQM) ";
+                  }
+                }
+                
                 auto poller = NewPoller(fOutputChannelName);
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
@@ -152,32 +152,70 @@ bool TimeFrameBuilder::ConditionalRun()
                 // discard incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
-		  LOG(warn) << "Timeframe #" <<  std::hex << stfId << " incomplete after "
-			    << std::dec << fBufferTimeoutInMs << " milliseconds, discarding";
+                    LOG(warn) << "Timeframe #" <<  std::hex << stfId << " incomplete after "
+                            << std::dec << fBufferTimeoutInMs << " milliseconds, discarding";
                     //fDiscarded.insert(stfId);
 
-		  /*
-		    namespace Data = AmQStrTdc::Data;
-		    using Word     = Data::Word;
-        
-		    { // for debug-begin
 
-		      for (auto& stfBuf: tfBuf) {
-			for (auto& m: stfBuf.parts) {
-			  
-			  std::for_each(reinterpret_cast<uint64_t*>(m->GetData()),
-					reinterpret_cast<uint64_t*>(m->GetData() + m->GetSize()),
-					::HexDump{4});
-
+                    ////// under debugging //////
+                    std::vector<uint32_t> femid;
+                    std::vector<uint32_t> expected = {
+                        161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 
+                                  173, 174, 175, 176, 177, 178, 179
+                    };
+                    std::vector<uint64_t> hb;
+                    for (auto & stfBuf : tfBuf) {
+                        auto & msg = stfBuf.parts[0];
+                        SubTimeFrame::Header *stfheader
+                            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+			//std::cout << " ID" << std::hex << stfheader->FEMId << std::dec;
+                        femid.push_back(stfheader->FEMId);
+			for (auto it = expected.begin() ; it != expected.end() ;) {
+                            if (*it == (stfheader->FEMId && 0xff)) {
+                                it = expected.erase(it);
+                            } else {
+                                it++;
+                            }
+                        }
+                        //std::for_each(reinterpret_cast<uint64_t*>(msg.GetData()),
+                        //    reinterpret_cast<uint64_t*>(msg.GetData() + msg.GetSize()),
+                        //    ::HexDump{4});
+ 
+			if (stfBuf.parts.Size() > 2) {
+                        	auto & hb0 = stfBuf.parts[2];
+	                        uint64_t hb00 = (reinterpret_cast<uint64_t *>(hb0.GetData()))[0];
+				hb.push_back(hb00);
 			}
-		      }
-		    }// for debug-end
-		  */
-		    
+                    }
+                    //std::cout << "#D lost FEMid :" << stfId << ":";
+                    //for (auto & i : expected) std::cout << " " << (i & 0xff);
+                    std::cout << "#D FEMid :" << stfId << ":";
+                    for (auto & i : femid) std::cout << " " << (i & 0xff);
+                    std::cout << std::endl;
+                    std::cout << "#D HB :" << stfId << ":";
+                    for (auto & i : hb) std::cout << " " << std::hex <<i;
+                    std::cout << std::dec << std::endl;
+
+
+                    /*
+                    {// for debug-begin
+
+                      for (auto& stfBuf: tfBuf) {
+                        for (auto& m: stfBuf.parts) {
+                          
+                          std::for_each(reinterpret_cast<uint64_t*>(m->GetData()),
+                                        reinterpret_cast<uint64_t*>(m->GetData() + m->GetSize()),
+                                        ::HexDump{4});
+
+                        }
+                      }
+                    }// for debug-end
+                    */
+                    
                     tfBuf.clear();
                     //LOG(warn) << "Number of discarded timeframes: " << fDiscarded.size();
-		}
-	    }	
+                }
+            }        
 
             // remove empty buffer
             if (tfBuf.empty()) {
@@ -186,8 +224,8 @@ bool TimeFrameBuilder::ConditionalRun()
             else {
                 ++itr;
             }
-	}
-	
+        }
+        
     }
     return true;
 }
