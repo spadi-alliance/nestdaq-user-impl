@@ -141,7 +141,9 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
 
+    int numHB = 0;
     for (int imsg=1; imsg<nmsg; ++imsg) {
+      
       const auto& msg = stf.At(imsg);
       auto wb =  reinterpret_cast<Bits*>(msg->GetData());
       if(fDebug){
@@ -165,7 +167,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
 
-	if(false){
+	if(fDebug){
 	  LOG(debug) << "============================";
 	  LOG(debug) << "femIdx: "  << femIdx;
 	  LOG(debug) << "HB frame : " << wb->hbframe;		
@@ -176,11 +178,15 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 
 	//	heartbeatNum[(wb->hbframe+1)/(h->timeFrameId+1)].insert(femIdx);
 
-	if(wb->hbframe >= h->timeFrameId)
-	  heartbeatNum[ wb->hbframe - h->timeFrameId + 1 ].insert(femIdx);
+	//	LOG(info) << "timeFrameId : " << h->timeFrameId;
+	//	LOG(info) << "delimHB : "     << (h->timeFrameId & 0xFFFF);
+	//	LOG(info) << "HB frame : " << wb->hbframe;			
+	if(wb->hbframe >= (h->timeFrameId & 0xFFFF) )
+	  heartbeatNum[ wb->hbframe - (h->timeFrameId & 0xFFFF) + 1 ].insert(femIdx);
 
 	heartbeatFlag[wb->hbflag].insert(femIdx);
-	
+
+	numHB++;
 
         break;
       case Data::SpillOn: 
@@ -227,6 +233,10 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
         break;
       }
     }
+
+    if(numHB != ( (nmsg - 1 )/2 ) )
+      LOG(error) << "Woring # of delimiter: " << numHB << " --> " << (nmsg-1)/2 ;
+
   }
 
   // Fill hist
@@ -405,8 +415,8 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
 
-	if(wb->hbframe >= stfh->timeFrameId)
-	  heartbeatNum[ wb->hbframe - stfh->timeFrameId + 1 ].insert(femIdx);
+	if(wb->hbframe >= (stfh->timeFrameId & 0xFFFF) )
+	  heartbeatNum[ wb->hbframe - (stfh->timeFrameId & 0xFFFF) + 1 ].insert(femIdx);
 
 	heartbeatFlag[wb->hbflag].insert(femIdx);
 	
