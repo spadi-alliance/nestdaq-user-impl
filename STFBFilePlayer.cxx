@@ -19,7 +19,8 @@
 #include "utility/MessageUtil.h"
 #include "SubTimeFrameHeader.h"
 #include "AmQStrTdcData.h"
-#include "FileSinkHeaderBlock.h"
+#include "FileSinkHeader.h"
+#include "FileSinkTrailer.h"
 
 #include "STFBFilePlayer.h"
 
@@ -93,7 +94,7 @@ void STFBFilePlayer::PreRun()
 
     LOG(info) << "PreRun: Input file: " << fInputFileName;
 
-    // check FileSinkHeaderBlock
+    // check FileSinkHeader
     uint64_t buf;
     fInputFile.read(reinterpret_cast<char*>(&buf), sizeof(buf));
     if (fInputFile.gcount() != sizeof(buf)) {
@@ -107,12 +108,17 @@ void STFBFilePlayer::PreRun()
         //    || (buf[1] != nestdaq::FileSinkHeaderBlock::kMagi)) {
         fInputFile.seekg(0, std::ios_base::beg);
         fInputFile.clear();
-        LOG(debug) << "no FS header";
-    } else {
+        LOG(debug) << "No FS header";
+    } else if (buf == FileSinkHeader::Magic) { /* For new FileSinkHeader after 2023.06.15 */
+        uint64_t hsize{0};
+        fInputFile.read(reinterpret_cast<char*>(&hsize), sizeof(hsize));
+	LOG(debug) << "New FS header (Order: Magic + FS header size)";
+	fInputFile.seekg(hsize - 2*sizeof(uint64_t), std::ios_base::cur);
+    } else { /* For old FileSinkHeader before 2023.06.15 */
         uint64_t magic{0};
         fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-        if (magic == nestdaq::FileSinkHeaderBlock::kMagic) {
-            LOG(debug) << "skip File header : " << magic << " " << buf ;
+        if (magic == FileSinkHeader::Magic) {
+            LOG(debug) << "Old FS header (Order: FS header size + Magic)";
             fInputFile.seekg(buf - 2*sizeof(uint64_t), std::ios_base::cur);
         }
     }
@@ -123,6 +129,7 @@ void STFBFilePlayer::PreRun()
 bool STFBFilePlayer::ConditionalRun()
 {
     namespace STF = SubTimeFrame;
+    namespace FST = FileSinkTrailer;
 
     if (fInputFile.eof()) {
         LOG(warn) << "Reached end of input file. stop RUNNING";
@@ -141,6 +148,19 @@ bool STFBFilePlayer::ConditionalRun()
     }
     auto stfHeader = reinterpret_cast<STF::Header*>(msgSTFHeader.GetData());
 
+    // This code may not be beautiful. This can be rewritten by Takahashi-san or Igarashi-san. Nobu 2023.06.15
+    if (stfHeader->magic != STF::Magic) {
+        if (stfHeader->magic == FST::Magic) {
+            auto fsTrailer = reinterpret_cast<FST::Trailer*>(stfHeader);
+	    LOG(info) << "maigic : " << std::hex << fsTrailer->magic
+	              << " size : " << std::dec << fsTrailer->size;
+	    return false;
+	}else{
+	    LOG(error) << "Unkown magic = " << stfHeader->magic;
+	    return false;
+	}
+    }
+    
     std::cout << "#D Header size :" << msgSTFHeader.GetSize() << std::endl;
     std::cout << "#D maigic : " << std::hex << stfHeader->magic
               << " length : " << std::dec << stfHeader->length << std::endl;

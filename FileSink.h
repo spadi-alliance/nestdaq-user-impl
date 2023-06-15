@@ -11,7 +11,8 @@
 
 #include "utility/RingBuffer.h"
 #include "utility/FileUtil.h"
-#include "FileSinkHeaderBlock.h"
+#include "FileSinkHeader.h"
+#include "FileSinkTrailer.h"
 
 namespace nestdaq {
 class TaskProcessorMT;
@@ -73,7 +74,8 @@ private:
     std::size_t fNReceived{0};
     std::string fFileExtension;
     std::string fFilePath;
-    FileSinkHeaderBlock fFileSinkHeaderBlock;
+    FileSinkHeader::Header   fFileSinkHeader;
+    FileSinkTrailer::Trailer fFileSinkTrailer;
 };
 
 } // namespace nestdaq
