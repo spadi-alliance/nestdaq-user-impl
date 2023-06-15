@@ -6,7 +6,8 @@
 #include <fairmq/runDevice.h>
 
 #include "AmQStrTdcData.h"
-#include "FileSinkHeaderBlock.h"
+#include "FileSinkHeader.h"
+#include "FileSinkTrailer.h"
 #include "SubTimeFrameHeader.h"
 #include "TimeFrameHeader.h"
 #include "utility/HexDump.h"
@@ -51,6 +52,7 @@ bool TFBFilePlayer::ConditionalRun()
 {
     namespace TF  = TimeFrame;
     namespace STF = SubTimeFrame;
+    namespace FST = FileSinkTrailer;
 
     if (fInputFile.eof()) {
         LOG(warn) << "Reached end of input file. stop RUNNING";
@@ -68,10 +70,23 @@ bool TFBFilePlayer::ConditionalRun()
         return false;
     }
     auto tfHeader = reinterpret_cast<TF::Header*>(msgTFHeader.GetData());
-
+    
 //    LOG(debug4) << fmt::format("TF header: magic = {:016x}, tf-id = {:d}, n-src = {:d}, bytes = {:d}",
 //                               tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
-
+    
+    // This code may not be beautiful. This can be rewritten by Takahashi-san or Igarashi-san. Nobu 2023.06.15
+    if (tfHeader->magic != TF::Magic) {
+        if (tfHeader->magic == FST::Magic) {
+            auto fsTrailer = reinterpret_cast<FST::Trailer*>(tfHeader);
+	    LOG(info) << "maigic : " << std::hex << fsTrailer->magic
+		      << " size : " << std::dec << fsTrailer->size << std::endl;
+	    return false;
+	}else{
+	    LOG(error) << "Unkown magic = " << tfHeader->magic;
+	    return false;
+	}
+    }
+    
     std::vector<char> buf(tfHeader->length - sizeof(TF::Header));
     fInputFile.read(buf.data(), buf.size());
     if (static_cast<size_t>(fInputFile.gcount()) < msgTFHeader.GetSize()) {
@@ -241,7 +256,7 @@ void TFBFilePlayer::PreRun()
         return;
     }
 
-    // check FileSinkHeaderBlock
+    // check FileSinkHeader
     uint64_t buf{0};
     fInputFile.read(reinterpret_cast<char*>(&buf), sizeof(buf));
     if (fInputFile.gcount() != sizeof(buf)) {
@@ -252,14 +267,18 @@ void TFBFilePlayer::PreRun()
     if (buf == TimeFrame::Magic) {
         fInputFile.seekg(0, std::ios_base::beg);
         fInputFile.clear();
-        LOG(debug) << "no FS header";
-    } else {
+        LOG(debug) << "No FS header";
+    } else if (buf == FileSinkHeader::Magic) { /* For new FileSinkHeader after 2023.06.15 */
+        uint64_t hsize{0};
+        fInputFile.read(reinterpret_cast<char*>(&hsize), sizeof(hsize));
+	LOG(debug) << "New FS header (Order: Magic + FS header size)";
+	fInputFile.seekg(hsize - 2*sizeof(uint64_t), std::ios_base::cur);
+    } else { /* For old FileSinkHeader before 2023.06.15 */
         uint64_t magic{0};
         fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-        if (magic == nestdaq::FileSinkHeaderBlock::kMagic) {
-            LOG(debug) << " header";
+        if (magic == FileSinkHeader::Magic) {
+            LOG(debug) << "Old FS header (Order: FS header size + Magic)";
             fInputFile.seekg(buf - 2*sizeof(uint64_t), std::ios_base::cur);
         }
     }
-
 }

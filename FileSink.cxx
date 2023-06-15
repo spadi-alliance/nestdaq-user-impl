@@ -12,7 +12,8 @@
 #include "utility/MessageUtil.h"
 #include "utility/TaskProcessorMT.h"
 #include "FileSink.h"
-#include "FileSinkHeaderBlock.h"
+#include "FileSinkHeader.h"
+#include "FileSinkTrailer.h"
 
 using namespace nestdaq;
 using namespace std::string_literals;
@@ -303,6 +304,22 @@ void FileSink::PostRun()
         }
     }
 
+    fFileSinkTrailer.magic            = FileSinkTrailer::Magic;
+    fFileSinkTrailer.size             = sizeof(FileSinkTrailer::Trailer);
+    fFileSinkTrailer.fairMQDeviceType = fFileSinkHeader.fairMQDeviceType;
+    fFileSinkTrailer.runNumber        = fFileSinkHeader.runNumber;
+    fFileSinkTrailer.startUnixtime    = fFileSinkHeader.startUnixtime;
+    fFileSinkTrailer.stopUnixtime     = time(0);
+    strcpy(fFileSinkTrailer.comments, "FileSinkTrailer.h test");
+    LOG(debug) << "FileSink::Trailer.magic            : " << fFileSinkTrailer.magic;
+    LOG(debug) << "FileSink::Trailer.size             : " << fFileSinkTrailer.size;
+    LOG(debug) << "FileSink::Trailer.fairMQDeviceType : " << fFileSinkTrailer.fairMQDeviceType;
+    LOG(debug) << "FileSink::Trailer.runNumber        : " << fFileSinkTrailer.runNumber;
+    LOG(debug) << "FileSink::Trailer.startUnixtime    : " << fFileSinkTrailer.startUnixtime;
+    LOG(debug) << "FileSink::Trailer.stopUnixtime     : " << fFileSinkTrailer.stopUnixtime;
+    LOG(debug) << "FileSink::Trailer.comments         : " << fFileSinkTrailer.comments;
+    fFile->Write(reinterpret_cast<char *>(&fFileSinkTrailer), sizeof(FileSinkTrailer::Trailer));
+
     fFile->Close();
     int64_t n = -1;
     std::ostringstream ss;
@@ -399,24 +416,21 @@ void FileSink::PreRun()
         fWorker->Run();
     }
 
-    fFileSinkHeaderBlock.fFileSinkHeaderBlockSize = sizeof(fFileSinkHeaderBlock);
-    fFileSinkHeaderBlock.fMagic                   = *(uint64_t*)(char*) "@FS-HEAD";
-    fFileSinkHeaderBlock.fFairMQDeviceType        = 99;
-    fFileSinkHeaderBlock.fRunNumber               = fRunNumber;
-    fFileSinkHeaderBlock.fStartUnixtime           = time(0);
-    fFileSinkHeaderBlock.fStopUnixtime            = 0;
-    strcpy(fFileSinkHeaderBlock.fComments, "fFileSinkHeaderBlock.h test");
-
-    LOG(debug) << "fFileSinkHeaderBlock.fFileSinkHeaderBlockSize : " << fFileSinkHeaderBlock.fFileSinkHeaderBlockSize;
-    LOG(debug) << "fFileSinkHeaderBlock.fMagic                   : " << fFileSinkHeaderBlock.fMagic       ;
-    LOG(debug) << "fFileSinkHeaderBlock.fFairMQDeviceType        : " << fFileSinkHeaderBlock.fFairMQDeviceType       ;
-    LOG(debug) << "fFileSinkHeaderBlock.fRunNumber               : " << fFileSinkHeaderBlock.fRunNumber              ;
-    LOG(debug) << "fFileSinkHeaderBlock.fStartUnixtime           : " << fFileSinkHeaderBlock.fStartUnixtime          ;
-    LOG(debug) << "fFileSinkHeaderBlock.fStopUnixtime            : " << fFileSinkHeaderBlock.fStopUnixtime           ;
-    LOG(debug) << "fFileSinkHeaderBlock.fComments                : " << fFileSinkHeaderBlock.fComments;
-    LOG(debug) << "sizeof(fFileSinkHeaderBlock.fRunNumber)       : " << sizeof(fFileSinkHeaderBlock.fRunNumber);
-
-    fFile->Write(reinterpret_cast<char *>(&fFileSinkHeaderBlock), sizeof(fFileSinkHeaderBlock));
+    fFileSinkHeader.magic            = FileSinkHeader::Magic;
+    fFileSinkHeader.size             = sizeof(FileSinkHeader::Header);
+    fFileSinkHeader.fairMQDeviceType = 99;
+    fFileSinkHeader.runNumber        = fRunNumber;
+    fFileSinkHeader.startUnixtime    = time(0);
+    fFileSinkHeader.stopUnixtime     = 0;
+    strcpy(fFileSinkHeader.comments, "FileSinkHeader.h test");
+    LOG(debug) << "FileSink::Header.magic            : " << fFileSinkHeader.magic;
+    LOG(debug) << "FileSink::Header.size             : " << fFileSinkHeader.size;
+    LOG(debug) << "FileSink::Header.fairMQDeviceType : " << fFileSinkHeader.fairMQDeviceType;
+    LOG(debug) << "FileSink::Header.runNumber        : " << fFileSinkHeader.runNumber;
+    LOG(debug) << "FileSink::Header.startUnixtime    : " << fFileSinkHeader.startUnixtime;
+    LOG(debug) << "FileSink::Header.stopUnixtime     : " << fFileSinkHeader.stopUnixtime;
+    LOG(debug) << "FileSink::Header.comments         : " << fFileSinkHeader.comments;
+    fFile->Write(reinterpret_cast<char *>(&fFileSinkHeader), sizeof(FileSinkHeader::Header));
 }
 
 //______________________________________________________________________________
