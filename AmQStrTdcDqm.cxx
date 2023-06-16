@@ -215,7 +215,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 	}
 
 	if(fDebug){
-	  if(h->FEMType==1)
+	  if( (h->FEMType==1) || (h->FEMType==3) )
 	    LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
 
 	  if(h->FEMType==2)	  
@@ -223,7 +223,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
 	}
 
 	
-	if(h->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
+	if( (h->FEMType==1) || (h->FEMType==3) ) lrtdcCnt[wb->ch].insert(femIdx);
 	if(h->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
 	
         break;
