@@ -396,10 +396,16 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	auto& smsg = parts.At(part_size - 1);
 	auto n   = smsg->GetSize()/sizeof(Data::Word);	
 	auto b   = reinterpret_cast<Bits*>(smsg->GetData());
-	if( (part_size == 2) && (b->head == Data::SpillEnd) ) {
+	if( (n == 2) && b->head == Data::SpillEnd ) {
 	  //nothing
+	  //	  LOG(error) << "size: " << part_size ;
+	  //	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
+	  //			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
+	  //			::HexDump{4});	
+	  
 	}else if ( b->head != Data::Heartbeat ){
 	  LOG(error) << "=== Wrong last message === " ;
+	  LOG(error) << "size: " << part_size ;	  	  	  
 	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
 			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
 			::HexDump{4});	
