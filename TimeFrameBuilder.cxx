@@ -63,6 +63,15 @@ bool TimeFrameBuilder::ConditionalRun()
         LOG(debug4) << "stfId: "<< stfId;
         LOG(debug4) << "msg size: " << inParts.Size();
 
+        #if 1
+        auto lastmsg  = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
+	unsigned int type = (lastmsg[0] & 0xfc00'0000'0000'0000) >> 58;
+        if ((type == 0x1c) || (type == 0x18) || (type == 0x14)) {
+        } else {
+                LOG(warn) << "BAD delimitor " << std::hex << lastmsg[0];
+	}
+        #endif
+
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
             fTFBuffer[stfId].reserve(fNumSource);
         }
@@ -160,17 +169,17 @@ bool TimeFrameBuilder::ConditionalRun()
                     ////// under debugging //////
                     std::vector<uint32_t> femid;
                     std::vector<uint32_t> expected = {
-                        161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 
-                                  173, 174, 175, 176, 177, 178, 179
+                        160, 161, 162, 163, 164, 165, 166, 167, 168, 169,
+                        170, 171, 172, 173, 174, 175, 176, 177, 178, 179
                     };
                     std::vector<uint64_t> hb;
                     for (auto & stfBuf : tfBuf) {
                         auto & msg = stfBuf.parts[0];
                         SubTimeFrame::Header *stfheader
                             = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
-			//std::cout << " ID" << std::hex << stfheader->FEMId << std::dec;
+                        //std::cout << " ID" << std::hex << stfheader->FEMId << std::dec;
                         femid.push_back(stfheader->FEMId);
-			for (auto it = expected.begin() ; it != expected.end() ;) {
+                        for (auto it = expected.begin() ; it != expected.end() ;) {
                             if (*it == (stfheader->FEMId && 0xff)) {
                                 it = expected.erase(it);
                             } else {
@@ -181,11 +190,11 @@ bool TimeFrameBuilder::ConditionalRun()
                         //    reinterpret_cast<uint64_t*>(msg.GetData() + msg.GetSize()),
                         //    ::HexDump{4});
  
-			if (stfBuf.parts.Size() > 2) {
-                        	auto & hb0 = stfBuf.parts[2];
-	                        uint64_t hb00 = (reinterpret_cast<uint64_t *>(hb0.GetData()))[0];
-				hb.push_back(hb00);
-			}
+                        if (stfBuf.parts.Size() > 2) {
+                                auto & hb0 = stfBuf.parts[2];
+                                uint64_t hb00 = (reinterpret_cast<uint64_t *>(hb0.GetData()))[0];
+                                hb.push_back(hb00);
+                        }
                     }
                     //std::cout << "#D lost FEMid :" << stfId << ":";
                     //for (auto & i : expected) std::cout << " " << (i & 0xff);
