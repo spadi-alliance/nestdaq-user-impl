@@ -367,15 +367,15 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
 	/// for debug
 	auto part_size = parts.Size();
-	auto& msg = parts.At(part_size - 1);
-	auto n   = msg->GetSize()/sizeof(Data::Word);	
-	auto b   = reinterpret_cast<Bits*>(msg->GetData());
+	auto& smsg = parts.At(part_size - 1);
+	auto n   = smsg->GetSize()/sizeof(Data::Word);	
+	auto b   = reinterpret_cast<Bits*>(smsg->GetData());
 	if( (part_size == 2) && (b->head == Data::SpillEnd) ) {
 	  //nothing
 	}else if ( b->head != Data::Heartbeat ){
 	  LOG(error) << "=== Wrong last message === " ;
-	  std::for_each(reinterpret_cast<Data::Word*>(msg->GetData()),
-			reinterpret_cast<Data::Word*>(msg->GetData()) + n,
+	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
+			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
 			::HexDump{4});	
 	}	
 		
