@@ -210,6 +210,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 
       auto first_  = reinterpret_cast<Data::Bits*>(last-1)->head;
       auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
+      
       //h == Data::Heartbeat) || h == Data::SpillEnd) {
       //for debug
       if( first_ == Data::SpillEnd ) {
@@ -218,7 +219,9 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 	LOG(warn) << "wrong delimiter--> first: " << std::hex
 		  << reinterpret_cast<Data::Bits*>(last-1)->raw
 		  << "    second: " << std::hex
-		  << reinterpret_cast<Data::Bits*>(last)->raw;
+		  << reinterpret_cast<Data::Bits*>(last)->raw
+		  << "    third: " << std::hex
+		  << reinterpret_cast<Data::Bits*>(last+1)->raw;	
       }
       
     }else if( last == first ) { // only one *last
@@ -243,7 +246,10 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 	LOG(warn) << "wrong delimiter--> first: " << std::hex
 		  << reinterpret_cast<Data::Bits*>(tRemain)->raw
 		  << "    second: " << std::hex
-		  << reinterpret_cast<Data::Bits*>(last)->raw;
+		  << reinterpret_cast<Data::Bits*>(last)->raw
+	          << "    third: " << std::hex
+		  << reinterpret_cast<Data::Bits*>(last+1)->raw;	
+
 	LOG(warn) << "This is in case of tRemain ";
       }
       
@@ -396,12 +402,18 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	auto& smsg = parts.At(part_size - 1);
 	auto n   = smsg->GetSize()/sizeof(Data::Word);	
 	auto b   = reinterpret_cast<Bits*>(smsg->GetData());
+
 	if( (n == 2) && b->head == Data::SpillEnd ) {
 	  //nothing
-	  //	  LOG(error) << "size: " << part_size ;
-	  //	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
-	  //			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
-	  //			::HexDump{4});	
+	  LOG(error) << "size: " << part_size ;	  
+	  for(int i=0; i<part_size; ++i){
+	    auto& xmsg = parts.At(i);
+	    auto in   = xmsg->GetSize()/sizeof(Data::Word);	
+	    
+	    std::for_each(reinterpret_cast<Data::Word*>(xmsg->GetData()),
+			  reinterpret_cast<Data::Word*>(xmsg->GetData()) + in,
+			  ::HexDump{4});
+	  }
 	  
 	}else if ( b->head != Data::Heartbeat ){
 	  LOG(error) << "=== Wrong last message === " ;
