@@ -27,6 +27,7 @@ struct TFdump : fair::mq::Device
 {
 	struct OptionKey {
 		static constexpr std::string_view InputChannelName  {"in-chan-name"};
+		static constexpr std::string_view ShrinkMode        {"shrink"};
 	};
 
 	TFdump()
@@ -43,9 +44,13 @@ struct TFdump : fair::mq::Device
 		// Get the fMaxIterations value from the command line options (via fConfig)
 		fMaxIterations = fConfig->GetProperty<uint64_t>("max-iterations");
 		fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
-		LOG(info) << "InitTask Input Channel : " << fInputChannelName;
-		//OnData(fInputChannelName, &TFdump::HandleData);
+		LOG(info) << "Input Channel : " << fInputChannelName;
 
+		auto sShrinkMode = fConfig->GetProperty<std::string>(opt::ShrinkMode.data());
+		fIsShrink = (sShrinkMode == "true") ? true : false;
+		LOG(info) << "Shrink Mode : " << fIsShrink;
+
+		//OnData(fInputChannelName, &TFdump::HandleData);
 	}
 
 	bool CheckData(fair::mq::MessagePtr& msg);
@@ -86,7 +91,9 @@ private:
 	std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
 	std::unordered_set<uint64_t> fDiscarded;
 	int fNumSource = 0;
-	int fFe_type = 0;
+	int fFE_type = 0;
+
+	bool fIsShrink;
 };
 
 #if 1
@@ -113,6 +120,9 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< std::endl;
 
 	} else if (msg_magic == TimeFrame::Magic) {
+		if (fIsShrink) {
+			std::cout << "T";
+		} else {
 		TimeFrame::Header *ptf
 			= reinterpret_cast<TimeFrame::Header *>(pdata);
 		std::cout << "#TF Header "
@@ -121,8 +131,11 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< " Nsource: " << std::setw(8) << std::setfill('0') <<  ptf->numSource
 			<< " len: " << std::dec <<  ptf->length
 			<< std::endl;
-
+		}
 	} else if (msg_magic == SubTimeFrame::Magic) {
+		if (fIsShrink) {
+			std::cout << "S";
+		} else {
 		SubTimeFrame::Header *pstf
 			= reinterpret_cast<SubTimeFrame::Header *>(pdata);
 		std::cout << "#STF Header "
@@ -139,11 +152,13 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< " Tus: " << std::dec << pstf->time_usec
 			<< std::endl;
 
-		fFe_type = pstf->FEMType;
-
+		fFE_type = pstf->FEMType;
+		}
 	} else {
-
-		#if 1
+		if (fIsShrink) {
+			//std::cout << "#Unknown Header " << std::hex << msg_magic << std::endl;
+			std::cout << ".";
+		} else {
 		for (unsigned int j = 0 ; j < msize ; j += 8) {
 			std::cout << "# " << std::setw(8) << j << " : "
 				<< std::hex << std::setw(2) << std::setfill('0')
@@ -159,14 +174,14 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			if        ((pdata[j + 7] & 0xfc) == (TDC64H::T_TDC << 2)) {
 				std::cout << "TDC ";
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
-				if (fFe_type == SubTimeFrame::TDC64H) {
+				if (fFE_type == SubTimeFrame::TDC64H) {
 					struct TDC64H::tdc64 tdc;
 					TDC64H::Unpack(*dword, &tdc);
 					std::cout << "H :"
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
 						<< " TDC: " << std::setw(7) << tdc.tdc << std::endl;
 				} else
-				if (fFe_type == SubTimeFrame::TDC64L) {
+				if (fFE_type == SubTimeFrame::TDC64L) {
 					struct TDC64L::tdc64 tdc;
 					TDC64L::Unpack(*dword, &tdc);
 					std::cout << "L :"
@@ -203,11 +218,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			}
 		}
 		std::cout <<  "#----" << std::endl;
-
-		#else
-		std::cout << "#Unknown Header " << std::hex << msg_magic << std::endl;
-		#endif
-
+		}
 	}
 
 	#if 0
@@ -354,7 +365,6 @@ bool TFdump::ConditionalRun()
 
 		#if 0
 		auto tfHeader = reinterpret_cast<TimeFrame::Header*>(inParts.At(0)->GetData());
-
 		auto stfHeader = reinterpret_cast<SubTimeFrame::Header*>(inParts.At(0)->GetData());
 		auto stfId     = stfHeader->timeFrameId;
 
@@ -422,11 +432,9 @@ void addCustomOptions(bpo::options_description& options)
 
 	options.add_options()
 		("max-iterations", bpo::value<uint64_t>()->default_value(0),
-		"Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)")
-		(opt::InputChannelName.data(),
-			bpo::value<std::string>()->default_value("in"),
+			"Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)")
+		(opt::InputChannelName.data(), bpo::value<std::string>()->default_value("in"),
 			"Name of the input channel");
-
 }
 
 
