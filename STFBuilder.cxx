@@ -199,7 +199,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     auto buf  = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
     auto sbuf = std::make_unique<decltype(fInputDelimiter)>(std::move(fInputDelimiter));
     
-    if ( (last - first) > 1 ) { // data + two delimiters
+    if ( (last - first) > 1 ) { // when data + two delimiter comes (more than 3 words)
       // insert new data to send buffer
       //        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
       buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));
@@ -208,6 +208,19 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     if ( last != first ) { // two delimiter, *(last-1) and *last
       sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));
 
+      auto first_  = reinterpret_cast<Data::Bits*>(last-1)->head;
+      auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
+      //h == Data::Heartbeat) || h == Data::SpillEnd) {
+      //for debug
+      if( first_ == Data::SpillEnd ) {
+	//nothing
+      }else if ( first_ != Data::Heartbeat || second_ != Data::Heartbeat ){
+	LOG(warn) << "wrong delimiter--> first: " << std::hex
+		  << reinterpret_cast<Data::Bits*>(last-1)->raw
+		  << "    second: " << std::hex
+		  << reinterpret_cast<Data::Bits*>(last)->raw;
+      }
+      
     }else if( last == first ) { // only one *last
 
       if(mdebug){
@@ -219,6 +232,19 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
       if(mdebug){
 	LOG(error) << "tRemain : " << std::hex 
 		   << reinterpret_cast<Data::Bits*>(tRemain)->raw << std::dec << std::endl;
+      }
+
+      auto first_  = reinterpret_cast<Data::Bits*>(tRemain)->head;
+      auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
+
+      if( first_ == Data::SpillEnd ) {
+	//nothing      
+      }else if ( first_ != Data::Heartbeat || second_ != Data::Heartbeat ){      
+	LOG(warn) << "wrong delimiter--> first: " << std::hex
+		  << reinterpret_cast<Data::Bits*>(tRemain)->raw
+		  << "    second: " << std::hex
+		  << reinterpret_cast<Data::Bits*>(last)->raw;
+	LOG(warn) << "This is in case of tRemain ";
       }
       
       sbuf->insert(sbuf->end(), *tRemain);
