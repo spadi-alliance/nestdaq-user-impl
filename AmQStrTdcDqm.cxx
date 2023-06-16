@@ -441,7 +441,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
         break;
       case Data::Data:
 	
-	if(stfh->FEMType==1) lrtdcCnt[wb->ch].insert(femIdx);
+	if( (stfh->FEMType==1) || (stfh->FEMType==3) ) lrtdcCnt[wb->ch].insert(femIdx);
 	if(stfh->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
 
         break;
