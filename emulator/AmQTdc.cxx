@@ -84,7 +84,7 @@ int AmQTdc::packet_generator(int type, unsigned char *sbuf) {
     }
     int wcount = 0;
 
-    if(type==1) {
+    if(type==1 || type==3) {
         wcount = LRgenerator(nseq, databuf);
     } else if(type==2) {
         wcount = HRgenerator(nseq, databuf);

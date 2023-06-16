@@ -300,7 +300,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
 bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 {
     namespace Data = AmQStrTdc::Data;
-    //    using Bits     = Data::Bits;
+    using Bits     = Data::Bits;
 
     if(mdebug)
         std::cout << "HandleData() HBF " << fHBFCounter << " input message " << msg->GetSize() << std::endl;
@@ -365,6 +365,22 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
         auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
+	/// for debug
+	auto part_size = parts.Size();
+	auto& msg = parts.At(part_size - 1);
+	auto n   = msg->GetSize()/sizeof(Data::Word);	
+	auto b   = reinterpret_cast<Bits*>(msg->GetData());
+	if( (part_size == 2) && (b->head == Data::SpillEnd) ) {
+	  //nothing
+	}else if ( b->head != Data::Heartbeat ){
+	  LOG(error) << "=== Wrong last message === " ;
+	  std::for_each(reinterpret_cast<Data::Word*>(msg->GetData()),
+			reinterpret_cast<Data::Word*>(msg->GetData()) + n,
+			::HexDump{4});	
+	}	
+		
+	///
+	
 	/*
 	{ // for debug-begin
           std::cout << " parts size = " << parts.Size() << std::endl;
