@@ -142,6 +142,20 @@ if(ROOT_FOUND)
 #    LINKDEF LinkDef/stl_vector_vector_LinkDef.h)
 endif()
 
+#==============================================================================
+# ---------- add hiredis dependency ----------
+find_path(HIREDIS_HEADER hiredis)
+find_library(HIREDIS_LIB hiredis)
+
+message(STATUS "HIREDIS_HEADER: ${HIREDIS_HEADER}")
+message(STATUS "HIREDIS_LIB:    ${HIREDIS_LIB}")
+
+# ---------- add redis++ dependency ---------
+find_path(REDIS_PLUS_PLUS_HEADER sw)
+find_library(REDIS_PLUS_PLUS_LIB redis++)
+
+message(STATUS "REDIS_PLUS_PLUS_HEADER: ${REDIS_PLUS_PLUS_HEADER}")
+message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
 
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder

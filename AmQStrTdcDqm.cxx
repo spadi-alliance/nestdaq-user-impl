@@ -15,6 +15,10 @@
 
 #include <fairmq/runDevice.h>
 
+#include <sw/redis++/redis++.h>
+#include <sw/redis++/patterns/redlock.h>
+#include <sw/redis++/errors.h>
+
 #include "TimeFrameHeader.h"
 #include "SubTimeFrameHeader.h"
 #include "STFBuilder.h"
@@ -234,8 +238,8 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
       }
     }
 
-    if(numHB != ( (nmsg - 1 )/2 ) )
-      LOG(error) << "Woring # of delimiter: " << numHB << " --> " << (nmsg-1)/2 ;
+    //    if(numHB != ( (nmsg - 1 )/2 ) )
+    //      LOG(error) << "Wroing # of delimiter: " << numHB << " --> " << (nmsg-1)/2 ;
 
   }
 

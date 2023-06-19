@@ -241,7 +241,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
       buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));
       
     }else if ( (last != first) && (hbf_flag == 1) ) {
-      LOG(warn) << "one delimiter is coming.." << reinterpret_cast<Data::Bits*>(last)->raw;
+      LOG(warn) << "just one delimiter is coming.." << reinterpret_cast<Data::Bits*>(last)->raw;
       buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));      
     }
 

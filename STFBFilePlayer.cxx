@@ -137,7 +137,8 @@ bool STFBFilePlayer::ConditionalRun()
     }
 
     FairMQParts outParts;
-
+    FairMQParts dqmParts;        
+    
     outParts.AddPart(NewMessage(sizeof(STF::Header)));
     auto &msgSTFHeader = outParts[0];
     fInputFile.read(reinterpret_cast<char*>(msgSTFHeader.GetData()), msgSTFHeader.GetSize());
@@ -301,6 +302,23 @@ bool STFBFilePlayer::ConditionalRun()
     LOG(debug4) << " n-iteration = " << fNumIteration
                 << ": out parts.size() = " << outParts.Size();
 
+    bool dqmSocketExists = fChannels.count(fDQMChannelName);
+    if(dqmSocketExists){
+      for(auto& tmsg : outParts){
+	FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+	msgCopy->Copy(*tmsg);
+	dqmParts.AddPart(std::move(msgCopy));		  
+      }
+
+      if (Send(dqmParts, fDQMChannelName) < 0) {
+	// timeout
+	if (NewStatePending()) {
+	  LOG(info) << "Device is not RUNNING";
+	  return false;
+	}
+      }      
+    }
+    
     auto poller = NewPoller(fOutputChannelName);
     while (!NewStatePending()) {
         poller->Poll(fPollTimeoutMS);
