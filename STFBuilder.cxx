@@ -110,6 +110,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	      // first heartbeat delimiter or first spill-off delimiter
 	      if (fSTFId<0) {
 		fSTFId = delimiterFrameId;
+		fpreFrameId = delimiterFrameId;
 	      }
 	    } else { // last heartbeat delimiter or last spill-off delimiter, or sequence number
 	      fSTFId = delimiterFrameId;
@@ -141,7 +142,19 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 // unexpected @TODO
             }
 
-
+	    //	    if(fpass > 0 && (fshift_hb > 0) ){
+	    if( fpass > 0 ){
+	      LOG(error) << "fpass>0:  " << fpass;
+		
+	      if( word->hbframe != (fshift_hb + fpass + 1) ){
+		fpass--;
+		continue;
+	      }else{
+		fpass = 0;
+		fshift_hb = 0;
+	      }
+	    }
+	    
 	    int32_t delimiterFrameId = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
 	    
 	    if(h == Data::SpillEnd){
@@ -437,12 +450,14 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
         auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 
 	/// for debug
-	auto part_size = parts.Size();
+
+	const auto part_size = parts.Size();
 	auto& smsg = parts.At(part_size - 1);
 	auto n   = smsg->GetSize()/sizeof(Data::Word);	
 	auto b   = reinterpret_cast<Bits*>(smsg->GetData());
 
-	if( (n == 2) && b->head == Data::SpillEnd ) {
+	//	if( (n == 2) && b->head == Data::SpillEnd ) {
+	if( b->head == Data::SpillEnd ) {	
 	  //nothing
 	  
 	}else if ( b->head != Data::Heartbeat ){
@@ -451,7 +466,29 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
 			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
 			::HexDump{4});	
-	}	
+	}
+
+
+	int32_t nb=0;
+	
+	if( (fSTFSequenceNumber != 1) && (fpreFrameId != 0) ){
+	  
+	  nb = (b->hbframe + 1) % (fpreFrameId & 0xffff) ;
+	  LOG(error) << "nb: " << nb;
+	  LOG(error) << "nb: " << nb;
+	}
+
+	if(nb != 0){
+	  LOG(error) << "heart beat frame# is shifted" ;
+	    
+	  fpass = fMaxHBF - nb;	  
+	  LOG(error) << "nb: " << fpass;	  
+	  fshift_hb = b->hbframe;
+	  LOG(error) << "fshift_hb: " << fshift_hb;	  	  
+
+	  break;
+	}	  
+
 		
 	///
 	

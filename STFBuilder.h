@@ -72,6 +72,10 @@ private:
     int hbf_flag {0};
 
     int32_t  fdelimiterFrameId {0};
+    int32_t  fpreFrameId {0};
+    int32_t  fpass     {0};
+    int32_t  fshift_hb {0};
+  
     uint32_t fSTFSequenceNumber {0};
     int fSplitMethod {0};
     uint8_t fLastHeader {0};
