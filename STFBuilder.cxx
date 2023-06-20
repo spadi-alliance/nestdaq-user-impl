@@ -140,21 +140,25 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
             } else {
                 // unexpected @TODO
             }
-
-	    //	    if(fpass > 0 && (fshift_hb > 0) ){
-	    if( fpass > 0 ){
-	      LOG(error) << "fpass>0:  " << fpass;
-		
-	      if( word->hbframe != (fshift_hb + fpass + 1) ){
-		fpass--;
-		continue;
-	      }else{
-		fpass = 0;
-		fshift_hb = 0;
-	      }
-	    }
 	    
 	    int32_t delimiterFrameId = ((word->hbspilln & 0xFF)<<16) | (word->hbframe & 0xFFFF);
+
+	    ///
+	    if( (h == Data::Heartbeat) &&  (fHBFCounter==0) ){
+	      auto rdelim = word->hbframe % fMaxHBF;
+	      //	      LOG(debug) << "rdelim:   "<< rdelim;
+	      //	      LOG(debug) << "hbfframe + 1 : "<< word->hbframe + 1;
+	      //	      LOG(debug) << "fMaxHBF: "<< fMaxHBF;	      	      
+
+	      if(rdelim != 0){
+		offset   = i+1;
+		hbf_flag = 0;
+		LOG(error) << "(HBF % fMaxHBF) != 0:  HBF = " << word->hbframe
+			   << " fMaxHBF = " << fMaxHBF;
+	        continue;
+	      }
+	    }
+	    ///
 	    
 	    if(h == Data::SpillEnd){
 	      delimiterFrameId = fdelimiterFrameId;
@@ -195,12 +199,8 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 if (fSplitMethod==0) {
 
                     if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
-                        //	    std::cout << "FinalizeSTF " << std::endl;
                         FinalizeSTF();
-			if(fstart == 0){
-			  fstart = 1;
-			}
-                    }
+		    }
                 }
             }
         }
@@ -263,11 +263,10 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     /* for delimiter */    
     if ( (last != first) && (hbf_flag == 2) ) { // two delimiter, *(last-1) and *last
 
-      sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));
-
       auto first_  = reinterpret_cast<Data::Bits*>(last-1)->head;
       auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
-      
+
+
       //for debug
       if( first_ == Data::SpillEnd ) {
 	//nothing
@@ -278,12 +277,15 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 		  << "    third? " << std::hex << reinterpret_cast<Data::Bits*>(last+1)->raw;	
       }
       //
+
+      sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));
       
     }else if( (last != first) && (hbf_flag == 1) ) {
 
-      sbuf->insert(sbuf->end(), *last);      
       auto first_ = reinterpret_cast<Data::Bits*>(last)->raw;
       LOG(warn) << " Fill one delimiter: "<< first_;
+
+      sbuf->insert(sbuf->end(), *last);      	
       
     }else if( (last == first) && (hbf_flag == 2) ) { // only one *last
 
@@ -307,33 +309,35 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
 
 	LOG(warn) << "This is in case of tRemain ";
       }
-      
+
       sbuf->insert(sbuf->end(), *tRemain);
       sbuf->insert(sbuf->end(), *last);
     }
+
 
     NewData();
     if (!buf->empty()) {
       fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(buf)));
     }
-
+	
     if(mdebug) {
-        LOG(debug)
-                << " single word frame : " << std::hex
-                << reinterpret_cast<Data::Bits*>(last)->raw
-                << std::dec << std::endl;
+      LOG(debug)
+	<< " single word frame : " << std::hex
+	<< reinterpret_cast<Data::Bits*>(last)->raw
+	<< std::dec << std::endl;
     }
 
     if (fSplitMethod!=0) {
-        if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
-            LOG(debug) << " calling FinalizeSTF() from FillData()";
-            FinalizeSTF();
-            NewData();
-        }
+      if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
+	LOG(debug) << " calling FinalizeSTF() from FillData()";
+	FinalizeSTF();
+	NewData();
+      }
     }
 
 
     /* insert 64bit*2 delimiter */
+      
     fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(sbuf)));
 
     //    (void)isSpillEnd;    
@@ -470,49 +474,6 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 			::HexDump{4});	
 	}
 
-
-	if( b->head == Data::Heartbeat ) {		
-
-	  int32_t nb=0;
-	  //	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
-	  //			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
-	  //			::HexDump{4});	
-
-	  
-	  //	  LOG(debug) << "fpreFrameId: " << fpreFrameId;
-	  //	  LOG(debug) << "fstart: " << fstart;	  
-	  //	  LOG(debug) << "sequ: " << fSTFSequenceNumber;
-
-	  //	  if( fSTFSequenceNumber != 1 ){
-	  if( fstart != 0 ){	  
-
-	    auto preHBF = (fpreFrameId & 0xFFFF);
-	    //	  nb = (b->hbframe -fMaxHBF + 1) % (fpreFrameId & 0xffff) ;
-	    nb = (b->hbframe - preHBF + 1) % fMaxHBF;
-	    
-	    //	    LOG(debug) << "nb: " << nb;
-	    //	    LOG(debug) << "fpreFrameId: " << fpreFrameId;
-	    //	    LOG(debug) << "preHBF: " << preHBF;
-
-	    fpreFrameId = h->timeFrameId;	  	  
-	  }else {
-	    fpreFrameId = h->timeFrameId;	  
-	  }
-
-	  if( (nb != 0) && (fstart!=0) ){
-	    LOG(error) << "heart beat frame# is shifted" ;
-	    
-	    fpass = fMaxHBF - nb;	  
-	    LOG(error) << "nb: " << fpass;	  
-	    fshift_hb = b->hbframe;
-	    LOG(error) << "fshift_hb: " << fshift_hb;	  	  
-
-	    break;
-	  }	  
-	}
-		
-	///
-	
 	/*
 	{ // for debug-begin
           std::cout << " parts size = " << parts.Size() << std::endl;
