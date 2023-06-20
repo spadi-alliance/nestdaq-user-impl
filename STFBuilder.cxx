@@ -110,7 +110,6 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	      // first heartbeat delimiter or first spill-off delimiter
 	      if (fSTFId<0) {
 		fSTFId = delimiterFrameId;
-		fpreFrameId = delimiterFrameId;
 	      }
 	    } else { // last heartbeat delimiter or last spill-off delimiter, or sequence number
 	      fSTFId = delimiterFrameId;
@@ -198,6 +197,9 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                     if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
                         //	    std::cout << "FinalizeSTF " << std::endl;
                         FinalizeSTF();
+			if(fstart == 0){
+			  fstart = 1;
+			}
                     }
                 }
             }
@@ -469,26 +471,45 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	}
 
 
-	int32_t nb=0;
-	
-	if( (fSTFSequenceNumber != 1) && (fpreFrameId != 0) ){
+	if( b->head == Data::Heartbeat ) {		
+
+	  int32_t nb=0;
+	  //	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
+	  //			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
+	  //			::HexDump{4});	
+
 	  
-	  nb = (b->hbframe + 1) % (fpreFrameId & 0xffff) ;
-	  LOG(error) << "nb: " << nb;
-	  LOG(error) << "fpreFrameId: " << fpreFrameId;
-	}
+	  //	  LOG(debug) << "fpreFrameId: " << fpreFrameId;
+	  //	  LOG(debug) << "fstart: " << fstart;	  
+	  //	  LOG(debug) << "sequ: " << fSTFSequenceNumber;
 
-	if(nb != 0){
-	  LOG(error) << "heart beat frame# is shifted" ;
+	  //	  if( fSTFSequenceNumber != 1 ){
+	  if( fstart != 0 ){	  
+
+	    auto preHBF = (fpreFrameId & 0xFFFF);
+	    //	  nb = (b->hbframe -fMaxHBF + 1) % (fpreFrameId & 0xffff) ;
+	    nb = (b->hbframe - preHBF + 1) % fMaxHBF;
 	    
-	  fpass = fMaxHBF - nb;	  
-	  LOG(error) << "nb: " << fpass;	  
-	  fshift_hb = b->hbframe;
-	  LOG(error) << "fshift_hb: " << fshift_hb;	  	  
+	    //	    LOG(debug) << "nb: " << nb;
+	    //	    LOG(debug) << "fpreFrameId: " << fpreFrameId;
+	    //	    LOG(debug) << "preHBF: " << preHBF;
 
-	  break;
-	}	  
+	    fpreFrameId = h->timeFrameId;	  	  
+	  }else {
+	    fpreFrameId = h->timeFrameId;	  
+	  }
 
+	  if( (nb != 0) && (fstart!=0) ){
+	    LOG(error) << "heart beat frame# is shifted" ;
+	    
+	    fpass = fMaxHBF - nb;	  
+	    LOG(error) << "nb: " << fpass;	  
+	    fshift_hb = b->hbframe;
+	    LOG(error) << "fshift_hb: " << fshift_hb;	  	  
+
+	    break;
+	  }	  
+	}
 		
 	///
 	
@@ -680,9 +701,6 @@ void AmQStrTdcSTFBuilder::PostRun()
 
     fLastHeader = 0;
     hbf_flag = 0;
-    fpass = 0;
-    fpreFrameId =0;
-    fshift_hb = 0;    
     
     int nrecv = 0;
 

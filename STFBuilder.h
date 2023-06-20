@@ -75,6 +75,7 @@ private:
     int32_t  fpreFrameId {0};
     int32_t  fpass     {0};
     int32_t  fshift_hb {0};
+    int32_t  fstart {0};
   
     uint32_t fSTFSequenceNumber {0};
     int fSplitMethod {0};
