@@ -475,7 +475,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	  
 	  nb = (b->hbframe + 1) % (fpreFrameId & 0xffff) ;
 	  LOG(error) << "nb: " << nb;
-	  LOG(error) << "nb: " << nb;
+	  LOG(error) << "fpreFrameId: " << fpreFrameId;
 	}
 
 	if(nb != 0){
@@ -680,6 +680,9 @@ void AmQStrTdcSTFBuilder::PostRun()
 
     fLastHeader = 0;
     hbf_flag = 0;
+    fpass = 0;
+    fpreFrameId =0;
+    fshift_hb = 0;    
     
     int nrecv = 0;
 
