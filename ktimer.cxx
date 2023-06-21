@@ -31,6 +31,15 @@ public:
 			return true;
 		} else {return false;}
 	};
+	bool TryCheck(){
+		auto now = std::chrono::system_clock::now();
+		auto elapse = (now - f_start);
+		if (elapse > f_duration) {
+			return true;
+		} else {
+			return false;
+		}
+	};
 protected:
 private:
 	std::chrono::system_clock::time_point f_start;

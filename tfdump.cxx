@@ -20,6 +20,7 @@
 #include "TimeFrameHeader.h"
 #include "FilterHeader.h"
 #include "UnpackTdc.h"
+#include "ktimer.cxx"
 
 namespace bpo = boost::program_options;
 
@@ -28,6 +29,7 @@ struct TFdump : fair::mq::Device
 	struct OptionKey {
 		static constexpr std::string_view InputChannelName  {"in-chan-name"};
 		static constexpr std::string_view ShrinkMode        {"shrink"};
+		static constexpr std::string_view Interval          {"interval"};
 	};
 
 	TFdump()
@@ -49,6 +51,11 @@ struct TFdump : fair::mq::Device
 		auto sShrinkMode = fConfig->GetProperty<std::string>(opt::ShrinkMode.data());
 		fIsShrink = (sShrinkMode == "true") ? true : false;
 		LOG(info) << "Shrink Mode : " << fIsShrink;
+		fInterval = std::stoi(fConfig->GetProperty<std::string>(opt::Interval.data()));
+		fInterval = fInterval * 1000;
+		LOG(info) << "Interval : " << fInterval;
+
+		fKt1 = new KTimer(fInterval);
 
 		//OnData(fInputChannelName, &TFdump::HandleData);
 	}
@@ -94,6 +101,8 @@ private:
 	int fFE_type = 0;
 
 	bool fIsShrink;
+	KTimer *fKt1;
+	int fInterval = 0;
 };
 
 #if 1
@@ -109,6 +118,9 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 	#endif
 
 	if (msg_magic == Filter::Magic) {
+		if (fIsShrink) {
+			std::cout << "F";
+		} else {
 		Filter::Header *pflt
 			= reinterpret_cast<Filter::Header *>(pdata);
 		std::cout << "#FLT Header "
@@ -118,7 +130,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< " Id: " << std::setw(8) << pflt->workerId
 			<< " elapse: " << std::dec <<  pflt->elapseTime
 			<< std::endl;
-
+		}
 	} else if (msg_magic == TimeFrame::Magic) {
 		if (fIsShrink) {
 			std::cout << "T";
@@ -171,7 +183,8 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 				<< std::setw(2) << static_cast<unsigned int>(pdata[j + 1]) << " "
 				<< std::setw(2) << static_cast<unsigned int>(pdata[j + 0]) << " : ";
 
-			if        ((pdata[j + 7] & 0xfc) == (TDC64H::T_TDC << 2)) {
+			if      (  ((pdata[j + 7] & 0xfc) == (TDC64H::T_TDC << 2))
+			        || ((pdata[j + 7] & 0xfc) == (TDC64H::T_TDC_T << 2))  ) {
 				std::cout << "TDC ";
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
 				if (fFE_type == SubTimeFrame::TDC64H) {
@@ -207,14 +220,22 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 						std::cout << "#E HB LFN mismatch" << std::endl;
 					if ((hbflag & 0x040) == 0x040)
 						std::cout << "#E HB GFN mismatch" << std::endl;
+					if ((hbflag & 0x020) == 0x020)
+						std::cout << "#W I throttling 1" << std::endl;
+					if ((hbflag & 0x010) == 0x010)
+						std::cout << "#W I Throttling 2" << std::endl;
+					if ((hbflag & 0x008) == 0x008)
+						std::cout << "#W O Throttling" << std::endl;
+					if ((hbflag & 0x004) == 0x004)
+						std::cout << "#W HBF Throttling" << std::endl;
         			}
 
-			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_S_START << 2)) {
+			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_SPL_START << 2)) {
 				std::cout << "SPILL Start" << std::endl;
-			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_S_END << 2)) {
+			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_SPL_END << 2)) {
 				std::cout << "SPILL End" << std::endl;
 			} else {
-				std::cout << std::endl;
+				std::cout << "UNKNOWN" << std::endl;
 			}
 		}
 		std::cout <<  "#----" << std::endl;
@@ -347,10 +368,6 @@ bool TFdump::ConditionalRun()
 			start = std::chrono::system_clock::now();
 		}
 
-		std::cout << "Nmsg: " << std::dec << inParts.Size();
-		std::cout << "  Freq: " << freq << " el " << elapse
-			<< " c " << counts  << std::endl;
-
 		#if 0
 		static std::chrono::system_clock::time_point last;
 		std::cout << " Elapsed time:"
@@ -360,8 +377,12 @@ bool TFdump::ConditionalRun()
 		std::cout << std::endl;
 		#endif
 
-		for(auto& vmsg : inParts) CheckData(vmsg);
-
+		if ((fInterval == 0) || (fKt1->Check())) {
+			std::cout << "Nmsg: " << std::dec << inParts.Size();
+			std::cout << "  Freq: " << freq << "Hz  el: " << elapse
+				<< " C: " << counts  << std::endl;
+			for(auto& vmsg : inParts) CheckData(vmsg);
+		}
 
 		#if 0
 		auto tfHeader = reinterpret_cast<TimeFrame::Header*>(inParts.At(0)->GetData());
@@ -434,7 +455,12 @@ void addCustomOptions(bpo::options_description& options)
 		("max-iterations", bpo::value<uint64_t>()->default_value(0),
 			"Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)")
 		(opt::InputChannelName.data(), bpo::value<std::string>()->default_value("in"),
-			"Name of the input channel");
+			"Name of the input channel")
+		(opt::ShrinkMode.data(), bpo::value<std::string>()->default_value("false"),
+			"Shrink mode flag")
+		(opt::Interval.data(), bpo::value<std::string>()->default_value("0"),
+			"Display interval period (s)")
+	;
 }
 
 
