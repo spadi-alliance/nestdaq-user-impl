@@ -64,12 +64,14 @@ bool TimeFrameBuilder::ConditionalRun()
         LOG(debug4) << "msg size: " << inParts.Size();
 
         #if 1
-        auto lastmsg  = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
-	unsigned int type = (lastmsg[0] & 0xfc00'0000'0000'0000) >> 58;
+        auto fem     = stfHeader->FEMId;
+        auto lastmsg = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
+        unsigned int type = (lastmsg[0] & 0xfc00'0000'0000'0000) >> 58;
         if ((type == 0x1c) || (type == 0x18) || (type == 0x14)) {
         } else {
-                LOG(warn) << "BAD delimitor " << std::hex << lastmsg[0];
-	}
+            LOG(warn) << "BAD delimitor " << std::hex << lastmsg[0]
+                << " FEM: " << std::dec << (fem & 0xff);
+        }
         #endif
 
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
@@ -161,11 +163,17 @@ bool TimeFrameBuilder::ConditionalRun()
                 // discard incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
+
+
+		#if 0
                     LOG(warn) << "Timeframe #" <<  std::hex << stfId << " incomplete after "
                             << std::dec << fBufferTimeoutInMs << " milliseconds, discarding";
                     //fDiscarded.insert(stfId);
+                #else
+			std::cout << "x" << std::flush;
+		#endif
 
-
+                    #if 1
                     ////// under debugging //////
                     std::vector<uint32_t> femid;
                     std::vector<uint32_t> expected = {
@@ -201,9 +209,12 @@ bool TimeFrameBuilder::ConditionalRun()
                     std::cout << "#D FEMid :" << stfId << ":";
                     for (auto & i : femid) std::cout << " " << (i & 0xff);
                     std::cout << std::endl;
+                    #if 0
                     std::cout << "#D HB :" << stfId << ":";
                     for (auto & i : hb) std::cout << " " << std::hex <<i;
                     std::cout << std::dec << std::endl;
+                    #endif
+                    #endif
 
 
                     /*

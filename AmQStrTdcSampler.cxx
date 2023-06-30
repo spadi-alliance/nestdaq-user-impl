@@ -42,10 +42,13 @@ bool AmQStrTdcSampler::ConditionalRun()
 {
     using namespace std::chrono_literals;
 
+    //    int n_word = 0;
+    int recv_status = 0;
+    int num_recieved_bytes = 0;
     int n_word = 0;
     uint8_t* buffer = new uint8_t[kOutBufByte*fnWordPerCycle] {};
 
-    while( -1 == ( n_word = Event_Cycle(buffer))) {
+    while( -1 == ( recv_status = Event_Cycle(buffer, num_recieved_bytes))) {
         if (NewStatePending()) {
             break;
 	} else {
@@ -53,16 +56,53 @@ bool AmQStrTdcSampler::ConditionalRun()
 	}
     }
 
+    n_word = num_recieved_bytes/optnByte;
+
+#if 0
+    if(recv_status == -4) {
+      for(int i = 0; i<fnWordPerCycle; ++i) {
+
+	//      if((buffer[fnByte*i+4] & 0xff) == 0x50){
+	//if((buffer[optnByte*i + header_pos] & 0xff) == 0x50) {
+	//	if((buffer[optnByte*i + header_pos] & 0xf0) == 0x50) {
+	if(true 
+	   &&(buffer[optnByte*i + 0] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 1] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 2] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 3] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 4] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 5] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 6] & 0xff) == 0x0
+	   &&(buffer[optnByte*i + 7] & 0xff) == 0x0
+	   ) {
+	  LOG(debug) << "#D: Empty data: ";
+	  LOG(debug) << " n_word: " << n_word << ", array index:" << i;
+
+	  //        n_word = i+1;
+	  //	  n_word = i+2;
+	  break;
+	}
+      }// For(i)
+    }
+#endif
+
     //  if(n_word == -4){
     //    n_word = remain;
     //    remain = 0;
     //  }
 
+    if (recv_status <= 0 && recv_status != -4) {
+      delete[] buffer;
+      return true;
+    }
+
+#if 0
     if(n_word == -4) {
         for(int i = 0; i<fnWordPerCycle; ++i) {
 
             //      if((buffer[fnByte*i+4] & 0xff) == 0x50){
-            if((buffer[optnByte*i + header_pos] & 0xff) == 0x50) {
+            //if((buffer[optnByte*i + header_pos] & 0xff) == 0x50) {
+            if((buffer[optnByte*i + header_pos] & 0xf0) == 0x50) {
                 printf("\n#D : Spill End is detected\n");
                 //        n_word = i+1;
                 n_word = i+2;
@@ -75,6 +115,7 @@ bool AmQStrTdcSampler::ConditionalRun()
         delete[] buffer;
         return true;
     }
+#endif
 
     /*    
     if(fTdcType == 1) {
@@ -92,7 +133,7 @@ bool AmQStrTdcSampler::ConditionalRun()
     
     FairMQMessagePtr msg(NewMessage((char*)buffer,
                                     //fnByte*fnWordPerCycle,
-                                    kOutBufByte*n_word,
+				    kOutBufByte*n_word,
                                     [](void* object, void*)
     {
         delete [] static_cast<uint8_t*>(object);
@@ -273,13 +314,16 @@ void AmQStrTdcSampler::PostRun()
     FPGAModule fModule(fIpSiTCP.c_str(), 4660, &rbcpHeader, 0);
     fModule.WriteModule(DCT::addr_gate,  0, 1);
     */
+    int recv_status = 0;
+    int num_recieved_bytes = 0;
     int n_word = 0;
     uint8_t buffer[optnByte*fnWordPerCycle];
-    while( ( n_word = Event_Cycle(buffer)) > 0) {
-        // if consition requires n_word = -1, sometime fails to break the loop
-        // when n_word = -4 comes
-        LOG(info) << "Receiving remaining data:" << n_word << "read";
-        continue;
+    while( ( recv_status = Event_Cycle(buffer, num_recieved_bytes)) > 0) {
+      n_word = num_recieved_bytes/optnByte;
+      // if consition requires n_word = -1, sometime fails to break the loop
+      // when n_word = -4 comes
+      LOG(info) << "Receiving remaining data:" << n_word << "read";
+      continue;
     }
 
     close(fAmqSocket);
@@ -309,6 +353,7 @@ int AmQStrTdcSampler::ConnectSocket(const char* ip)
     //tv.tv_sec  = 0;
     //tv.tv_usec = 250000;
     tv.tv_sec = 1;
+    //    tv.tv_sec = 5;
     tv.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(tv));
 
@@ -325,19 +370,20 @@ int AmQStrTdcSampler::ConnectSocket(const char* ip)
 }
 
 // Event Cycle ------------------------------------------------------------
-int AmQStrTdcSampler::Event_Cycle(uint8_t* buffer)
+int AmQStrTdcSampler::Event_Cycle(uint8_t* buffer, int& num_recieved_bytes)
 {
     // data read ---------------------------------------------------------
     //  static const unsigned int sizeData = fnByte*fnWordPerCycle*sizeof(uint8_t);
     static const unsigned int sizeData = optnByte*fnWordPerCycle*sizeof(uint8_t);
-    int ret = receive(fAmqSocket, (char*)buffer, sizeData);
-    if(ret <= 0) return ret;
+    int ret = receive(fAmqSocket, (char*)buffer, sizeData, num_recieved_bytes);
+    return ret;
+    //    if(ret <= 0) return ret;
 
-    return fnWordPerCycle;
+    //    return fnWordPerCycle;
 }
 
 // receive ----------------------------------------------------------------
-int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length)
+int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length, int& num_recieved_bytes)
 {
     unsigned int revd_size = 0;
     int tmp_ret            = 0;
@@ -351,9 +397,11 @@ int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length)
             perror("TCP receive");
             if(errbuf == EAGAIN) {
                 // this is time out
-                // std::cout << "#D : TCP recv time out" << std::endl;
-                //	remain = revd_size;
-                return -4;
+	      //	      std::cout << "#D : TCP recv time out"  << std::endl;
+              //	remain = revd_size;
+	      LOG(debug) << "#D: recv time out, recieved byte size: " << revd_size;
+	      num_recieved_bytes = revd_size;
+	      return -4;
             } else {
                 // something wrong
                 std::cerr << "TCP error : " << errbuf << std::endl;
@@ -366,6 +414,7 @@ int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length)
         revd_size += tmp_ret;
     }
 
+    num_recieved_bytes = revd_size;
     return revd_size;
 }
 

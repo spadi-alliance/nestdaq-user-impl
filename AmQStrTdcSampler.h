@@ -14,8 +14,8 @@
 constexpr uint64_t Magic {0x4f464e492d4d4546};
 constexpr int kOutBufByte           {8};
 //  const int fnWordPerCycle {16384*10};
-//constexpr int fnWordPerCycle {16384};
-constexpr int fnWordPerCycle {1024};
+constexpr int fnWordPerCycle {16384};
+//constexpr int fnWordPerCycle {1024};
 
 struct FEMInfo {
     uint64_t magic    {Magic};
@@ -42,8 +42,8 @@ public:
     ~AmQStrTdcSampler() = default;
 
     int ConnectSocket(const char* ip);
-    int Event_Cycle(uint8_t* buffer);
-    int receive(int sock, char* data_buf, unsigned int length);
+    int Event_Cycle(uint8_t* buffer, int& num_recieved_bytes);
+    int receive(int sock, char* data_buf, unsigned int length, int& num_recived_bytes);
 
     void SendFEMInfo();
 

@@ -12,8 +12,8 @@ namespace TDC40 {
 static constexpr unsigned int T_TDC = 0xd;
 static constexpr unsigned int T_HB = 0xf;
 static constexpr unsigned int T_ERROR = 0xe;
-static constexpr unsigned int T_S_START = 0x1;
-static constexpr unsigned int T_S_END = 0x4;
+static constexpr unsigned int T_SPL_START = 0x1;
+static constexpr unsigned int T_SPL_END = 0x4;
 
 struct tdc40 {
 	int type;
@@ -66,11 +66,6 @@ int Unpack(unsigned char *data, struct tdc40 *tdc)
 
 namespace TDC64H {
 
-static constexpr unsigned int T_TDC = (0x2c >> 2);
-static constexpr unsigned int T_HB =  (0x70 >> 2);
-static constexpr unsigned int T_S_START = (0x60 >> 2);
-static constexpr unsigned int T_S_END = (0x50 >> 2);
-
 struct tdc64 {
 	int type;
 	int ch;
@@ -81,6 +76,17 @@ struct tdc64 {
 	int spill;
 	int hartbeat;
 };
+
+static constexpr unsigned int T_TDC       = (0x2c >> 2);
+static constexpr unsigned int T_TDC_L     = (0x2c >> 2);
+static constexpr unsigned int T_TDC_T     = (0x34 >> 2);
+static constexpr unsigned int T_HB        = (0x70 >> 2);
+static constexpr unsigned int T_TR1_START = (0x64 >> 2);
+static constexpr unsigned int T_TR1_END   = (0x44 >> 2);
+static constexpr unsigned int T_TR2_START = (0x68 >> 2);
+static constexpr unsigned int T_TR2_END   = (0x48 >> 2);
+static constexpr unsigned int T_SPL_START = (0x60 >> 2);
+static constexpr unsigned int T_SPL_END   = (0x50 >> 2);
 
 int Unpack(uint64_t data, struct tdc64 *tdc)
 {
@@ -104,7 +110,7 @@ int Unpack(uint64_t data, struct tdc64 *tdc)
 		tdc->spill    = (data & 0x0000'ff00'0000'0000) >> 40;
 		tdc->hartbeat = (data & 0x0000'00ff'ff00'0000) >> 24;
 	} else
-	if ((tdc->type == T_S_START) || (tdc->type == T_S_END)) {
+	if ((tdc->type == T_SPL_START) || (tdc->type == T_SPL_END)) {
 		tdc->ch	= -1;
 		tdc->tot      = -1;
 		tdc->tdc      = -1;
@@ -305,11 +311,11 @@ int tdc64h_dump(uint64_t data)
 			<< std::endl;
 	} else
 	if ((type == TDC64H::T_HB)
-		|| (tdc.type == TDC64H::T_S_START)
-		|| (tdc.type == TDC64H::T_S_END)) {
+		|| (tdc.type == TDC64H::T_SPL_START)
+		|| (tdc.type == TDC64H::T_SPL_END)) {
 		if (type ==TDC64H::T_HB) std::cout << "HB ";
-		if (type ==TDC64H::T_S_START) std::cout << "S_STA ";
-		if (type ==TDC64H::T_S_END) std::cout << "S_END ";
+		if (type ==TDC64H::T_SPL_START) std::cout << "S_STA ";
+		if (type ==TDC64H::T_SPL_END) std::cout << "S_END ";
 		std::cout  << std::hex
 			<< " FLAG: " << tdc.flag
 			<< " SPILL: " << tdc.spill
@@ -394,11 +400,11 @@ int main(int argc, char* argv[])
 				<< std::endl;
 		} else
 		if ((type == TDC64H::T_HB)
-			|| (tdc.type == TDC64H::T_S_START)
-			|| (tdc.type == TDC64H::T_S_END)) {
+			|| (tdc.type == TDC64H::T_SPL_START)
+			|| (tdc.type == TDC64H::T_SPL_END)) {
 			if (type ==TDC64H::T_HB) std::cout << "HB ";
-			if (type ==TDC64H::T_S_START) std::cout << "S_STA ";
-			if (type ==TDC64H::T_S_END) std::cout << "S_END ";
+			if (type ==TDC64H::T_SPL_START) std::cout << "S_STA ";
+			if (type ==TDC64H::T_SPL_END) std::cout << "S_END ";
 			std::cout  << std::hex
 				<< " FLAG: " << tdc.flag
 				<< " SPILL: " << tdc.spill
@@ -445,12 +451,12 @@ int main(int argc, char* argv[])
 		} else
 		if ((type == TDC40::T_HB)
 			|| (tdc.type == TDC40::T_ERROR)
-			|| (tdc.type == TDC40::T_S_START)
-			|| (tdc.type == TDC40::T_S_END)) {
+			|| (tdc.type == TDC40::T_SPL_START)
+			|| (tdc.type == TDC40::T_SPL_END)) {
 			if (type ==TDC40::T_HB) std::cout << "HB ";
 			if (type ==TDC40::T_ERROR) std::cout << "ERR ";
-			if (type ==TDC40::T_S_START) std::cout << "S_STA ";
-			if (type ==TDC40::T_S_END) std::cout << "S_END ";
+			if (type ==TDC40::T_SPL_START) std::cout << "S_STA ";
+			if (type ==TDC40::T_SPL_END) std::cout << "S_END ";
 			std::cout  << std::dec
 				//<< " FLAG: " << tdc.flag
 				//<< " SPILL: " << tdc.spill

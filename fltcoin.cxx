@@ -268,9 +268,9 @@ bool FltCoin::CheckData(fair::mq::MessagePtr &msg)
 
 			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_HB << 2)) {
 				std::cout << "Hart beat" << std::endl;
-			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_S_START << 2)) {
+			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_SPL_START << 2)) {
 				std::cout << "SPILL Start" << std::endl;
-			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_S_END << 2)) {
+			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_SPL_END << 2)) {
 				std::cout << "SPILL End" << std::endl;
 			} else {
 				std::cout << std::endl;
