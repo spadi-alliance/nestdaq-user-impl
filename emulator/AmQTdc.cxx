@@ -553,18 +553,40 @@ int AmQTdc::HRgenerator(unsigned int iseq, unsigned char* bufptr) {
 
     hb_delmt_.flag = 0;
 
-    hb_buf[7] |= (header_.heartbeat & 0x3f) << 2;
-    hb_buf[7] |= (hb_delmt_.flag >> 8) & 0x03;
-    hb_buf[6] |=  hb_delmt_.flag  & 0xff;
-    hb_buf[5] |=  spill_count & 0xff;
-    hb_buf[4] |= (hb_delmt_.hb_frame >> 8) & 0xff;
-    hb_buf[3] |=  hb_delmt_.hb_frame & 0xff;
+    bool b_test = false;
+    if( ((iseq == 100) || (iseq == 150) || (iseq == 200)) && b_test){
+      
+      hb_buf[7] |= (header_.heartbeat & 0x3f) << 2;
+      hb_buf[7] |= (hb_delmt_.flag >> 8) & 0x03;
+      hb_buf[6] |=  hb_delmt_.flag  & 0xff;
+      hb_buf[5] |=  spill_count & 0xff;
+      hb_buf[4] |= (hb_delmt_.hb_frame >> 8) & 0xff;
+      hb_buf[3] |=  hb_delmt_.hb_frame & 0xff;
 
-    memcpy(&bufptr[pre_], &hb_buf[0], sizeof(char)*fnByte);
-    pre_ = pre_ + fnByte;
-    memcpy(&bufptr[pre_], &hb_buf[0], sizeof(char)*fnByte);
-    pre_ = pre_ + fnByte;
-    count_=count_ + 2;
+      memcpy(&bufptr[pre_], &hb_buf[0], sizeof(char)*fnByte);
+      pre_ = pre_ + fnByte;
+      count_ = count_+1;
+      std::cout << "+++++++ Only one delimiter !!++++++"<< std::endl;            
+
+    }else{
+
+      hb_buf[7] |= (header_.heartbeat & 0x3f) << 2;
+      hb_buf[7] |= (hb_delmt_.flag >> 8) & 0x03;
+      hb_buf[6] |=  hb_delmt_.flag  & 0xff;
+      hb_buf[5] |=  spill_count & 0xff;
+      hb_buf[4] |= (hb_delmt_.hb_frame >> 8) & 0xff;
+      hb_buf[3] |=  hb_delmt_.hb_frame & 0xff;
+
+      memcpy(&bufptr[pre_], &hb_buf[0], sizeof(char)*fnByte);
+      pre_ = pre_ + fnByte;
+      count_ = count_+1;
+      
+      memcpy(&bufptr[pre_], &hb_buf[0], sizeof(char)*fnByte);
+      pre_ = pre_ + fnByte;
+      count_ = count_+1;
+    }
+
+    //    count_=count_ + 2;
 
     /* generate spill on/off delimiter */
     if(iseq == 0 || iseq == (HBrate-1) ) {
@@ -593,7 +615,7 @@ int AmQTdc::HRgenerator(unsigned int iseq, unsigned char* bufptr) {
                 sp_buf[3] |=  spill_delmt_.hb_count & 0xff;
 
             } else if( i==1 ) {
-                sp_buf[4] |= (hb_delmt_.hb_frame >> 8) & 0xff;
+	        sp_buf[4] |= (hb_delmt_.hb_frame >> 8) & 0xff;
                 sp_buf[3] |=  hb_delmt_.hb_frame & 0xff;
             }
 
@@ -618,6 +640,7 @@ int AmQTdc::HRgenerator(unsigned int iseq, unsigned char* bufptr) {
     }
 
     if(mdebug) {
+    //    if(iseq == 100) {
         std::cout << "in gene 64 bit word count: "<< count_ << std::endl;
         for(unsigned int i=0; i< count_ * 8; i++) {
             printf("%02x ", bufptr[i]);

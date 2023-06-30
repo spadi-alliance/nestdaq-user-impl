@@ -97,7 +97,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	if(hbf_flag == 1){
 	  
 	  if ( (h != Data::Heartbeat) &&  (h != Data::SpillEnd) ) {
-	    LOG(warn) << "only one delimiter comes: " << word->raw;
+	    LOG(warn) << "Second word is not delimi. : " << std::hex << word->raw;
 
 	    auto first = msgBegin + offset;
 	    auto last  = msgBegin + i - 1;
@@ -114,9 +114,21 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	    } else { // last heartbeat delimiter or last spill-off delimiter, or sequence number
 	      fSTFId = delimiterFrameId;
 	    }
-
 	  
 	    FillData(first, last, (h==Data::SpillEnd));
+
+	    auto preh = reinterpret_cast<Data::Bits*>(last)->head;
+            if ( preh == Data::Heartbeat ) {
+                ++fHBFCounter;
+
+                if (fSplitMethod==0) {
+
+                    if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
+                        FinalizeSTF();
+		    }
+                }
+            }
+
 	    hbf_flag = 0;	  
 	    fLastHeader = 0;
 	  }
@@ -256,7 +268,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
       buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));
       
     }else if ( (last != first) && (hbf_flag == 1) ) {
-      LOG(warn) << "just one delimiter is coming.." << reinterpret_cast<Data::Bits*>(last)->raw;
+      LOG(warn) << "just one delimiter is coming.." << std::hex << reinterpret_cast<Data::Bits*>(last)->raw;
       buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));      
     }
 
@@ -283,7 +295,7 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
     }else if( (last != first) && (hbf_flag == 1) ) {
 
       auto first_ = reinterpret_cast<Data::Bits*>(last)->raw;
-      LOG(warn) << " Fill one delimiter: "<< first_;
+      LOG(warn) << " Fill one delimiter: "<< std::hex << first_;
 
       sbuf->insert(sbuf->end(), *last);      	
       
@@ -474,8 +486,9 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 			::HexDump{4});	
 	}
 
+	
 	/*
-	{ // for debug-begin
+	  { // for debug-begin
           std::cout << " parts size = " << parts.Size() << std::endl;
           for (int i=0; i<parts.Size(); ++i){
 	    const auto& msg = parts.At(i);
