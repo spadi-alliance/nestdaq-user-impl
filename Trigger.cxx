@@ -33,7 +33,8 @@ public:
 	std::vector<uint32_t> *Scan();
 	void SetMarkLen(int val) {fMarkLen = val;};
 	int GetMarkLen() {return fMarkLen;};
-	void SetLogic(int);
+	//void SetLogic(int);
+	void MakeTable(std::string &);
 protected:
 private:
 	//std::vector<struct CoinCh> fEntry;
@@ -69,9 +70,10 @@ Trigger::~Trigger()
 	return;
 }
 
-void Trigger::SetLogic(int nsignal)
+//void Trigger::SetLogic(int nsignal, std::string formula)
+void Trigger::MakeTable(std::string & formula)
 {
-	fTMap.MakeTable(nsignal);
+	fTMap.MakeTable(formula);
 	return;
 }
 
@@ -285,7 +287,7 @@ std::vector<uint32_t> *Trigger::Scan()
 	fHits.resize(0);
 
 	for (unsigned int i = 0 ; i < fTimeRegionSize - 1; i++) {
-		#if 1
+		#if 0
 		if (((fEntryMask & fTimeRegion[i]) != fEntryMask)
 		&& ((fEntryMask & fTimeRegion[i + 1]) == fEntryMask)) {
 			fHits.emplace_back(i + 1);

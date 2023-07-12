@@ -24,8 +24,8 @@
 #include "TimeFrameHeader.h"
 #include "FilterHeader.h"
 
-#include "ktimer.cxx"
-#include "trigger.cxx"
+#include "KTimer.cxx"
+#include "Trigger.cxx"
 
 
 //std::atomic<int> gQdepth = 0;
@@ -37,6 +37,7 @@ struct FltCoin : fair::mq::Device
 	struct OptionKey {
 		static constexpr std::string_view InputChannelName   {"in-chan-name"};
 		static constexpr std::string_view OutputChannelName  {"out-chan-name"};
+		static constexpr std::string_view DQMChannelName     {"dqm-chan-name"};
 		static constexpr std::string_view DataSuppress       {"data-suppress"};
 		static constexpr std::string_view RemoveHB           {"remove-hb"};
 		static constexpr std::string_view PollTimeout        {"poll-timeout"};
@@ -52,6 +53,7 @@ struct FltCoin : fair::mq::Device
 		fKt1 = new KTimer(1000);
 		fKt2 = new KTimer(1000);
 		fKt3 = new KTimer(1000);
+		fKt4 = new KTimer(1000);
 	}
 
 	void InitTask() override;
@@ -101,6 +103,7 @@ private:
 
 	std::string fInputChannelName;
 	std::string fOutputChannelName;
+	std::string fDQMChannelName;
 	std::string fName;
 
 	int fNumDestination {0};
@@ -111,10 +114,14 @@ private:
 	uint32_t fId {0};
 	Trigger *fTrig;
 	bool fIsDataSuppress = true;
-	bool fIsRemoveHB = true;
+	bool fIsRemoveHB = false;
+
+	int fHBflag = 0;
+
 	KTimer *fKt1;
 	KTimer *fKt2;
 	KTimer *fKt3;
+	KTimer *fKt4;
 };
 
 
@@ -124,6 +131,7 @@ void FltCoin::InitTask()
 
 	fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
 	fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
+	fDQMChannelName    = fConfig->GetValue<std::string>(opt::DQMChannelName.data());
 
 	LOG(info) << "InitTask: Input Channel : " << fInputChannelName
 		<< " Output Channel : " << fOutputChannelName;
@@ -158,19 +166,46 @@ void FltCoin::InitTask()
 	//fTrig->SetTimeRegion(1024 * 512);
 	fTrig->SetTimeRegion(1024 * 128);
 	fTrig->ClearEntry();
+	fTrig->SetMarkLen(10);
+#if 0
+	fTrig->Entry(0xc0a802a9, 16, 0); // ML
+	fTrig->Entry(0xc0a802a9, 17, 0); // MR
+	fTrig->Entry(0xc0a802a9, 18, 0); // ML
+	fTrig->Entry(0xc0a802a9, 19, 0); // MR
+	fTrig->Entry(0xc0a802a9, 20, 0); // ML
+	fTrig->Entry(0xc0a802a9, 21, 0); // MR
+	fTrig->Entry(0xc0a802a9, 22, 0); // ML
+	fTrig->Entry(0xc0a802a9, 23, 0); // MR
+	fTrig->Entry(0xc0a802a9, 24, 0); // ML
+	fTrig->Entry(0xc0a802a9, 25, 0); // MR
+	fTrig->Entry(0xc0a802a9, 26, 0); // ML
+	fTrig->Entry(0xc0a802a9, 27, 0); // MR
+	//fTrig->SetLogic(12);
+	fTrig->MakeTable(12,
+		"0 1 & 2 3 & | 4 5 & | 6 7 & | 8 9 & | 10 11 & |");
+#endif
 
 #if 1
-	fTrig->Entry(0xc0a802a8, 2, 0);
-	fTrig->Entry(0xc0a802a8, 4, 0);
-	fTrig->Entry(0xc0a802a8, 6, 0);
-	fTrig->Entry(0xc0a802a8, 8, 0);
+	fTrig->Entry(0xc0a802a9,  0, 0); //DL
+	fTrig->Entry(0xc0a802a9,  1, 0); //DR
+	fTrig->Entry(0xc0a802a9,  2, 0); //DL
+	fTrig->Entry(0xc0a802a9,  3, 0); //DR
+	fTrig->Entry(0xc0a802a9,  4, 0); //DL
+	fTrig->Entry(0xc0a802a9,  5, 0); //DR
 
-	fTrig->SetLogic(4);
-#else
+	fTrig->Entry(0xc0a802aa, 32, 0); //UL
+	fTrig->Entry(0xc0a802aa, 33, 0); //UR
+	fTrig->Entry(0xc0a802aa, 34, 0); //UR
+	fTrig->Entry(0xc0a802aa, 35, 0); //UR
+
+	std::string form("0 1 & 2 3 & | 4 5 & | 6 7 & 8 9 & | &");
+	fTrig->MakeTable(form);
+#endif
+
+#if 0
 	fTrig->Entry(0xc0a802a8, 0, 0);
 	fTrig->Entry(0xc0a802a8, 1, 0);
-
-	fTrig->SetLogic(2);
+	fTrig->MakeTable(2, "0 1 &");
 #endif
 
 }
@@ -307,15 +342,27 @@ int FltCoin::IsHartBeat(uint64_t val, uint32_t type)
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
+	} else
+	if (type == SubTimeFrame::TDC64L_V1) {
+		struct TDC64L::tdc64 tdc;
+		if (TDC64L::v1::Unpack(val, &tdc) == TDC64L::v1::T_HB) {
+			hbframe = tdc.hartbeat;
+			hbflag = tdc.flag;
+		}
 	} else {
 		std::cout << "Unknown device : " << std::hex << type << std::endl;
 	}
 
-	if (hbflag > 0) {
-		if ((hbflag & 0x200) == 0x200) LOG(warn) << "HB Data lost";
-		if ((hbflag & 0x100) == 0x100) LOG(warn) << "HB Data confiliction";
-		if ((hbflag & 0x080) == 0x080) LOG(warn) << "HB LFN mismatch";
-		if ((hbflag & 0x040) == 0x040) LOG(warn) << "HB GFN mismatch";
+
+	if (hbflag > 0) fHBflag |= hbflag;
+	if (fKt4->Check()) {
+		if (fHBflag > 0) {
+			if ((fHBflag & 0x200) == 0x200) LOG(warn) << "HB Data lost";
+			if ((fHBflag & 0x100) == 0x100) LOG(warn) << "HB Data confiliction";
+			if ((fHBflag & 0x080) == 0x080) LOG(warn) << "HB LFN mismatch";
+			if ((fHBflag & 0x040) == 0x040) LOG(warn) << "HB GFN mismatch";
+		}
+		fHBflag = 0;
 	}
 
 	return hbframe;
@@ -328,7 +375,7 @@ bool FltCoin::ConditionalRun()
 
 	FairMQMessagePtr msg_header(fTransportFactory->CreateMessage());
 	struct Filter::Header fltheader;
-	struct TimeFrame::Header *i_tfHeader;
+	struct TimeFrame::Header *i_tfHeader = nullptr;
 	std::chrono::system_clock::time_point sw_start, sw_end;
 
 	if (Receive(inParts, fInputChannelName, 0, 1000) > 0) {
@@ -476,7 +523,8 @@ bool FltCoin::ConditionalRun()
 		} /// end of the for loop
 		block_map.push_back(blocks);
 
-		#if 0
+		#if 1 //BlockMap  check
+		if (fKt2->Check()) {
 		std::cout << "#D block_map.size: " << std::dec << block_map.size() << std::endl;
 		for (auto& blk : block_map) {
 			std::cout << "#D block " << std::setw(2) << blk.size() << " /";
@@ -486,13 +534,14 @@ bool FltCoin::ConditionalRun()
 			std::cout << std::endl;
 		}
 		std::cout << std::endl;
+		}
 		#endif
 
 		size_t bsize_min = block_map[0].size();
 		for (auto& blk : block_map) {
 			if (blk.size() < bsize_min) {
 				LOG(warn) << "Unmatched number of stf in TF "
-					<< bsize_min << " " << blk.size() << std::endl;
+					<< bsize_min << " " << blk.size();
 				bsize_min = blk.size();
 			}
 		}
@@ -609,6 +658,8 @@ bool FltCoin::ConditionalRun()
 						if (dtype != SubTimeFrame::NULDEV) {
 							flag_sending[mindex] = false;
 						}
+
+						//// kokoha mondai gaaru ////
 						if (fIsRemoveHB) {
 							flag_sending[mindex + 1] = false;
 						}
@@ -687,9 +738,28 @@ bool FltCoin::ConditionalRun()
 		sw_end = std::chrono::system_clock::now();
 		uint32_t elapse = std::chrono::duration_cast<std::chrono::microseconds>(
 			sw_end - sw_start).count();
+
+
+
+		static uint64_t int_hits = 0;
+		static uint64_t int_processed_hbf = 0;
+		double trig_ratio;
+		int_hits += totalhits;
+		int_processed_hbf += bsize_min / 2;
 		if (fKt3->Check()) {
+			if (int_processed_hbf > 0) {
+				trig_ratio = static_cast<double>(int_hits) / static_cast<double>(int_processed_hbf);
+			}
+
 			std::cout << "#Elapse: " << std::dec << elapse << " us"
-				<< " Hits: " << totalhits << std::endl;
+				<< " Hits: " << totalhits
+				<< " T.Ratio: " << trig_ratio
+				<< " Hits(inte): " << int_hits
+				<< " HBF(inte): " << int_processed_hbf
+				<< std::endl;
+
+			//int_hits = 0;
+			//int_processed_hbf = 0;
 		}
 
 
@@ -809,7 +879,34 @@ bool FltCoin::ConditionalRun()
 		}
 		std::cout << " : " << flagcount << std::endl;
 		#endif
-	
+
+
+		#if 1
+		FairMQParts dqmParts;
+		bool dqmSocketExists = fChannels.count(fDQMChannelName);
+		if (dqmSocketExists) {
+			for (auto & m : outParts) {
+				FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+				msgCopy->Copy(*m);
+				dqmParts.AddPart(std::move(msgCopy));
+			}
+
+
+			if (Send(dqmParts, fDQMChannelName) < 0) {
+				if (NewStatePending()) {
+					LOG(info) << "Device is not RUNNING";
+				} else {
+					LOG(error) << "Failed to enqueue dqm-channel";
+				}
+			} else {
+				std::cout << "+" << std::flush;
+			}
+		} else {
+			std::cout << "NoDQM socket" << std::endl;
+		}
+		#endif
+
+
 		//Send
 		#if 0
 		while (Send(outParts, fOutputChannelName) < 0) {
@@ -838,6 +935,7 @@ bool FltCoin::ConditionalRun()
 			}
 		}
 		#endif
+
 	}
 
 	return true;
@@ -893,16 +991,20 @@ void addCustomOptions(bpo::options_description& options)
 		(opt::OutputChannelName.data(),
 			bpo::value<std::string>()->default_value("out"),
 			"Name of the output channel")
+		(opt::DQMChannelName.data(),
+			bpo::value<std::string>()->default_value("dqm"),
+			"Name of the data quality monitoring channel")
 		(opt::DataSuppress.data(),
 			bpo::value<std::string>()->default_value("true"),
 			"Data suppression enable")
 		(opt::RemoveHB.data(),
-			bpo::value<std::string>()->default_value("true"),
+			bpo::value<std::string>()->default_value("false"),
 			"Remove HB without hit")
 		(opt::PollTimeout.data(), 
 			bpo::value<std::string>()->default_value("1"),
 			"Timeout of polling (in msec)")
-		(opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("1"),
+		(opt::SplitMethod.data(),
+			bpo::value<std::string>()->default_value("1"),
 			"STF split method")
     		;
 

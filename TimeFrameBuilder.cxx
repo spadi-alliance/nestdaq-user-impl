@@ -49,7 +49,7 @@ bool TimeFrameBuilder::ConditionalRun()
 {
     namespace STF = SubTimeFrame;
     namespace TF  = TimeFrame;
-        
+
     // receive
     FairMQParts inParts;
     if (Receive(inParts, fInputChannelName, 0, 1) > 0) {

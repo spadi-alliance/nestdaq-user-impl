@@ -6,6 +6,7 @@
 namespace TimeFrame {
 
 // This format is temporary and should be updated.
+inline namespace v0 {
 
 // "DAEH-FT@" : little endian of "@TF-HEAD"
 constexpr uint64_t Magic {0x444145482d465440};
@@ -17,7 +18,8 @@ struct Header {
     uint64_t length      {0};
 };
 
+} // namespace v0
 
-} // namespace highp::e50::TimeFrame
+} // namespace TimeFrame
 
 #endif

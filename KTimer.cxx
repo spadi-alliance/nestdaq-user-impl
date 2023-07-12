@@ -31,6 +31,7 @@ public:
 			return true;
 		} else {return false;}
 	};
+	#if 0
 	bool TryCheck(){
 		auto now = std::chrono::system_clock::now();
 		auto elapse = (now - f_start);
@@ -40,6 +41,7 @@ public:
 			return false;
 		}
 	};
+	#endif
 protected:
 private:
 	std::chrono::system_clock::time_point f_start;
@@ -66,19 +68,4 @@ int main(int argc, char* argv[])
 	}
 	return 0;
 }
-#endif
-
-#if 0
-start = std::chrono::system_clock::now();
-
-static std::chrono::system_clock::time_point last;
-std::cout << " Elapsed time:"
-<< std::chrono::duration_cast<std::chrono::microseconds>
-(now - last).count();
-last = now;
-std::cout << std::endl;
-
-std::chrono::milliseconds ms( 321 );
-// std::chrono::duration< int > md = ms;
-std::chrono::duration< int, std::milli > md = ms;
 #endif

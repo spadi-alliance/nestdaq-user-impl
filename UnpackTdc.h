@@ -77,16 +77,16 @@ struct tdc64 {
 	int hartbeat;
 };
 
-static constexpr unsigned int T_TDC       = (0x2c >> 2);
-static constexpr unsigned int T_TDC_L     = (0x2c >> 2);
-static constexpr unsigned int T_TDC_T     = (0x34 >> 2);
-static constexpr unsigned int T_HB        = (0x70 >> 2);
-static constexpr unsigned int T_TR1_START = (0x64 >> 2);
-static constexpr unsigned int T_TR1_END   = (0x44 >> 2);
-static constexpr unsigned int T_TR2_START = (0x68 >> 2);
-static constexpr unsigned int T_TR2_END   = (0x48 >> 2);
-static constexpr unsigned int T_SPL_START = (0x60 >> 2);
-static constexpr unsigned int T_SPL_END   = (0x50 >> 2);
+static constexpr unsigned int T_TDC        = (0x2c >> 2);
+static constexpr unsigned int T_TDC_L      = (0x2c >> 2);
+static constexpr unsigned int T_TDC_T      = (0x34 >> 2);
+static constexpr unsigned int T_HB         = (0x70 >> 2);
+static constexpr unsigned int T_THR1_START = (0x64 >> 2);
+static constexpr unsigned int T_THR1_END   = (0x44 >> 2);
+static constexpr unsigned int T_THR2_START = (0x68 >> 2);
+static constexpr unsigned int T_THR2_END   = (0x48 >> 2);
+static constexpr unsigned int T_SPL_START  = (0x60 >> 2);
+static constexpr unsigned int T_SPL_END    = (0x50 >> 2);
 
 int Unpack(uint64_t data, struct tdc64 *tdc)
 {
@@ -232,16 +232,16 @@ int Unpack(uint64_t data, struct tdc64 *tdc)
 } //namespace v1
 
 inline namespace v2 {
-static constexpr unsigned int T_TDC       = (0x2c >> 2);
-static constexpr unsigned int T_TDC_L     = (0x2c >> 2);
-static constexpr unsigned int T_TDC_T     = (0x34 >> 2);
-static constexpr unsigned int T_TR1_START = (0x64 >> 2);
-static constexpr unsigned int T_TR1_END   = (0x44 >> 2);
-static constexpr unsigned int T_TR2_START = (0x68 >> 2);
-static constexpr unsigned int T_TR2_END   = (0x48 >> 2);
-static constexpr unsigned int T_HB        = (0x70 >> 2);
-static constexpr unsigned int T_SPL_START = (0x60 >> 2);
-static constexpr unsigned int T_SPL_END   = (0x50 >> 2);
+static constexpr unsigned int T_TDC        = (0x2c >> 2);
+static constexpr unsigned int T_TDC_L      = (0x2c >> 2);
+static constexpr unsigned int T_TDC_T      = (0x34 >> 2);
+static constexpr unsigned int T_THR1_START = (0x64 >> 2);
+static constexpr unsigned int T_THR1_END   = (0x44 >> 2);
+static constexpr unsigned int T_THR2_START = (0x68 >> 2);
+static constexpr unsigned int T_THR2_END   = (0x48 >> 2);
+static constexpr unsigned int T_HB         = (0x70 >> 2);
+static constexpr unsigned int T_SPL_START  = (0x60 >> 2);
+static constexpr unsigned int T_SPL_END    = (0x50 >> 2);
 
 int Unpack(uint64_t data, struct tdc64 *tdc)
 {
@@ -249,8 +249,8 @@ int Unpack(uint64_t data, struct tdc64 *tdc)
 
 	tdc->type = (data & 0xfc00'0000'0000'0000) >> 58;
 	if (  (tdc->type == T_TDC_L)     || (tdc->type == T_TDC_T)
-	   || (tdc->type == T_TR1_START) || (tdc->type == T_TR1_END)
-	   || (tdc->type == T_TR2_START) || (tdc->type == T_TR2_END)  ) {
+	   || (tdc->type == T_THR1_START) || (tdc->type == T_THR1_END)
+	   || (tdc->type == T_THR2_START) || (tdc->type == T_THR2_END)  ) {
 		tdc->ch	      = (data & 0x03f8'0000'0000'0000) >> 51;
 		tdc->tot      = (data & 0x0007'fff8'0000'0000) >> 35;
 		tdc->tdc      = (data & 0x0000'0007'ffff'0000) >> 16;

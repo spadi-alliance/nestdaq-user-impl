@@ -163,7 +163,7 @@ message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
 foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
-  fltcoin; tfdump;
+  fltcoin; tfdump; onlinedisplay;
   AmQStrTdcDqm)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
