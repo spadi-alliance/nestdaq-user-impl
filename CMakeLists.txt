@@ -164,7 +164,8 @@ foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   fltcoin; tfdump; onlinedisplay;
-  AmQStrTdcDqm)
+  AmQStrTdcDqm;
+  AmQStrTdcDqmScr)
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
@@ -174,6 +175,8 @@ foreach(lvar IN ITEMS
     ${Boost_INCLUDE_DIRS};  
     ${FairMQ_INCDIR};
     ${ROOT_INCLUDE_DIRS};
+    ${HIREDIS_HEADER};
+    ${REDIS_PLUS_PLUS_HEADER};
     ${CMAKE_SOURCE_DIR};
 #    ${FairLogger_INCDIR};
   )
@@ -188,6 +191,8 @@ foreach(lvar IN ITEMS
     ${Boost_LIBRARIES};  
     ${fmt_LIB};
     ${ROOT_LIBRARIES};
+    ${HIREDIS_LIB};
+    ${REDIS_PLUS_PLUS_LIB};
     FairMQ;
     FairMQStateMachine;
     FairLogger;
