@@ -24,11 +24,13 @@ void addCustomOptions(bpo::options_description& options)
 {
     using opt = TimeFrameBuilder::OptionKey;
     options.add_options()
-    (opt::BufferTimeoutInMs.data(), bpo::value<std::string>()->default_value("10000"), "Buffer timeout in milliseconds")
-    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),    "Name of the input channel")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),   "Name of the output channel") 
-    (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value("dqm"),   "Name of the data quality monitoring channel")      
-    (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),     "Timeout (in msec) of polling")
+    (opt::BufferTimeoutInMs.data(),    bpo::value<std::string>()->default_value("10000"),     "Buffer timeout in milliseconds")
+    (opt::InputChannelName.data(),     bpo::value<std::string>()->default_value("in"),        "Name of the input channel")
+    (opt::OutputChannelName.data(),    bpo::value<std::string>()->default_value("out"),       "Name of the output channel") 
+    (opt::DQMChannelName.data(),       bpo::value<std::string>()->default_value("dqm"),       "Name of the data quality monitoring channel")      
+    (opt::DecimatorChannelName.data(), bpo::value<std::string>()->default_value("decimator"), "Name of the decimated output channel")
+    (opt::PollTimeout.data(),          bpo::value<std::string>()->default_value("0"),         "Timeout (in msec) of polling")
+    (opt::DecimationFactor.data(),     bpo::value<std::string>()->default_value("0"),         "Decimation factor for decimated output channel")
     ;
 }
 
@@ -84,6 +86,7 @@ bool TimeFrameBuilder::ConditionalRun()
     if (!fTFBuffer.empty()) {
 
         bool dqmSocketExists = fChannels.count(fDQMChannelName);
+        auto decimatorNumSubChannels = GetNumSubChannels(fDecimatorChannelName);
 
         // find time frame in ready
         for (auto itr = fTFBuffer.begin(); itr!=fTFBuffer.end();) {
@@ -130,6 +133,27 @@ bool TimeFrameBuilder::ConditionalRun()
                 }
                 tfBuf.clear();
 
+                // for decimator
+                if ((decimatorNumSubChannels > 0) && (fDecimationFactor > 0) && (fNumSend % fDecimationFactor == 0)) {
+                    auto poller = NewPoller(fDecimatorChannelName);
+                    poller->Poll(fPollTimeoutMS);
+                    for (auto iSubChannel=0; iSubChannel<decimatorNumSubChannels; ++iSubChannel) {
+                        while (!NewStatePending()) {
+                            if (poller->CheckOutput(fDecimatorChannelName, iSubChannel)) {
+                                auto decimatorParts = MessageUtil::Copy(*this, outParts);
+                                // decimator output ready
+                                if (Send(decimatorParts, fDecimatorChannelName, iSubChannel) > 0) {
+                                    // successfully sent
+                                    //LOG(debug) << " successfully send to decimator " << fNumSend << " " << fDecimationFactor;
+                                    break;
+                                } else {
+                                    LOG(warn) << "Failed to enqueue to decimator output iSubChannel = " << iSubChannel << " : TF = " << h->timeFrameId;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (dqmSocketExists) {
                   if (Send(dqmParts, fDQMChannelName) < 0) {
                     if (NewStatePending()) {
@@ -150,6 +174,8 @@ bool TimeFrameBuilder::ConditionalRun()
 
                         if (Send(outParts, fOutputChannelName, direction) > 0) {
                             // successfully sent
+                            //LOG(debug) << "successfully sent to out " << direction << " " << fDirection;
+                            ++fNumSend;
                             break;
                         } else {
                             LOG(warn) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
@@ -263,6 +289,7 @@ void TimeFrameBuilder::InitTask()
     fBufferTimeoutInMs = std::stoi(sBufferTimeoutInMs);
     fInputChannelName  = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
+    fDecimatorChannelName = fConfig->GetProperty<std::string>(opt::DecimatorChannelName.data());
     auto numSubChannels = GetNumSubChannels(fInputChannelName);
     fNumSource = 0;
     for (auto i=0u; i<numSubChannels; ++i) {
@@ -279,6 +306,8 @@ void TimeFrameBuilder::InitTask()
 
     fNumDestination = GetNumSubChannels(fOutputChannelName);
     fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
+    fDecimationFactor = std::stoi(fConfig->GetProperty<std::string>(opt::DecimationFactor.data()));
+    LOG(debug) << " decimation-factor = " << fDecimationFactor;
 
 }
 
@@ -317,4 +346,5 @@ void TimeFrameBuilder::PostRun()
 void TimeFrameBuilder::PreRun()
 {
     fDirection    = 0;
+    fNumSend = 0;
 }
