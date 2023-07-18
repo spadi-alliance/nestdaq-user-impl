@@ -285,14 +285,14 @@ bool FltCoin::CheckData(fair::mq::MessagePtr &msg)
 				std::cout << "TDC ";
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
 				if (fe_type == SubTimeFrame::TDC64H) {
-					struct TDC64H::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64H::Unpack(*dword, &tdc);
 					std::cout << "H :" 
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
 						<< " TDC: " << std::setw(7) << tdc.tdc << std::endl;
 				} else
 				if (fe_type == SubTimeFrame::TDC64L) {
-					struct TDC64L::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64L::Unpack(*dword, &tdc);
 					std::cout << "L :" 
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
@@ -330,21 +330,21 @@ int FltCoin::IsHartBeat(uint64_t val, uint32_t type)
 	int hbflag = -1;
 	int hbframe = -1;
 	if (type == SubTimeFrame::TDC64H) {
-		struct TDC64H::tdc64 tdc;
+		struct tdc64 tdc;
 		if (TDC64H::Unpack(val, &tdc) == TDC64H::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
 	} else
 	if (type == SubTimeFrame::TDC64L) {
-		struct TDC64L::tdc64 tdc;
+		struct tdc64 tdc;
 		if (TDC64L::Unpack(val, &tdc) == TDC64L::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
 	} else
 	if (type == SubTimeFrame::TDC64L_V1) {
-		struct TDC64L::tdc64 tdc;
+		struct tdc64 tdc;
 		if (TDC64L::v1::Unpack(val, &tdc) == TDC64L::v1::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;

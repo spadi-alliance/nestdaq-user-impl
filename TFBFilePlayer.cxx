@@ -207,7 +207,7 @@ bool TFBFilePlayer::ConditionalRun()
                     wBegin = ptr + 1;
                 }
 
-                #if 1
+                #if 0
                 LOG(debug4) << " found Heartbeat data. " << pmsg->GetSize() << " bytes";
                 std::for_each(reinterpret_cast<uint64_t*>(pmsg->GetData()),
                     reinterpret_cast<uint64_t*>(pmsg->GetData())+pmsg->GetSize()/sizeof(uint64_t),

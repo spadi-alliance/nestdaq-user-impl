@@ -1,3 +1,7 @@
 *~
-./build
+build
+lib64
+bin
+.vscode
+
 

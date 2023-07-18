@@ -209,7 +209,7 @@ void Trigger::Mark(unsigned char *pdata, int len, int fem, uint32_t type)
 			for (unsigned int j = 0 ; j < (len / sizeof(uint64_t)) ; j++) {
 
 				if (type == SubTimeFrame::TDC64H) {
-					struct TDC64H::tdc64 tdc;
+					struct tdc64 tdc;
 					if (TDC64H::Unpack(tdcval[j], &tdc) == TDC64H::T_TDC) {
 						if (tdc.ch == ch) {
 							uint32_t hit = tdc.tdc4n + delay;
@@ -239,7 +239,7 @@ void Trigger::Mark(unsigned char *pdata, int len, int fem, uint32_t type)
 					}
 				} else
 				if (type == SubTimeFrame::TDC64L) {
-					struct TDC64L::tdc64 tdc;
+					struct tdc64 tdc;
 					if (TDC64L::Unpack(tdcval[j], &tdc) == TDC64L::T_TDC) {
 						if (tdc.ch == ch) {
 							uint32_t hit = tdc.tdc4n + delay;

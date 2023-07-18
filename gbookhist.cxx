@@ -145,7 +145,7 @@ void gHistBook(fair::mq::MessagePtr& msg, int id, int type)
 
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[i]));
 				if (type == SubTimeFrame::TDC64H) {
-					struct TDC64H::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64H::Unpack(*dword, &tdc);
 					//gMtxDisp->Lock();
 					gHHRTDC[0]->Fill(tdc.ch);
@@ -160,7 +160,7 @@ void gHistBook(fair::mq::MessagePtr& msg, int id, int type)
 					#endif
 				} else
 				if (type == SubTimeFrame::TDC64L) {
-					struct TDC64L::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64L::Unpack(*dword, &tdc);
 					#if 0
 					std::cout << "FEM: " << (id & 0xff) << " TDC ";
@@ -179,7 +179,7 @@ void gHistBook(fair::mq::MessagePtr& msg, int id, int type)
 	
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[i]));
 				if (type == SubTimeFrame::TDC64H) {
-					struct TDC64H::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64H::Unpack(*dword, &tdc);
 					//gMtxDisp->Lock();
 					gHHRTDC[1]->Fill(tdc.ch);
@@ -199,7 +199,7 @@ void gHistBook(fair::mq::MessagePtr& msg, int id, int type)
 	if ((id & 0x000000ff) == 169) {
 		for (size_t i = 0 ; i < (msize / sizeof(uint64_t)) ; i++) {
 			if (((pdata64[i] & 0xfc00'0000'0000'0000) >> 58) == TDC64H::T_TDC) {
-				struct TDC64H::tdc64 tdc;
+				struct tdc64 tdc;
 				TDC64H::Unpack(pdata64[i], &tdc);
 				auto chx = tdc.ch;
 				auto tdcx = tdc.tdc;
@@ -266,7 +266,7 @@ void gHistBook(fair::mq::MessagePtr& msg, int id, int type)
 		for (size_t i = 0 ; i < (msize / sizeof(uint64_t)) ; i++) {
 			if (((pdata64[i] & 0xfc00'0000'0000'0000) >> 58) == TDC64L::T_TDC) {
 				if (type == SubTimeFrame::TDC64L) {
-					struct TDC64L::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64L::Unpack(pdata64[i], &tdc);
 					//gMtxDisp->Lock();
 					hist->Fill(tdc.ch + offset);

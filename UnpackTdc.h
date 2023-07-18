@@ -7,6 +7,17 @@
 #include <iomanip>
 
 
+struct tdc64 {
+	int type;
+	int ch;
+	int tot;
+	int tdc;
+	int tdc4n;
+	int flag;
+	int spill;
+	int hartbeat;
+};
+
 namespace TDC40 {
 
 static constexpr unsigned int T_TDC = 0xd;
@@ -66,16 +77,7 @@ int Unpack(unsigned char *data, struct tdc40 *tdc)
 
 namespace TDC64H {
 
-struct tdc64 {
-	int type;
-	int ch;
-	int tot;
-	int tdc;
-	int tdc4n;
-	int flag;
-	int spill;
-	int hartbeat;
-};
+
 
 static constexpr unsigned int T_TDC        = (0x2c >> 2);
 static constexpr unsigned int T_TDC_L      = (0x2c >> 2);
@@ -169,16 +171,7 @@ int GetHBFrame(unsigned char *pdata, unsigned char *pend, unsigned char **ppnext
 
 namespace TDC64L {
 
-struct tdc64 {
-	int type;
-	int ch;
-	int tot;
-	int tdc;
-	int tdc4n;
-	int flag;
-	int spill;
-	int hartbeat;
-};
+
 
 namespace v1 {
 static constexpr unsigned int T_TDC       = (0x2c >> 2);

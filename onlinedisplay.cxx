@@ -193,14 +193,14 @@ bool OnlineDisplay::CheckData(fair::mq::MessagePtr& msg)
 				std::cout << "TDC ";
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
 				if (fFeType == SubTimeFrame::TDC64H) {
-					struct TDC64H::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64H::Unpack(*dword, &tdc);
 					std::cout << "H :"
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
 						<< " TDC: " << std::setw(7) << tdc.tdc << std::endl;
 				} else
 				if (fFeType == SubTimeFrame::TDC64L) {
-					struct TDC64L::tdc64 tdc;
+					struct tdc64 tdc;
 					TDC64L::Unpack(*dword, &tdc);
 					std::cout << "L :"
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
@@ -213,7 +213,7 @@ bool OnlineDisplay::CheckData(fair::mq::MessagePtr& msg)
 				std::cout << "Hart beat" << std::endl;
 
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
-				struct TDC64H::tdc64 tdc;
+				struct tdc64 tdc;
 				TDC64H::Unpack(*dword, &tdc);
 				int hbflag = tdc.flag;
 			        if (hbflag > 0) {
@@ -337,14 +337,14 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 			std::cout << "TDC ";
 			uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[0]));
 			if (fFeType == SubTimeFrame::TDC64H) {
-				struct TDC64H::tdc64 tdc;
+				struct tdc64 tdc;
 				TDC64H::Unpack(*dword, &tdc);
 				std::cout << "H :"
 					<< " CH: " << std::dec << std::setw(3) << tdc.ch
 					<< " TDC: " << std::setw(7) << tdc.tdc << std::endl;
 			} else
 			if (fFeType == SubTimeFrame::TDC64L) {
-				struct TDC64L::tdc64 tdc;
+				struct tdc64 tdc;
 				TDC64L::Unpack(*dword, &tdc);
 				std::cout << "L :"
 					<< " CH: " << std::dec << std::setw(3) << tdc.ch
@@ -358,7 +358,7 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 			#if 0
 			std::cout << "Hart beat" << std::endl;
 			uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[0]));
-			struct TDC64H::tdc64 tdc;
+			struct tdc64 tdc;
 			TDC64H::Unpack(*dword, &tdc);
 			int hbflag = tdc.flag;
 			if (hbflag > 0) {

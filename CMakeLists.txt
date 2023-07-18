@@ -31,7 +31,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wfloat-equal")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wfloat-equal -g ")
 set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -DNDEBUG -march=native")
 message("")
 message("CMAKE_CXX_FLAGS:                ${CMAKE_CXX_FLAGS}")
@@ -163,9 +163,11 @@ message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
 foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
-  fltcoin; tfdump; onlinedisplay;
+  fltcoin; tfdump; onlinedisplay; 
+  EventBuilder; 
   AmQStrTdcDqm;
   AmQStrTdcDqmScr)
+
   set(EXEC ${lvar})
   add_executable(${EXEC} 
     ${EXEC}.cxx;
