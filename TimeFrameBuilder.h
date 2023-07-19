@@ -25,6 +25,7 @@ public:
         static constexpr std::string_view DecimatorChannelName {"decimator-chan-name"};
         static constexpr std::string_view PollTimeout          {"poll-timeout"};
         static constexpr std::string_view DecimationFactor     {"decimation-factor"};
+        static constexpr std::string_view DecimationOffset     {"decimation-offset"};
     };
 
     struct STFBuffer {
@@ -53,7 +54,9 @@ private:
     std::string fDecimatorChannelName;
     int fNumDestination   {0};
     uint32_t fDirection   {0}; // used to determine the sub-socket index
-    uint32_t fDecimationFactor {1};
+    uint32_t fDecimationFactor {0};
+    uint32_t fDecimationOffset {0};
+    int fDecimatorNumberOfConnectedPeers {0};
     int fPollTimeoutMS    {0};
     uint64_t fNumSend {0};
 
