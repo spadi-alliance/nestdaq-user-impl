@@ -31,6 +31,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::DecimatorChannelName.data(), bpo::value<std::string>()->default_value("decimator"), "Name of the decimated output channel")
     (opt::PollTimeout.data(),          bpo::value<std::string>()->default_value("0"),         "Timeout (in msec) of polling")
     (opt::DecimationFactor.data(),     bpo::value<std::string>()->default_value("0"),         "Decimation factor for decimated output channel")
+    (opt::DecimationOffset.data(),     bpo::value<std::string>()->default_value("0"),         "Decimation offset for decimated output channel")
     ;
 }
 
@@ -88,6 +89,7 @@ bool TimeFrameBuilder::ConditionalRun()
         bool dqmSocketExists = fChannels.count(fDQMChannelName);
         auto decimatorNumSubChannels = GetNumSubChannels(fDecimatorChannelName);
 
+
         // find time frame in ready
         for (auto itr = fTFBuffer.begin(); itr!=fTFBuffer.end();) {
             auto stfId  = itr->first;
@@ -134,7 +136,7 @@ bool TimeFrameBuilder::ConditionalRun()
                 tfBuf.clear();
 
                 // for decimator
-                if ((decimatorNumSubChannels > 0) && (fDecimationFactor > 0) && (fNumSend % fDecimationFactor == 0)) {
+                if ((fDecimatorNumberOfConnectedPeers > 0) && (fDecimationFactor > 0) && (fNumSend % fDecimationFactor == fDecimationOffset)) {
                     auto poller = NewPoller(fDecimatorChannelName);
                     poller->Poll(fPollTimeoutMS);
                     for (auto iSubChannel=0; iSubChannel<decimatorNumSubChannels; ++iSubChannel) {
@@ -307,8 +309,19 @@ void TimeFrameBuilder::InitTask()
     fNumDestination = GetNumSubChannels(fOutputChannelName);
     fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
     fDecimationFactor = std::stoi(fConfig->GetProperty<std::string>(opt::DecimationFactor.data()));
-    LOG(debug) << " decimation-factor = " << fDecimationFactor;
-
+    fDecimationOffset = std::stoi(fConfig->GetProperty<std::string>(opt::DecimationOffset.data()));
+    if ((fDecimationFactor > 0)  && (fDecimationOffset >= fDecimationFactor)) {
+        LOG(warn) << "invalid decimation-offset = " << fDecimationOffset << " (< decimation-factor).  Set to 0";
+        fDecimationOffset = 0;
+    }
+    LOG(debug) << " decimation-factor = " << fDecimationFactor << " decimation-offset = " << fDecimationOffset;
+    fDecimatorNumberOfConnectedPeers = 0; 
+    if (fChannels.count(fDecimatorChannelName) > 0) {
+        auto nsub = GetNumSubChannels(fDecimatorChannelName);
+        for (auto i = 0u; i<nsub; ++i) {
+            fDecimatorNumberOfConnectedPeers += GetNumberOfConnectedPeers(fDecimatorChannelName,i);
+        }
+    }
 }
 
 //______________________________________________________________________________
