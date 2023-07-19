@@ -21,6 +21,7 @@
 #include <sw/redis++/errors.h>
 
 #include "AmQStrTdcDqmScr.h"
+#include "ScalerData.h"
 
 namespace bpo = boost::program_options;
 
@@ -36,7 +37,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::BufferTimeoutInMs.data(),  bpo::value<std::string>()->default_value("100000"), "Buffer timeout in milliseconds")
     (opt::RunNumber.data(),          bpo::value<std::string>()->default_value("1"), "Run number (integer) given by DAQ plugin")
     (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
-    /*(opt::Http.data(),               bpo::value<std::string>()->default_value("http:5999"), "http engine and port, etc.")*/
+    (opt::OutputChannelName.data(),   bpo::value<std::string>()->default_value("out"), "Name of the output channel")    
     (opt::UpdateInterval.data(),     bpo::value<std::string>()->default_value("1000"), "Canvas update rate in milliseconds")
     (opt::ServerUri.data(),          bpo::value<std::string>(),                        "Redis server URI (if empty, the same URI of the service registry is used.)")
     ;
@@ -66,7 +67,7 @@ AmQStrTdcDqmScr::AmQStrTdcDqmScr()
 }
 
 //______________________________________________________________________________
-void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>&& stfs)
+void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
 {
 
   namespace STF = SubTimeFrame;
@@ -423,9 +424,12 @@ bool AmQStrTdcDqmScr::HandleData(FairMQParts& parts, int index)
 {
   namespace STF = SubTimeFrame;
   namespace Data = AmQStrTdc::Data;
-
+  
   fSeparator = "_";
+  auto scHeader = std::make_unique<Scaler::Header>();
 
+  auto outdata = std::make_unique<std::vector<uint64_t>>();
+  
   (void)index;
   assert(parts.Size()>=2);
   Reporter::AddInputMessageSize(parts);
@@ -434,8 +438,19 @@ bool AmQStrTdcDqmScr::HandleData(FairMQParts& parts, int index)
     if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fUpdateIntervalInMs) {
 	  LOG(debug) << "== scaler --> ";
 	  for (auto& [id, chpair] : scaler) {
+	    
 	    for (auto& [ch, val] : chpair) {
 	      LOG(debug) << "id, ch, val: " << id << ", " << ch << ", " << val;
+
+	      Scaler::Bits abit;
+	      abit.id = id;
+	      abit.ch = ch;
+	      
+	      uint64_t idch = abit.word;	      
+	      //	      LOG(debug) << "IDCH: " << std::hex << idch << " word: " << abit.word;
+	      
+	      outdata->insert(outdata->end(), idch);
+	      outdata->insert(outdata->end(), val);
 	    }
 	  }
 	  LOG(debug) << "--> scaler ==";
@@ -462,7 +477,51 @@ bool AmQStrTdcDqmScr::HandleData(FairMQParts& parts, int index)
       	LOG(error) << "AmQStrTdcDqmScr " << __FUNCTION__ << " exception : unknown ";
       }
       fPipe->exec();
+
+      /*send data to Filesink*/
+      FairMQParts outParts;
       
+      scHeader->length = outdata->size()*sizeof(uint64_t) + sizeof(Scaler::Header);
+
+      FairMQMessagePtr tmsg = MessageUtil::NewMessage(*this, std::move(scHeader));
+      auto n = tmsg->GetSize()/sizeof(uint64_t);
+      //
+
+#if 0
+      LOG(debug) << "tmsg: " << n << "  " << tmsg->GetSize();      
+      std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
+		    reinterpret_cast<uint64_t*>(tmsg->GetData()) + n,
+		    ::HexDump{4});
+#endif
+      
+      outParts.AddPart(std::move(tmsg));
+      
+      FairMQMessagePtr smsg; 
+      
+      if(outdata->size() > 0){
+
+	smsg = MessageUtil::NewMessage(*this, std::move(outdata));
+	auto m = smsg->GetSize()/sizeof(uint64_t);
+
+#if 0
+	LOG(debug) << "smsg: " << m << "  " << smsg->GetSize();	
+	std::for_each(reinterpret_cast<uint64_t*>(smsg->GetData()),
+		      reinterpret_cast<uint64_t*>(smsg->GetData()) + m,
+		      ::HexDump{4});
+#endif
+	
+	outParts.AddPart(std::move(smsg));	
+      }	
+
+      
+      while(Send(outParts, fOutputChannelName) < 0){
+	if (NewStatePending()) {
+	  LOG(info) << "Device is not RUNNING";
+	  return false;
+	}
+	LOG(error) << "Failed to enqueue OutputChannel"; 
+      }
+
       /*gSystem->ProcessEvents();*/
       fPrevUpdate = std::chrono::steady_clock::now();
     }
@@ -524,17 +583,19 @@ bool AmQStrTdcDqmScr::HandleData(FairMQParts& parts, int index)
 	    fFEMId[id] = fFEMId.size();
 	  }
 	}
-	Check(std::move(stfs));
+	Check(stfs);
+	stfs.clear();	
       }
 
       
       // remove empty buffer
-      //if (stfs.empty()) {
+      if (stfs.empty()) {
+	//	LOG(debug) << "clear: "<< stfs.empty() ;
 	itr = fTFBuffer.erase(itr);
-	//}
-      //else {
-      //	++itr;
-      //}
+      }
+      else {
+	++itr;
+      }
     }
     
   }
@@ -556,8 +617,9 @@ void AmQStrTdcDqmScr::InitTask()
     fBufferTimeoutInMs  = std::stoi(fConfig->GetProperty<std::string>(opt::BufferTimeoutInMs.data()));
     LOG(debug) << "fBufferTimeoutInMs: "<< fBufferTimeoutInMs ;    
 
-    fInputChannelName   = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
-
+    fInputChannelName    = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
+    fOutputChannelName   = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());    
+    
     //    fNumSource         = std::stoi(fConfig->GetProperty<std::string>(opt::NumSource.data()));
     //    assert(fNumSource>=1);
     auto numSubChannels = GetNumSubChannels(fInputChannelName);
@@ -571,6 +633,8 @@ void AmQStrTdcDqmScr::InitTask()
                << " num = " << GetNumSubChannels(fInputChannelName)
                << " num peer = " << GetNumberOfConnectedPeers(fInputChannelName,0);
 
+    LOG(debug) << " output channel : name = " << fOutputChannelName;
+    
     LOG(debug) << " number of source = " << fNumSource;
 
     fSourceType = fConfig->GetProperty<std::string>(opt::SourceType.data());    

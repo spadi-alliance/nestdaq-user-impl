@@ -47,7 +47,7 @@ public:
     ~AmQStrTdcDqm() = default;
 
 private:
-    void Check(std::vector<STFBuffer>&& stfs);
+    void Check(std::vector<STFBuffer>& stfs);
     bool HandleData(FairMQParts& parts, int index);
     bool HandleDataTFB(FairMQParts& parts, int index);
     void Init() override;

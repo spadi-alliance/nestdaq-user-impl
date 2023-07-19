@@ -89,7 +89,7 @@ AmQStrTdcDqm::AmQStrTdcDqm()
 }
 
 //______________________________________________________________________________
-void AmQStrTdcDqm::Check(std::vector<STFBuffer>&& stfs)
+void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
 {
 
   namespace STF = SubTimeFrame;
@@ -576,9 +576,11 @@ bool AmQStrTdcDqm::HandleData(FairMQParts& parts, int index)
 	    fFEMId[id] = fFEMId.size();
 	  }
 	}
-	Check(std::move(stfs));
+	//	Check(std::move(stfs));
+	Check(stfs);	
+	stfs.clear();	
       }
-      
+
       // remove empty buffer
       if (stfs.empty()) {
 	itr = fTFBuffer.erase(itr);

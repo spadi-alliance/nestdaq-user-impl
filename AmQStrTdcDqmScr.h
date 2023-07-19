@@ -38,8 +38,9 @@ public:
         static constexpr std::string_view SourceType        {"source-type"};      
         static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
         static constexpr std::string_view InputChannelName  {"in-chan-name"};
-        static constexpr std::string_view RunNumber{"run_number"};
-      /*static constexpr std::string_view Http              {"http"};*/
+        static constexpr std::string_view OutputChannelName {"out-chan-name"};      
+        static constexpr std::string_view RunNumber         {"run_number"};
+        /*static constexpr std::string_view Http              {"http"};*/
         static constexpr std::string_view UpdateInterval    {"update-ms"};
         static constexpr std::string_view ServerUri         {"dqm-uri"};
         static constexpr std::string_view CreatedTimePrefix {"created-time"};
@@ -64,7 +65,7 @@ public:
     ~AmQStrTdcDqmScr() = default;
 
 private:
-    void Check(std::vector<STFBuffer>&& stfs);
+    void Check(std::vector<STFBuffer>& stfs);
     bool HandleData(FairMQParts& parts, int index);
     bool HandleDataTFB(FairMQParts& parts, int index);
     void Init() override;
@@ -81,6 +82,7 @@ private:
     int fBufferTimeoutInMs {100000};
     int fId {0};
     std::string fInputChannelName;
+    std::string fOutputChannelName;  
     std::string fSourceType;  
     std::map<uint64_t, int> fFEMId;
     std::map<int, uint64_t> fModuleIp;
@@ -92,7 +94,7 @@ private:
     
     std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
     std::unordered_set<uint64_t> fDiscarded;
-
+  
     std::mutex fMutex;
     std::shared_ptr<sw::redis::Redis> fClient;
     std::unique_ptr<sw::redis::Pipeline> fPipe;
@@ -112,6 +114,8 @@ private:
     std::map<uint32_t, std::map<uint32_t, uint64_t> > scaler;
     std::unordered_map<uint32_t, uint64_t> tsScaler;
     std::string fTsScalerKey;
+
+    std::vector<uint64_t> output;
 };
 
 //_____________________________________________________________________________
