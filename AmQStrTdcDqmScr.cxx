@@ -108,7 +108,7 @@ void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
       LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
       LOG(debug) << "length: " << h->length;
       LOG(debug) << "time_sec: " << h->time_sec;
-      LOG(debug) << "time_sec: " << h->time_usec;
+      LOG(debug) << "time_usec: " << h->time_usec;
     }
 
 
@@ -257,6 +257,16 @@ void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
 	    if( (h->FEMType==1) || (h->FEMType==3) ) {
 	      lrtdcCnt[iwb->ch].insert(femIdx);
 	      tsScaler[iwb->ch]++;
+
+	      if (!scaler.count(h->FEMId)){
+		scaler[h->FEMId][iwb->ch] = 1;
+	      }else if(!scaler[h->FEMId].count(iwb->ch)){
+		scaler[h->FEMId][iwb->ch] = 1;
+	      }else{
+		scaler[h->FEMId][iwb->ch]++;
+	      }
+	      
+#if 0	      
 	      if (!scaler.count(femIdx)){
 		scaler[femIdx][iwb->ch] = 1;
 	      }else if(!scaler[femIdx].count(iwb->ch)){
@@ -264,6 +274,8 @@ void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
 	      }else{
 		scaler[femIdx][iwb->ch]++;
 	      }
+#endif
+	      
 	    }
 	    if(h->FEMType==2) {
 	      hrtdcCnt[iwb->hrch].insert(femIdx);
@@ -272,6 +284,16 @@ void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
 		LOG(debug) << "iwb->hrch:" << iwb->hrch;
 		LOG(debug) << "femIdx:"   << femIdx;
 	      }
+
+	      if (!scaler.count(h->FEMId)){
+		scaler[h->FEMId][iwb->hrch] = 1;
+	      }else if(!scaler[h->FEMId].count(iwb->hrch)){
+		scaler[h->FEMId][iwb->hrch] = 1;
+	      }else{
+		scaler[h->FEMId][iwb->hrch]++;
+	      }
+	      
+#if 0
 	      if (!scaler.count(femIdx)){
 		scaler[femIdx][iwb->hrch] = 1;
 	      }else if(!scaler[femIdx].count(iwb->hrch)){
@@ -279,8 +301,9 @@ void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
 	      }else{
 		scaler[femIdx][iwb->hrch]++;
 	      }
+#endif	      
 	    }
-	  
+	    
 	  }//
 	}
         break;	
@@ -494,10 +517,10 @@ bool AmQStrTdcDqmScr::HandleData(FairMQParts& parts, int index)
       scHeader->length = outdata->size()*sizeof(uint64_t) + sizeof(Scaler::Header);
 
       FairMQMessagePtr tmsg = MessageUtil::NewMessage(*this, std::move(scHeader));
-      auto n = tmsg->GetSize()/sizeof(uint64_t);
       //
 
 #if 0
+      auto n = tmsg->GetSize()/sizeof(uint64_t);      
       LOG(debug) << "tmsg: " << n << "  " << tmsg->GetSize();      
       std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
 		    reinterpret_cast<uint64_t*>(tmsg->GetData()) + n,
@@ -511,9 +534,9 @@ bool AmQStrTdcDqmScr::HandleData(FairMQParts& parts, int index)
       if(outdata->size() > 0){
 
 	smsg = MessageUtil::NewMessage(*this, std::move(outdata));
-	auto m = smsg->GetSize()/sizeof(uint64_t);
 
 #if 0
+	auto m = smsg->GetSize()/sizeof(uint64_t);	
 	LOG(debug) << "smsg: " << m << "  " << smsg->GetSize();	
 	std::for_each(reinterpret_cast<uint64_t*>(smsg->GetData()),
 		      reinterpret_cast<uint64_t*>(smsg->GetData()) + m,

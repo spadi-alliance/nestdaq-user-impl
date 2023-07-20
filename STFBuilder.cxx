@@ -99,6 +99,29 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	  if ( (h != Data::Heartbeat) &&  (h != Data::SpillEnd) ) {
 	    LOG(warn) << "Second word is not delimi. : " << std::hex << word->raw;
 
+	    hbf_flag = 0;	  
+	    fLastHeader = 0;
+
+	    ///
+	    auto prewb = reinterpret_cast<Data::Bits*>(msgBegin + i - 1);
+	    auto preh = prewb->head;
+	    
+	    if( (preh == Data::Heartbeat) &&  (fHBFCounter==0) ){
+	      auto rdelim = prewb->hbframe % fMaxHBF;
+	      //	      LOG(debug) << "rdelim:   "<< rdelim;
+	      //	      LOG(debug) << "hbfframe + 1 : "<< word->hbframe + 1;
+	      //	      LOG(debug) << "fMaxHBF: "<< fMaxHBF;	      	      
+
+	      if(rdelim != 0){
+		offset   = i;
+		hbf_flag = 0;
+		LOG(error) << "one delim. (HBF % fMaxHBF) != 0:  HBF = " << word->hbframe
+			   << " fMaxHBF = " << fMaxHBF;
+	        continue;
+	      }
+	    }
+	    ///
+	    
 	    auto first = msgBegin + offset;
 	    auto last  = msgBegin + i - 1;
 	    offset     = i;
@@ -115,9 +138,8 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	      fSTFId = delimiterFrameId;
 	    }
 	  
-	    FillData(first, last, (h==Data::SpillEnd));
+	    FillData(first, last, fMsgType);
 
-	    auto preh = reinterpret_cast<Data::Bits*>(last)->head;
             if ( preh == Data::Heartbeat ) {
                 ++fHBFCounter;
 
@@ -129,10 +151,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 }
             }
 
-	    hbf_flag = 0;	  
-	    fLastHeader = 0;
 	  }
-
 	}
 	/////
 	
@@ -197,7 +216,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
             auto last  = msgBegin + i;
             offset     = i+1;
 
-            FillData(first, last, (h==Data::SpillEnd));
+            FillData(first, last, fMsgType);
 	    hbf_flag = 0;
 	    
             if ( h == Data::SpillEnd ) {
@@ -216,31 +235,29 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 }
             }
         }
-#if 0
-        if (  ) {
-            if (h == Data::SpillEnd) {
-                FillData(msgBegin+i, msgBegin+i+2, true);
-            }
-            FinalizeSTF();
-            i += 1;
-        }
-#endif
     }
 
     if (offset < nWord) { // && !isSpillEnd)) {
 
-      if(hbf_flag == 1){
+      if( (fMsgType == MsgType::separatedDelimiter) && (hbf_flag == 1) ){
 	if( (nWord - offset) != 1 )
 	  fInputPayloads.insert(fInputPayloads.end(),
 				std::make_move_iterator(msgBegin + offset),
 				std::make_move_iterator(msgBegin + nWord - 1));
 
 	fRemain = reinterpret_cast<Data::Bits*>(msgBegin + nWord - 1)->raw;
-
-        if(mdebug)	
+	if(mdebug)	
 	  LOG(debug) << "fRemain : " << std::hex << fRemain << std::dec << std::endl;
 	
       }else {
+
+	if(mdebug){
+	  if(hbf_flag == 1){
+	    fRemain = reinterpret_cast<Data::Bits*>(msgBegin + nWord - 1)->raw;	  
+	    LOG(debug) << "indata fRemain : " << std::hex << fRemain << std::dec << std::endl;
+	  }
+	}
+	
         fInputPayloads.insert(fInputPayloads.end(),
                               std::make_move_iterator(msgBegin + offset),
                               std::make_move_iterator(msgBegin + nWord));	
@@ -253,110 +270,153 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 void
 AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first,
                               AmQStrTdc::Data::Word* last,
-                              bool isSpillEnd)
+                              MsgType isType)
 {
     namespace Data = AmQStrTdc::Data;
     // construct send buffer with remained data on heap
     auto buf  = std::make_unique<decltype(fInputPayloads)>(std::move(fInputPayloads));
     auto sbuf = std::make_unique<decltype(fInputDelimiter)>(std::move(fInputDelimiter));
 
-    /* for data */
-    if ( ((last - first) > 1) && (hbf_flag == 2) ) { // when data + two delimiter comes (more than 3 words)
-      // insert new data to send buffer
-      //        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
 
-      buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));
+    if(isType == MsgType::separatedDelimiter){
+
+      //      LOG(info) << "isType: separated : " ;
       
-    }else if ( (last != first) && (hbf_flag == 1) ) {
-      LOG(warn) << "just one delimiter is coming.." << std::hex << reinterpret_cast<Data::Bits*>(last)->raw;
-      buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));      
-    }
+      /* for data */
+      if ( ((last - first) > 1) && (hbf_flag == 2) ) { // when data + two delimiter comes (more than 3 words)
+	// insert new data to send buffer
+	//        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
 
-    /* for delimiter */    
-    if ( (last != first) && (hbf_flag == 2) ) { // two delimiter, *(last-1) and *last
-
-      auto first_  = reinterpret_cast<Data::Bits*>(last-1)->head;
-      auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
-
-
-      //for debug
-      if( first_ == Data::SpillEnd ) {
-	//nothing
-      }else if ( first_ != Data::Heartbeat || second_ != Data::Heartbeat ){
-
-	LOG(warn) << "wrong delimiter--> first: " << std::hex<< reinterpret_cast<Data::Bits*>(last-1)->raw
-		  << "    second: " << std::hex << reinterpret_cast<Data::Bits*>(last)->raw
-		  << "    third? " << std::hex << reinterpret_cast<Data::Bits*>(last+1)->raw;	
-      }
-      //
-
-      sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));
+	buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last-1));
       
-    }else if( (last != first) && (hbf_flag == 1) ) {
-
-      auto first_ = reinterpret_cast<Data::Bits*>(last)->raw;
-      LOG(warn) << " Fill one delimiter: "<< std::hex << first_;
-
-      sbuf->insert(sbuf->end(), *last);      	
-      
-    }else if( (last == first) && (hbf_flag == 2) ) { // only one *last
-
-      const auto& tRemain = reinterpret_cast<Data::Word*>(&fRemain);
-
-      if(mdebug){
-	LOG(debug) << "fRemain : " << std::hex << fRemain << std::dec << std::endl;      	
-	LOG(debug) << "tRemain : " << std::hex 
-		   << reinterpret_cast<Data::Bits*>(tRemain)->raw << std::dec << std::endl;
+      }else if ( (last != first) && (hbf_flag == 1) ) {
+	LOG(warn) << "just one delimiter is coming.." << std::hex << reinterpret_cast<Data::Bits*>(last)->raw;
+	buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));      
       }
 
-      auto first_  = reinterpret_cast<Data::Bits*>(tRemain)->head;
-      auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
+      /* for delimiter */    
+      if ( (last != first) && (hbf_flag == 2) ) { // two delimiter, *(last-1) and *last
 
-      if( first_ == Data::SpillEnd ) {
-	//nothing      
-      }else if ( first_ != Data::Heartbeat || second_ != Data::Heartbeat ){      
-	LOG(warn) << "wrong delimiter--> first: " << std::hex << reinterpret_cast<Data::Bits*>(tRemain)->raw
-		  << "    second: " << std::hex << reinterpret_cast<Data::Bits*>(last)->raw
-		  << "    third? " << std::hex  << reinterpret_cast<Data::Bits*>(last+1)->raw;	
+	auto first_  = reinterpret_cast<Data::Bits*>(last-1)->head;
+	auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
 
-	LOG(warn) << "This is in case of tRemain ";
+
+	//for debug
+	if( first_ == Data::SpillEnd ) {
+	  //nothing
+	}else if ( first_ != Data::Heartbeat || second_ != Data::Heartbeat ){
+	  
+	  LOG(warn) << "wrong delimiter--> first: " << std::hex<< reinterpret_cast<Data::Bits*>(last-1)->raw
+		    << "    second: " << std::hex << reinterpret_cast<Data::Bits*>(last)->raw
+		    << "    third? " << std::hex << reinterpret_cast<Data::Bits*>(last+1)->raw;	
+	}
+	//
+
+	//	sbuf->insert(sbuf->end(), std::make_move_iterator(last-1), std::make_move_iterator(last+1));
+	sbuf->insert(sbuf->end(), *(last-1));
+	sbuf->insert(sbuf->end(), *last);	
+      
+      }else if( (last != first) && (hbf_flag == 1) ) {
+
+	auto first_ = reinterpret_cast<Data::Bits*>(last)->raw;
+	LOG(warn) << " Fill one delimiter: "<< std::hex << first_;
+
+	sbuf->insert(sbuf->end(), *last);      	
+      
+      }else if( (last == first) && (hbf_flag == 2) ) { // only one *last
+
+	const auto& tRemain = reinterpret_cast<Data::Word*>(&fRemain);
+
+	if(mdebug){
+	  LOG(debug) << "fRemain : " << std::hex << fRemain << std::dec << std::endl;      	
+	  LOG(debug) << "tRemain : " << std::hex 
+		     << reinterpret_cast<Data::Bits*>(tRemain)->raw << std::dec << std::endl;
+	}
+
+	auto first_  = reinterpret_cast<Data::Bits*>(tRemain)->head;
+	auto second_ = reinterpret_cast<Data::Bits*>(last)->head;
+
+	if( first_ == Data::SpillEnd ) {
+	  //nothing      
+	}else if ( first_ != Data::Heartbeat || second_ != Data::Heartbeat ){      
+	  LOG(warn) << "wrong delimiter--> first: " << std::hex << reinterpret_cast<Data::Bits*>(tRemain)->raw
+		    << "    second: " << std::hex << reinterpret_cast<Data::Bits*>(last)->raw
+		    << "    third? " << std::hex  << reinterpret_cast<Data::Bits*>(last+1)->raw;	
+
+	  LOG(warn) << "This is in case of tRemain ";
+	}
+
+	sbuf->insert(sbuf->end(), *tRemain);
+	sbuf->insert(sbuf->end(), *last);
       }
 
-      sbuf->insert(sbuf->end(), *tRemain);
-      sbuf->insert(sbuf->end(), *last);
-    }
 
-
-    NewData();
-    if (!buf->empty()) {
-      fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(buf)));
-    }
+      NewData();
+      if (!buf->empty()) {
+	fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(buf)));
+      }
 	
-    if(mdebug) {
-      LOG(debug)
-	<< " single word frame : " << std::hex
-	<< reinterpret_cast<Data::Bits*>(last)->raw
-	<< std::dec << std::endl;
-    }
-
-    if (fSplitMethod!=0) {
-      if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
-	LOG(debug) << " calling FinalizeSTF() from FillData()";
-	FinalizeSTF();
-	NewData();
+      if(mdebug) {
+	LOG(debug)
+	  << " single word frame : " << std::hex
+	  << reinterpret_cast<Data::Bits*>(last)->raw
+	  << std::dec << std::endl;
       }
-    }
+
+      if (fSplitMethod!=0) {
+	if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
+	  LOG(debug) << " calling FinalizeSTF() from FillData()";
+	  FinalizeSTF();
+	  NewData();
+	}
+      }
 
 
-    /* insert 64bit*2 delimiter */
+      /* insert 64bit*2 delimiter */
+      if (!sbuf->empty()) {
+	fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(sbuf)));
+      }
+      //    (void)isSpillEnd;    
+      ////if (!isSpillEnd) {
+      //    fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
+      ////}
+
+    }else if(isType == MsgType::indataDelimiter){
+      //      LOG(info) << "isType: indata : ";
       
-    fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(sbuf)));
+      /* for data */
+      if ( ((last - first) > 1) && (hbf_flag == 2) ) { // when data + two delimiter comes (more than 3 words)
+	// insert new data to send buffer
+	//        buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
 
-    //    (void)isSpillEnd;    
-    ////if (!isSpillEnd) {
-    //    fWorkingPayloads->emplace_back(NewSimpleMessage(*last));
-    ////}
+	buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
+	buf->insert(buf->end(), *last);	
+      
+      }else if ( (last != first) && (hbf_flag == 1) ) {
+	LOG(warn) << "just one delimiter is coming.." << std::hex << reinterpret_cast<Data::Bits*>(last)->raw;
+	buf->insert(buf->end(), std::make_move_iterator(first), std::make_move_iterator(last));
+	buf->insert(buf->end(), *last);		
 
+      }else if ((last == first) && (hbf_flag ==2)) {
+	//	fH_flag = 1;	
+	buf->insert(buf->end(), *last);
+      }
+
+      NewData();
+      if (!buf->empty()) {
+	fWorkingPayloads->emplace_back(MessageUtil::NewMessage(*this, std::move(buf)));
+      }
+
+      
+      if (fSplitMethod!=0) {
+	if ((fHBFCounter % fMaxHBF == 0) && (fHBFCounter>0)) {
+	  LOG(debug) << " calling FinalizeSTF() from FillData()";
+	  FinalizeSTF();
+	  NewData();
+	}
+      }
+      
+    }
 }
 
 //______________________________________________________________________________
@@ -395,6 +455,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
 
     ++fSTFSequenceNumber;
     fHBFCounter = 0;
+    
 }
 
 
@@ -469,26 +530,29 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
 	/// for debug
 
-	const auto part_size = parts.Size();
-	auto& smsg = parts.At(part_size - 1);
-	auto n   = smsg->GetSize()/sizeof(Data::Word);	
-	auto b   = reinterpret_cast<Bits*>(smsg->GetData());
-
-	//	if( (n == 2) && b->head == Data::SpillEnd ) {
-	if( b->head == Data::SpillEnd ) {	
-	  //nothing
+	if(fMsgType == MsgType::separatedDelimiter){
 	  
-	}else if ( b->head != Data::Heartbeat ){
-	  LOG(error) << "=== Wrong last message === " ;
-	  LOG(error) << "size: " << part_size ;	  	  	  
-	  std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
-			reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
-			::HexDump{4});	
+	  const auto part_size = parts.Size();
+	  auto& smsg = parts.At(part_size - 1);
+	  auto n   = smsg->GetSize()/sizeof(Data::Word);	
+	  auto b   = reinterpret_cast<Bits*>(smsg->GetData());
+
+	  //	if( (n == 2) && b->head == Data::SpillEnd ) {
+	  if( b->head == Data::SpillEnd ) {	
+	    //nothing
+	  
+	  }else if ( b->head != Data::Heartbeat ){
+	    LOG(error) << "=== Wrong last message === " ;
+	    LOG(error) << "size: " << part_size ;	  	  	  
+	    std::for_each(reinterpret_cast<Data::Word*>(smsg->GetData()),
+			  reinterpret_cast<Data::Word*>(smsg->GetData()) + n,
+			  ::HexDump{4});	
+	  }
+
 	}
 
-	
-	/*
-	  { // for debug-begin
+#if 0	
+	{ // for debug-begin
           std::cout << " parts size = " << parts.Size() << std::endl;
           for (int i=0; i<parts.Size(); ++i){
 	    const auto& msg = parts.At(i);
@@ -511,9 +575,9 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	    }
 	  }
 
-        } // for debug-end
-	*/
-	
+	} // for debug-end
+    //	fH_flag = 0;
+#endif	
         // Push multipart message into send queue
         // LOG(debug) << "send multipart message ";
 
@@ -589,10 +653,13 @@ void AmQStrTdcSTFBuilder::InitTask()
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
     fDQMChannelName    = fConfig->GetProperty<std::string>(opt::DQMChannelName.data());
 
+    fMsgType = static_cast<MsgType>(std::stoi(fConfig->GetProperty<std::string>(opt::MsgType.data())));
+
+    //    LOG(info) << "data msg type: " << fMsgType;
+    
     fTimeFrameIdType = static_cast<TimeFrameIdType>(std::stoi(fConfig->GetProperty<std::string>(opt::TimeFrameIdType.data())));
     fSTFId = -1;
-
-
+    
     //////
     FairMQMessagePtr msginfo(NewMessage());
     int nrecv=0;
@@ -705,13 +772,14 @@ void addCustomOptions(bpo::options_description& options)
 {
     using opt = AmQStrTdcSTFBuilder::OptionKey;
     options.add_options()
-    (opt::FEMId.data(),             bpo::value<std::string>(),                       "FEM ID")
-    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),  "Name of the input channel")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
-    (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value("dqm"), "Name of the data quality monitoring")
-    (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),   "maximum number of heartbeat frame in one sub time frame")
-    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),   "STF split method")
-    (opt::TimeFrameIdType.data(),   bpo::value<std::string>()->default_value("0"),   "Time frame ID type: 0 = first HB delimiter, 1 = last HB delimiter, 2 = sequence number of time frames")
+    (opt::FEMId.data(),             bpo::value<std::string>(),                        "FEM ID")
+    (opt::InputChannelName.data(),  bpo::value<std::string>()->default_value("in"),   "Name of the input channel")
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),  "Name of the output channel")
+    (opt::DQMChannelName.data(),    bpo::value<std::string>()->default_value("dqm"),  "Name of the data quality monitoring")
+    (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),    "maximum number of heartbeat frame in one sub time frame")
+    (opt::MsgType.data(),           bpo::value<std::string>()->default_value("0"),    "type of the data message")      
+    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),    "STF split method")
+    (opt::TimeFrameIdType.data(),   bpo::value<std::string>()->default_value("0"),    "Time frame ID type: 0 = first HB delimiter, 1 = last HB delimiter, 2 = sequence number of time frames")
     ;
 }
 

@@ -25,6 +25,11 @@ enum class TimeFrameIdType : int {
     SequenceNumberOfTimeFrames
 };
 
+enum class MsgType : int {
+    separatedDelimiter = 0,
+    indataDelimiter
+};
+
 class AmQStrTdcSTFBuilder : public fair::mq::Device
 {
 public:
@@ -39,6 +44,7 @@ public:
         static constexpr std::string_view DQMChannelName    {"dqm-chan-name"};
         static constexpr std::string_view StripHBF          {"strip-hbf"};
         static constexpr std::string_view MaxHBF            {"max-hbf"};
+        static constexpr std::string_view MsgType           {"msg-type"};
         static constexpr std::string_view SplitMethod       {"split"};
         static constexpr std::string_view TimeFrameIdType   {"time-frame-id-type"};
     };
@@ -52,7 +58,7 @@ private:
     void BuildFrame(FairMQMessagePtr& msg, int index);
     void FillData(AmQStrTdc::Data::Word* first,
                   AmQStrTdc::Data::Word* last,
-                  bool isSpillEnd);
+                  MsgType isType);
     void FinalizeSTF();
     bool HandleData(FairMQMessagePtr&, int index);
     void Init() override;
@@ -75,8 +81,10 @@ private:
     uint32_t fSTFSequenceNumber {0};
     int fSplitMethod {0};
     uint8_t fLastHeader {0};
-    // int fH_flag {0};
+    int fH_flag {0};
+
     TimeFrameIdType fTimeFrameIdType;
+    MsgType         fMsgType;
     int32_t fSTFId{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
 
     bool mdebug;
