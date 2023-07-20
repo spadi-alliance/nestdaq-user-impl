@@ -231,49 +231,59 @@ void AmQStrTdcDqmScr::Check(std::vector<STFBuffer>& stfs)
 
         break;
       case Data::Data:
-	
-	if(fDebug){
-	  LOG(debug) << "FEMtype: "<< h->FEMType;
-	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	  
-	  LOG(debug) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
-		     << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
-	}
+	{
+	  if(fDebug){
+	    LOG(debug) << "FEMtype: "<< h->FEMType;
+	    LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	  
+	    LOG(debug) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
+		       << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
+	  }
 
-	if(fDebug){
-	  if( (h->FEMType==1) || (h->FEMType==3) )
-	    LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
-	  if(h->FEMType==2)	  
-	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
-	}
 	
-	if( (h->FEMType==1) || (h->FEMType==3) ) {
-	  lrtdcCnt[wb->ch].insert(femIdx);
-	  tsScaler[wb->ch]++;
-	  if (!scaler.count(femIdx)){
-	    scaler[femIdx][wb->ch] = 1;
-	  }else if(!scaler[femIdx].count(wb->ch)){
-	    scaler[femIdx][wb->ch] = 1;
-	  }else{
-	    scaler[femIdx][wb->ch]++;
-	  }
-	}
-	if(h->FEMType==2) {
-	  hrtdcCnt[wb->hrch].insert(femIdx);
-	  tsScaler[wb->hrch]++;
-	  if (fDebug) {
-	    LOG(debug) << "wb->hrch:" << wb->hrch;
-	    LOG(debug) << "femIdx:"   << femIdx;
-	  }
-	  if (!scaler.count(femIdx)){
-	    scaler[femIdx][wb->hrch] = 1;
-	  }else if(!scaler[femIdx].count(wb->hrch)){
-	    scaler[femIdx][wb->hrch] = 1;
-	  }else{
-	    scaler[femIdx][wb->hrch]++;
-	  }
-	}
+	  auto msgBegin = reinterpret_cast<Data::Word*>(msg->GetData());	
+	  auto msgSize  = msg->GetSize();
+	  auto nWord    = msgSize / sizeof(uint64_t);
+	
+	  for(long unsigned int i = 0; i < nWord; ++i){	  
+	    auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
 
-        break;
+	    if(fDebug){
+	      if( (h->FEMType==1) || (h->FEMType==3) )
+		LOG(debug) << "hrtdc: "   << std::hex << iwb->hrtdc << std::dec;
+	      if(h->FEMType==2)	  
+		LOG(debug) << "hrtdcCh: " << std::hex << iwb->hrch << std::dec;
+	    }
+	
+	    if( (h->FEMType==1) || (h->FEMType==3) ) {
+	      lrtdcCnt[iwb->ch].insert(femIdx);
+	      tsScaler[iwb->ch]++;
+	      if (!scaler.count(femIdx)){
+		scaler[femIdx][iwb->ch] = 1;
+	      }else if(!scaler[femIdx].count(iwb->ch)){
+		scaler[femIdx][iwb->ch] = 1;
+	      }else{
+		scaler[femIdx][iwb->ch]++;
+	      }
+	    }
+	    if(h->FEMType==2) {
+	      hrtdcCnt[iwb->hrch].insert(femIdx);
+	      tsScaler[iwb->hrch]++;
+	      if (fDebug) {
+		LOG(debug) << "iwb->hrch:" << iwb->hrch;
+		LOG(debug) << "femIdx:"   << femIdx;
+	      }
+	      if (!scaler.count(femIdx)){
+		scaler[femIdx][iwb->hrch] = 1;
+	      }else if(!scaler[femIdx].count(iwb->hrch)){
+		scaler[femIdx][iwb->hrch] = 1;
+	      }else{
+		scaler[femIdx][iwb->hrch]++;
+	      }
+	    }
+	  
+	  }//
+	}
+        break;	
       default:
         LOG(error) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec  << " " << femIdx
                    << " unknown Head : " << std::hex << wb->head << std::dec;
