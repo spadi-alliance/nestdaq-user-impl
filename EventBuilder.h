@@ -2,7 +2,7 @@
  * @file EventBuilder.h 
  * @brief EventBuilder for NestDAQ
  * @date Created :
- *       Last Modified : 2023/07/18 04:38:13
+ *       Last Modified : 2023/07/21 09:43:39
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -29,6 +29,8 @@ struct OptionKey {
 		static constexpr std::string_view DataSuppress       {"data-suppress"};
 		static constexpr std::string_view PollTimeout        {"poll-timeout"};
 		static constexpr std::string_view SplitMethod        {"split"};
+		static constexpr std::string_view TrefID             {"tref-id"};
+		static constexpr std::string_view TrefCH             {"tref-ch"};
 	};      
 
 
@@ -53,6 +55,8 @@ protected:
 	uint32_t fDirection {0};
 	int fPollTimeoutMS  {0};
 	int fSplitMethod    {0};
+   uint32_t fTrefID {0};
+   uint32_t fTrefCH {0};
 
    std::vector<uint64_t> fTref;  // store reference tbin
    std::vector<std::vector<std::vector<uint64_t>>> fTDCData; // store tdc data in the array of tbin / stfb / nhits
