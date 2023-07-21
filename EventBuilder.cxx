@@ -2,7 +2,7 @@
  * @file EventBuilder.h 
  * @brief EventBuilder for NestDAQ
  * @date Created :
- *       Last Modified : 2023/07/18 04:44:56
+ *       Last Modified : 2023/07/21 10:06:28
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -50,7 +50,11 @@ void EventBuilder::InitTask()
 
 
 	fNumDestination = GetNumSubChannels(fOutputChannelName);
-	fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));   
+	fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data())); 
+   fTrefID  = std::stol(fConfig->GetProperty<std::string>(opt::TrefID.data()),nullptr,16);   
+   fTrefCH  = std::stoi(fConfig->GetProperty<std::string>(opt::TrefCH.data()));   
+   
+   LOG(info) << "TrefID : 0x" << std::hex << fTrefID << ", TrefCH : " << fTrefCH;
 
    LOG(info) << "InitTask : id = " << fName;
 
@@ -95,7 +99,7 @@ bool EventBuilder::ConditionalRun()
 
 
    //
-   std::vector<std::vector<uint32_t>> target = { {0xc0a802a9, 2}, {0xc0a802a9, 4} };
+   std::vector<std::vector<uint32_t>> target = { {fTrefID, fTrefCH} };
 
 
    std::vector<struct stf> stfs;
@@ -104,10 +108,15 @@ bool EventBuilder::ConditionalRun()
    for (uint32_t iPart = 0, nParts = inParts.Size(); iPart < nParts; ++iPart) {
       auto& part = inParts[iPart];
       auto headertype = *reinterpret_cast<uint64_t *>(part.GetData());
+
+      if (headertype == Filter::Magic) {
+         continue;
+      }
+
       // count the number of subtime frames and the heartbeat frames for  each FEM
       if (headertype == TimeFrame::Magic) {
 
-   sw_start = std::chrono::system_clock::now();
+         sw_start = std::chrono::system_clock::now();
 
          auto tfbheader = reinterpret_cast<struct TimeFrame::Header*>(part.GetData());
          tfbhdrPtr = &part;
@@ -399,6 +408,12 @@ void addCustomOptions(bpo::options_description& options)
 		(opt::SplitMethod.data(),
 			bpo::value<std::string>()->default_value("1"),
 			"STF split method")
+      (opt::TrefID.data(),
+			bpo::value<std::string>()->default_value("0xc0a82a8"),
+         "FEM ID (hex) for time reference")
+      (opt::TrefCH.data(),
+			bpo::value<std::string>()->default_value("42"),
+         "FEM Channel for time reference")
     		;
 
 }
