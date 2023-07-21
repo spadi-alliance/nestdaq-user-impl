@@ -166,7 +166,7 @@ foreach(lvar IN ITEMS
   fltcoin; tfdump; onlinedisplay; 
   EventBuilder; 
   AmQStrTdcDqm;
-  AmQStrTdcDqmScr)
+  Scaler)
 
   set(EXEC ${lvar})
   add_executable(${EXEC} 

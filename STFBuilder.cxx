@@ -551,7 +551,8 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 
 	}
 
-#if 0	
+	/*	
+#if 1	
 	{ // for debug-begin
           std::cout << " parts size = " << parts.Size() << std::endl;
           for (int i=0; i<parts.Size(); ++i){
@@ -578,6 +579,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	} // for debug-end
     //	fH_flag = 0;
 #endif	
+	*/
         // Push multipart message into send queue
         // LOG(debug) << "send multipart message ";
 
@@ -654,8 +656,6 @@ void AmQStrTdcSTFBuilder::InitTask()
     fDQMChannelName    = fConfig->GetProperty<std::string>(opt::DQMChannelName.data());
 
     fMsgType = static_cast<MsgType>(std::stoi(fConfig->GetProperty<std::string>(opt::MsgType.data())));
-
-    //    LOG(info) << "data msg type: " << fMsgType;
     
     fTimeFrameIdType = static_cast<TimeFrameIdType>(std::stoi(fConfig->GetProperty<std::string>(opt::TimeFrameIdType.data())));
     fSTFId = -1;

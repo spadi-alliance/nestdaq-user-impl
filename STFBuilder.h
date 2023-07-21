@@ -27,7 +27,7 @@ enum class TimeFrameIdType : int {
 
 enum class MsgType : int {
     separatedDelimiter = 0,
-    indataDelimiter
+    indataDelimiter 
 };
 
 class AmQStrTdcSTFBuilder : public fair::mq::Device

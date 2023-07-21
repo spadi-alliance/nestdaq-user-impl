@@ -1,5 +1,5 @@
-#ifndef AmQStrTdcDqmScr_h
-#define AmQStrTdcDqmScr_h
+#ifndef Scaler_h
+#define Scaler_h
 
 #include <chrono>
 #include <string>
@@ -30,12 +30,11 @@ class PipelineImpl;
 using Pipeline = QueuedRedis<PipelineImpl>;
 }
 
-class AmQStrTdcDqmScr : public fair::mq::Device
+class Scaler : public fair::mq::Device
 {
 public:
     struct OptionKey {
         static constexpr std::string_view NumSource         {"num-source"};
-        static constexpr std::string_view SourceType        {"source-type"};      
         static constexpr std::string_view BufferTimeoutInMs {"buffer-timeout"};
         static constexpr std::string_view InputChannelName  {"in-chan-name"};
         static constexpr std::string_view OutputChannelName {"out-chan-name"};      
@@ -48,28 +47,21 @@ public:
         static constexpr std::string_view HostIpAddressPrefix{"host-ip"};
     };
 
-    struct STFBuffer {
-        FairMQParts parts;
-        std::chrono::steady_clock::time_point start;
-    };
-
     enum Status {
         OK,
         Mismatch,
         Discarded
     };
 
-    AmQStrTdcDqmScr();
-    AmQStrTdcDqmScr(const AmQStrTdcDqmScr&)            = delete;
-    AmQStrTdcDqmScr& operator=(const AmQStrTdcDqmScr&) = delete;
-    ~AmQStrTdcDqmScr() = default;
+    Scaler();
+    Scaler(const Scaler&)            = delete;
+    Scaler& operator=(const Scaler&) = delete;
+    ~Scaler() = default;
 
 private:
-    void Check(std::vector<STFBuffer>& stfs);
+
     bool HandleData(FairMQParts& parts, int index);
-    bool HandleDataTFB(FairMQParts& parts, int index);
     void Init() override;
-    void InitServer(std::string_view server);
     void InitTask() override;
     void PreRun() override;
     void PostRun() override;
@@ -83,17 +75,12 @@ private:
     int fId {0};
     std::string fInputChannelName;
     std::string fOutputChannelName;  
-    std::string fSourceType;  
-    std::map<uint64_t, int> fFEMId;
-    std::map<int, uint64_t> fModuleIp;
+    int32_t fFEMId;
     std::vector<uint16_t> fHbc;
     int fUpdateIntervalInMs {1000};
     std::chrono::steady_clock::time_point fPrevUpdate;
     std::unique_ptr<nestdaq::FileUtil> fFile;
     std::string fFileExtension;
-    
-    std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
-    std::unordered_set<uint64_t> fDiscarded;
   
     std::mutex fMutex;
     std::shared_ptr<sw::redis::Redis> fClient;
@@ -106,16 +93,13 @@ private:
     std::string fHostNameKey;
     std::string fIpAddressKey;
 
-    uint32_t tsHeartbeatFlag[10];
-    uint32_t tsHeartbeatCounter;
-    std::string fTsHeartbeatFlagKey[10];
+    uint64_t    tsHeartbeatFlag {0};
+    uint64_t    tsHeartbeatCounter {0};
+    std::string fTsHeartbeatFlagKey;
     std::string fTsHeartbeatCounterKey;
     
-    std::map<uint32_t, std::map<uint32_t, uint64_t> > scaler;
-    std::unordered_map<uint32_t, uint64_t> tsScaler;
+    std::map<uint32_t, uint64_t> tsScaler;
     std::string fTsScalerKey;
-
-    std::vector<uint64_t> output;
 };
 
 //_____________________________________________________________________________
