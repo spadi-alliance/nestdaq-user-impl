@@ -38,7 +38,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
     (opt::OutputChannelName.data(),  bpo::value<std::string>()->default_value("out"), "Name of the output channel")    
     (opt::UpdateInterval.data(),     bpo::value<std::string>()->default_value("1000"), "Canvas update rate in milliseconds")
-    (opt::ServerUri.data(),          bpo::value<std::string>()->default_value("reds://127.0.0.1:6379"), "Redis server URI (if empty, the same URI of the service registry is used.)")
+    (opt::ServerUri.data(),          bpo::value<std::string>()->default_value("tcp://127.0.0.1:6379/1"), "Redis server URI (if empty, the same URI of the service registry is used.)")
     ;
   }
    {   // FileUtil's options ------------------------------
