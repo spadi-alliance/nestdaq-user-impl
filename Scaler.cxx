@@ -38,7 +38,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
     (opt::OutputChannelName.data(),  bpo::value<std::string>()->default_value("out"), "Name of the output channel")    
     (opt::UpdateInterval.data(),     bpo::value<std::string>()->default_value("1000"), "Canvas update rate in milliseconds")
-    (opt::ServerUri.data(),          bpo::value<std::string>()->default_value("tcp://127.0.0.1:6379/1"), "Redis server URI (if empty, the same URI of the service registry is used.)")
+    (opt::ServerUri.data(),          bpo::value<std::string>()->default_value("tcp://127.0.0.1:6379/3"), "Redis server URI (if empty, the same URI of the service registry is used.)")
     ;
   }
    {   // FileUtil's options ------------------------------
@@ -70,10 +70,15 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 {
   namespace STF = SubTimeFrame;
   namespace Data = AmQStrTdc::Data;
-  
   using Bits = Data::Bits;
-  
-  fSeparator = "_";
+
+  auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
+  int nCh = 0;
+  if(stfHeader->FEMType == 1 || stfHeader->FEMType == 3){
+    nCh = 128;
+  }else if(stfHeader->FEMType == 2){
+    nCh = 64;
+  }
   
   (void)index;
   assert(parts.Size()>=2);
@@ -81,24 +86,52 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
   {
     auto dt = std::chrono::steady_clock::now() - fPrevUpdate;
     if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fUpdateIntervalInMs) {
-
       try {
 	if (fPipe) {
-          fTsHeartbeatCounterKey = join({"ts", fdevId, "heartbeatCounter"}, fSeparator);
+          fTsHeartbeatCounterKey = join({"scaler", fdevId, "heartbeatCounter"}, fSeparator);
           fPipe->command("ts.add", fTsHeartbeatCounterKey, "*", std::to_string(tsHeartbeatCounter));
 
-	  fTsHeartbeatFlagKey = join({"ts", fdevId, "heartbeatFlag"}, fSeparator);
+	  fTsHeartbeatFlagKey = join({"scaler", fdevId, "heartbeatFlag"}, fSeparator);
 	  fPipe->command("ts.add", fTsHeartbeatFlagKey, "*", std::to_string(tsHeartbeatFlag));
-          
-          fTsHeartbeatCounterKey = join({"ts", fdevId, "heartbeatCounter"}, fSeparator);
-          for (auto  itr = tsScaler.begin(); itr != tsScaler.end(); itr++) {
-            fTsScalerKey = join({"ts", fdevId, "Scaler", std::to_string(itr->first)}, fSeparator);
-            fPipe->command("ts.add", fTsScalerKey, "*", std::to_string(itr->second));
-	    //	    LOG(info) << "tsScaler CH: " << itr->first << "  value: " << itr->second;
+	  
+	  std::string fCountsVsCh = join({"scaler", fdevId, "counts-vs-ch"}, fSeparator);
+	  std::stringstream ssCounts;
+	  ssCounts << "{" ;
+	  ssCounts << "\"bins\": {\"min\": 0, \"max\": " << nCh << " },";
+	  ssCounts << "\"counts\": [";
+	  for ( int ich = 0; ich < nCh - 1; ++ich){
+	    if( tsScaler.find(ich) == tsScaler.end() ){
+	      tsScaler.insert({ich, 0});	
+	    }
+	    ssCounts << tsScaler[ich] << ", ";	  
           }
+	  if( tsScaler.find(nCh-1) == tsScaler.end() ){
+	    tsScaler.insert({nCh, 0});	
+	  }
+	  ssCounts << tsScaler[nCh-1];
+	  ssCounts << "] }";
+	  fPipe->set(fCountsVsCh,ssCounts.str());
+
+	  std::string fRateVsCh = join({"scaler", fdevId, "rate-vs-ch"}, fSeparator);
+	  std::stringstream ssRate;
+	  uint64_t deltaHeartbeatCounter = tsHeartbeatCounter - fPrevHeartbeatCounter;
+	  double   dt_in_sec = deltaHeartbeatCounter * 0.000512; /* 1 heart beat = 512 us */
+	  if (dt_in_sec == 0.) {
+	    dt_in_sec = 1.;
+	  }
+	  ssRate << "{" ;
+	  ssRate << "\"bins\": {\"min\": 0, \"max\": " << nCh << " },";
+	  ssRate << "\"counts\": [";
+	  for ( int ich = 0; ich < nCh - 1; ++ich){
+	    ssRate << (tsScaler[ich] - tsPrevScaler[ich]) / dt_in_sec << ", ";
+          }
+	  ssRate << (tsScaler[nCh-1] - tsPrevScaler[nCh-1]) / dt_in_sec;
+	  ssRate << "] }";
+	  fPipe->set(fRateVsCh,ssRate.str());
 	}
+	
 	LOG(info) << "tsHeartbeatCounter: " << tsHeartbeatCounter;
-	LOG(info) << "tsHeartbeatFlag   : " << tsHeartbeatFlag;		
+	LOG(info) << "tsHeartbeatFlag   : " << tsHeartbeatFlag;
 	
       } catch (const std::exception& e) {
       	LOG(error) << "Scaler " << __FUNCTION__ << " exception : what() " << e.what();
@@ -107,17 +140,17 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
       }
       fPipe->exec();
 
-      /*gSystem->ProcessEvents();*/
       fPrevUpdate = std::chrono::steady_clock::now();
+      fPrevHeartbeatCounter = tsHeartbeatCounter;
+      for ( int ich = 0; ich < nCh; ++ich){
+	tsPrevScaler[ich] = tsScaler[ich];	  
+      }
     }
   }
   
-  auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
-  auto stfId     = stfHeader->timeFrameId;
-  auto nmsg      = parts.Size();
-
   //  Check(stfs);
-
+  
+  auto nmsg      = parts.Size();
   for(int imsg = 1; imsg < nmsg; ++imsg){
 
     const auto& msg = parts.At(imsg);
@@ -128,13 +161,10 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
       LOG(debug) << " head =" << std::hex << wb->head << std::dec;
     }
       
-    std::stringstream ss;
-
     switch (wb->head) {
     case Data::Heartbeat:
       
       //      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
-
       if(fDebug){
 	LOG(debug) << "== Data::Heartbeat --> ";
 	LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
@@ -147,8 +177,8 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
       if(fDebug){
 	LOG(debug) << "============================";
 	LOG(debug) << "HB frame : " << wb->hbframe;		
-	LOG(debug) << "timeFrameId : " << stfId;
-	LOG(debug) << "# of HB: " << wb->hbframe - stfId;
+	LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
+	LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
 	LOG(debug) << "hbflag: "  << wb->hbflag;
       }
 	
@@ -210,14 +240,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 
   auto outdata  = std::make_unique<std::vector<uint64_t>>();
   auto scHeader = std::make_unique<STF::Header>();
-    
-  int nCh = 0;
-  if(stfHeader->FEMType == 1 || stfHeader->FEMType == 3){
-    nCh = 128;
-  }else if(stfHeader->FEMType == 2){
-    nCh = 64;
-  }
-
+  
 #if 0
   LOG(debug) << "=========== Scaler ==============";
   LOG(debug) << "ch               scaler"; 
@@ -338,14 +361,13 @@ void Scaler::InitTask()
     fPipe = std::make_unique<sw::redis::Pipeline>(std::move(fClient->pipeline()));
     fdevId        = fConfig->GetProperty<std::string>("id");
     LOG(debug) << "fdevId: " << fdevId;
-    fTopPrefix   = "dqm";
-    //    fSeparator   = fConfig->GetProperty<std::string>("separator");
-    fSeparator   = "_";
+    fTopPrefix   = "scaler";
+    fSeparator   = fConfig->GetProperty<std::string>("separator");
     LOG(debug) << "fSeparator: " << fSeparator;
     const auto fCreatedTimeKey = join({fTopPrefix, opt::CreatedTimePrefix.data()},   fSeparator);
     const auto fHostNameKey    = join({fTopPrefix, opt::HostnamePrefix.data()},      fSeparator);
     const auto fIpAddressKey   = join({fTopPrefix, opt::HostIpAddressPrefix.data()}, fSeparator);
-    fPipe->hset(fCreatedTimeKey, fdevId, "test")
+    fPipe->hset(fCreatedTimeKey, fdevId, "n/a")
       .hset(fHostNameKey,    fdevId, fConfig->GetProperty<std::string>("hostname"))
       .hset(fIpAddressKey,   fdevId, fConfig->GetProperty<std::string>("host-ip"))
       .exec();

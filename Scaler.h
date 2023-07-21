@@ -41,7 +41,7 @@ public:
         static constexpr std::string_view RunNumber         {"run_number"};
         /*static constexpr std::string_view Http              {"http"};*/
         static constexpr std::string_view UpdateInterval    {"update-ms"};
-        static constexpr std::string_view ServerUri         {"dqm-uri"};
+        static constexpr std::string_view ServerUri         {"scaler-uri"};
         static constexpr std::string_view CreatedTimePrefix {"created-time"};
         static constexpr std::string_view HostnamePrefix    {"hostname"};
         static constexpr std::string_view HostIpAddressPrefix{"host-ip"};
@@ -79,6 +79,7 @@ private:
     std::vector<uint16_t> fHbc;
     int fUpdateIntervalInMs {1000};
     std::chrono::steady_clock::time_point fPrevUpdate;
+    
     std::unique_ptr<nestdaq::FileUtil> fFile;
     std::string fFileExtension;
   
@@ -95,10 +96,12 @@ private:
 
     uint64_t    tsHeartbeatFlag {0};
     uint64_t    tsHeartbeatCounter {0};
+    uint64_t    fPrevHeartbeatCounter {0};
     std::string fTsHeartbeatFlagKey;
     std::string fTsHeartbeatCounterKey;
     
     std::map<uint32_t, uint64_t> tsScaler;
+    std::map<uint32_t, uint64_t> tsPrevScaler;
     std::string fTsScalerKey;
 };
 
