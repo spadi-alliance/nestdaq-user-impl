@@ -70,11 +70,13 @@ bool TFBFilePlayer::ConditionalRun()
     if (magic == FST::Magic) {
         FST::Trailer fst;
         fst.magic = magic;
+        char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         fInputFile.read(reinterpret_cast<char *>(&fst) + sizeof(uint64_t),
             sizeof(FST::Trailer) - sizeof(uint64_t));
-        LOG(info) << "magic : " << std::hex << fst.magic
-            << " size : " << std::dec << fst.size << std::endl;
-        return false;
+        LOG(info) << "FileSink Trailer magic : " << std::hex << fst.magic
+            << "(" << hmagic << ")" << " size : " << std::dec << fst.size << std::endl;
+        //return false;
     } else
     if (magic != TF::Magic) {
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
