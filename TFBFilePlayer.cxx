@@ -53,6 +53,7 @@ bool TFBFilePlayer::ConditionalRun()
 {
     namespace TF  = TimeFrame;
     namespace STF = SubTimeFrame;
+    namespace FSH = FileSinkHeader;
     namespace FST = FileSinkTrailer;
 
     if (fInputFile.eof()) {
@@ -67,6 +68,17 @@ bool TFBFilePlayer::ConditionalRun()
     if (magic == Filter::Magic) {
         fInputFile.read(tempbuf, sizeof(struct Filter::Header) - sizeof(uint64_t));
     } else 
+    if (magic == FSH::Magic) {
+        FSH::Header fsh;
+        fsh.magic = magic;
+        char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
+        fInputFile.read(reinterpret_cast<char *>(&fsh) + sizeof(uint64_t),
+            sizeof(FSH::Header) - sizeof(uint64_t));
+        LOG(info) << "FileSink Header magic : " << std::hex << fsh.magic
+            << "(" << hmagic << ")" << " size : " << std::dec << fsh.size << std::endl;
+        return true;
+    } else
     if (magic == FST::Magic) {
         FST::Trailer fst;
         fst.magic = magic;
@@ -76,13 +88,13 @@ bool TFBFilePlayer::ConditionalRun()
             sizeof(FST::Trailer) - sizeof(uint64_t));
         LOG(info) << "FileSink Trailer magic : " << std::hex << fst.magic
             << "(" << hmagic << ")" << " size : " << std::dec << fst.size << std::endl;
-        //return false;
+        return true;
     } else
     if (magic != TF::Magic) {
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         LOG(error) << "Unkown magic = " << std::hex << magic << "(" << hmagic << ")";
-        return false;
+        return true;
     }
 
 
