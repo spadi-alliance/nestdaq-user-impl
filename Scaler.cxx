@@ -115,7 +115,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	  std::string fRateVsCh = join({"scaler", fdevId, "rate-vs-ch"}, fSeparator);
 	  std::stringstream ssRate;
 	  uint64_t deltaHeartbeatCounter = tsHeartbeatCounter - fPrevHeartbeatCounter;
-	  double   dt_in_sec = deltaHeartbeatCounter * 0.000512; /* 1 heart beat = 512 us */
+	  double   dt_in_sec = deltaHeartbeatCounter * 0.000524; /* 1 heart beat = 512 us */
 	  if (dt_in_sec == 0.) {
 	    dt_in_sec = 1.;
 	  }
@@ -128,6 +128,22 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	  ssRate << (tsScaler[nCh-1] - tsPrevScaler[nCh-1]) / dt_in_sec;
 	  ssRate << "] }";
 	  fPipe->set(fRateVsCh,ssRate.str());
+
+	  // for checking the flag bit for AmQ
+	  std::string fFlagBit = join({"flag", fdevId, "bit"}, fSeparator);
+	  std::stringstream ssFlag;
+	  int nBit = 10;
+	  
+	  ssFlag <<"{" ;
+	  ssFlag << "\"bins\": {\"min\": 0, \"max\": " << nBit << " },";
+	  ssFlag << "\"counts\": [";
+	  for( int ibit = 0; ibit < nBit - 1; ++ibit){
+	    ssFlag << FlagSum[ibit] << ", ";
+	  }
+	  ssFlag << FlagSum[nBit -1];
+	  ssFlag << "] }";
+	  fPipe->set(fFlagBit,ssFlag.str());	  
+	  
 	}
 	
 	LOG(info) << "tsHeartbeatCounter: " << tsHeartbeatCounter;
@@ -163,32 +179,41 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
       
     switch (wb->head) {
     case Data::Heartbeat:
-      
-      //      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
-      if(fDebug){
-	LOG(debug) << "== Data::Heartbeat --> ";
-	LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
-	LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
-	LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
-	LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
-	LOG(debug) << "head =" << std::hex << wb->head << std::dec;
-	LOG(debug) << "== scaler --> ";
-      }
-      if(fDebug){
-	LOG(debug) << "============================";
-	LOG(debug) << "HB frame : " << wb->hbframe;		
-	LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
-	LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
-	LOG(debug) << "hbflag: "  << wb->hbflag;
-      }
+      {
+	//      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
+	if(fDebug){
+	  LOG(debug) << "== Data::Heartbeat --> ";
+	  LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
+	  LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
+	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
+	  LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
+	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
+	  LOG(debug) << "== scaler --> ";
+	}
+	if(fDebug){
+	  LOG(debug) << "============================";
+	  LOG(debug) << "HB frame : " << wb->hbframe;		
+	  LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
+	  LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
+	  LOG(debug) << "hbflag: "  << wb->hbflag;
+	}
 	
-      tsHeartbeatCounter++;
-      tsHeartbeatFlag = wb->hbflag;
-      //      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
-      //      LOG(info) << "HBF Flag:  " << tsHeartbeatFlag;
+	tsHeartbeatCounter++;
 	
-      break;
-      
+	for(int i=0; i<10; i++){
+	  auto bit_sum = (wb->hbflag >> i) & 0x01;
+	  FlagSum[i] = fpreFlagSum[i] + bit_sum;
+	}      
+	tsHeartbeatFlag = wb->hbflag;      
+
+	for(int i=0; i<10; i++)
+	  fpreFlagSum[i] = FlagSum[i];
+            
+	//      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
+	//      LOG(info) << "HBF Flag:  " << tsHeartbeatFlag;
+	
+	break;
+      }
     case Data::SpillOn: 
       LOG(info) << "SpillOn:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->FEMId ;
       break;
@@ -395,6 +420,11 @@ void Scaler::PreRun()
     fFile->SetRunNumber(fRunNumber);
     fFile->ClearBranch();
     fFile->Open();
+
+    for(int i=0; i<10; ++i){
+      FlagSum[i] = 0;
+      fpreFlagSum[i] = 0;
+    }
 }
 //______________________________________________________________________________
 void Scaler::PostRun()
