@@ -38,9 +38,9 @@ public:
 protected:
 private:
 	//std::vector<struct CoinCh> fEntry;
-	std::map<uint32_t, std::vector<int>> fEntryCh;
-	std::map<uint32_t, std::vector<int>> fEntryChDelay;
-	std::map<uint32_t, std::vector<uint32_t>> fEntryChBit;
+	std::unordered_map<uint32_t, std::vector<int>> fEntryCh;
+	std::unordered_map<uint32_t, std::vector<int>> fEntryChDelay;
+	std::unordered_map<uint32_t, std::vector<uint32_t>> fEntryChBit;
 	int fEntryCounts = 0;
 	uint32_t fEntryMask = 0;
 

@@ -54,6 +54,7 @@ struct FltCoin : fair::mq::Device
 		fKt2 = new KTimer(1000);
 		fKt3 = new KTimer(1000);
 		fKt4 = new KTimer(1000);
+		fKt5 = new KTimer(1000);
 	}
 
 	void InitTask() override;
@@ -122,6 +123,7 @@ private:
 	KTimer *fKt2;
 	KTimer *fKt3;
 	KTimer *fKt4;
+	KTimer *fKt5;
 };
 
 
@@ -185,7 +187,7 @@ void FltCoin::InitTask()
 		"0 1 & 2 3 & | 4 5 & | 6 7 & | 8 9 & | 10 11 & |");
 #endif
 
-#if 1
+#if 0
 	fTrig->Entry(0xc0a802a9,  0, 0); //DL
 	fTrig->Entry(0xc0a802a9,  1, 0); //DR
 	fTrig->Entry(0xc0a802a9,  2, 0); //DL
@@ -202,10 +204,11 @@ void FltCoin::InitTask()
 	fTrig->MakeTable(form);
 #endif
 
-#if 0
-	fTrig->Entry(0xc0a802a8, 0, 0);
-	fTrig->Entry(0xc0a802a8, 1, 0);
-	fTrig->MakeTable(2, "0 1 &");
+#if 1
+	fTrig->Entry(0xc0a802a8, 42, 0);
+	fTrig->Entry(0xc0a802a8, 43, 0);
+	std::string form("0 1 &");
+	fTrig->MakeTable(form);
 #endif
 
 }
@@ -395,7 +398,6 @@ bool FltCoin::ConditionalRun()
 		std::vector< std::vector<struct DataBlock> > block_map;
 		std::vector<struct SubTimeFrame::Header> stf;
 
-
 		#if 1
 		if (fKt1->Check()) {
 			std::cout << "#Nmsg: " << std::dec << inParts.Size() << std::endl;
@@ -550,11 +552,19 @@ bool FltCoin::ConditionalRun()
 		std::cout << "blocks: " << blocks.size() << std::endl;
 		#endif
 
+
+
+		std::chrono::system_clock::time_point sw_trig_start;
+		sw_trig_start = std::chrono::system_clock::now();
+
 		int totalhits = 0;
 		//for (size_t i = 0 ; i < blocks.size() ; i++) {
 		for (size_t i = 0 ; i < bsize_min ; i++) {
 
 			fTrig->CleanUpTimeRegion();
+
+			std::chrono::system_clock::time_point sw_markhits_start;
+			sw_markhits_start = std::chrono::system_clock::now();
 
 			/// mark Hits
 			for (size_t iifem = 0 ; iifem < block_map.size() ; iifem++) {
@@ -591,6 +601,11 @@ bool FltCoin::ConditionalRun()
 				}
 			}
 
+			std::chrono::system_clock::time_point sw_markhits_end;
+			sw_markhits_end = std::chrono::system_clock::now();
+			uint32_t sw_markhits_elapse = std::chrono::duration_cast<std::chrono::microseconds>(
+				sw_markhits_end - sw_markhits_start).count();
+
 			#if 0
 			uint32_t *tr = fTrig->GetTimeRegion();
 			std::cout << "####DDDD Hit TimeRegion: ";
@@ -617,9 +632,18 @@ bool FltCoin::ConditionalRun()
 			std::cout << std::endl;
 			#endif
 
+			std::chrono::system_clock::time_point sw_scan_start;
+			sw_scan_start = std::chrono::system_clock::now();
+
 			/// check coincidence
 			std::vector<uint32_t> *hits = fTrig->Scan();
 			int nhits = hits->size();
+
+			std::chrono::system_clock::time_point sw_scan_end;
+			sw_scan_end = std::chrono::system_clock::now();
+			uint32_t sw_scan_elapse = std::chrono::duration_cast<std::chrono::microseconds>(
+				sw_scan_end - sw_scan_start).count();
+
 
 			#if 0
 			if (nhits > 0) {
@@ -640,6 +664,9 @@ bool FltCoin::ConditionalRun()
 			//	<< flag_sending.size() << std::endl;
 			//std::cout << "#D block_map.size() "
 			//	<< block_map.size() << std::endl;
+
+			std::chrono::system_clock::time_point sw_marksending_start;
+			sw_marksending_start = std::chrono::system_clock::now();
 
 			for (size_t iifem = 0 ; iifem < block_map.size() ; iifem++) {
 				block_map[iifem][i].nTrig = nhits;
@@ -686,7 +713,25 @@ bool FltCoin::ConditionalRun()
 			totalhits += nhits;
 			//std::cout << "# block: " << i << " nhits: " << nhits << std::endl;
 
+			std::chrono::system_clock::time_point sw_marksending_end;
+			sw_marksending_end = std::chrono::system_clock::now();
+			uint32_t sw_marksending_elapse = std::chrono::duration_cast<std::chrono::microseconds>(
+				sw_marksending_end - sw_marksending_start).count();
+
+			if (fKt5->Check()) {
+				std::cout << "#Bsize min : " << std::dec << bsize_min << std::endl;
+				std::cout << "#Nhits : " << std::dec << nhits << " " << totalhits << std::endl;
+				std::cout << "#Elaplse MarkHits: " << std::dec <<  sw_markhits_elapse << " us" << std::endl;
+				std::cout << "#Elaplse Scan: " << std::dec <<  sw_scan_elapse << " us" << std::endl;
+				std::cout << "#Elaplse MarkSending: " << std::dec <<  sw_marksending_elapse << " us" << std::endl;
+			}
+
 		}
+
+		std::chrono::system_clock::time_point sw_trig_end;
+		sw_trig_end = std::chrono::system_clock::now();
+		uint32_t sw_trig_elapse = std::chrono::duration_cast<std::chrono::microseconds>(
+			sw_trig_end - sw_trig_start).count();
 
 		#if 0
 		if (fKt2->Check()) {
@@ -739,8 +784,6 @@ bool FltCoin::ConditionalRun()
 		uint32_t elapse = std::chrono::duration_cast<std::chrono::microseconds>(
 			sw_end - sw_start).count();
 
-
-
 		static uint64_t int_hits = 0;
 		static uint64_t int_processed_hbf = 0;
 		double trig_ratio;
@@ -757,6 +800,7 @@ bool FltCoin::ConditionalRun()
 				<< " Hits(inte): " << int_hits
 				<< " HBF(inte): " << int_processed_hbf
 				<< std::endl;
+			std::cout << "#Elaplse Trig:" << std::dec <<  sw_trig_elapse << " us" << std::endl;
 
 			//int_hits = 0;
 			//int_processed_hbf = 0;
@@ -792,7 +836,7 @@ bool FltCoin::ConditionalRun()
 						stfh->length
 							= len_stf
 							+ sizeof(struct SubTimeFrame::Header);
-						stfh->numMessages = nmsg_stf;
+						stfh->numMessages = nmsg_stf + 1;
 					}
 					ii = kk - 1;
 				}
@@ -902,7 +946,7 @@ bool FltCoin::ConditionalRun()
 				std::cout << "+" << std::flush;
 			}
 		} else {
-			std::cout << "NoDQM socket" << std::endl;
+			// std::cout << "NoDQM socket" << std::endl;
 		}
 		#endif
 
