@@ -65,6 +65,7 @@ private:
     void InitTask() override;
     void NewData();
     void PostRun() override;
+    void PreRun() override;
 
     uint64_t fRemain  {0};
     uint64_t fFEMId   {0};

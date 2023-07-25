@@ -658,7 +658,6 @@ void AmQStrTdcSTFBuilder::InitTask()
     fMsgType = static_cast<MsgType>(std::stoi(fConfig->GetProperty<std::string>(opt::MsgType.data())));
     
     fTimeFrameIdType = static_cast<TimeFrameIdType>(std::stoi(fConfig->GetProperty<std::string>(opt::TimeFrameIdType.data())));
-    fSTFId = -1;
     
     //////
     FairMQMessagePtr msginfo(NewMessage());
@@ -696,8 +695,6 @@ void AmQStrTdcSTFBuilder::InitTask()
     auto s_splitMethod = fConfig->GetProperty<std::string>(opt::SplitMethod.data());
     fSplitMethod = std::stoi(s_splitMethod);
 
-    fSTFSequenceNumber = 0;
-    fHBFCounter = 0;
 
     LOG(debug) << " output channels: name = " << fOutputChannelName
                << " num = " << GetNumSubChannels(fOutputChannelName);
@@ -766,6 +763,18 @@ void AmQStrTdcSTFBuilder::PostRun()
 }
 
 namespace bpo = boost::program_options;
+
+//______________________________________________________________________________
+void AmQStrTdcSTFBuilder::PreRun()
+{
+  fRemain = 0;
+  fHBFCounter = 0;
+  hbf_flag = 0;
+  fdelimiterFrameId = 0;
+  fSTFSequenceNumber = 0;
+  fLastHeader = 0;
+  fSTFId = -1;
+}
 
 //______________________________________________________________________________
 void addCustomOptions(bpo::options_description& options)
