@@ -23,15 +23,15 @@ class nestdaq::EventBuilder : public fair::mq::Device {
 public:
 
 struct OptionKey {
-		static constexpr std::string_view InputChannelName   {"in-chan-name"};
-		static constexpr std::string_view OutputChannelName  {"out-chan-name"};
-		static constexpr std::string_view DQMChannelName     {"dqm-chan-name"};
-		static constexpr std::string_view DataSuppress       {"data-suppress"};
-		static constexpr std::string_view PollTimeout        {"poll-timeout"};
-		static constexpr std::string_view SplitMethod        {"split"};
-		static constexpr std::string_view TrefID             {"tref-id"};
-		static constexpr std::string_view TrefCH             {"tref-ch"};
-	};      
+	static constexpr std::string_view InputChannelName   {"in-chan-name"};
+	static constexpr std::string_view OutputChannelName  {"out-chan-name"};
+	static constexpr std::string_view DQMChannelName     {"dqm-chan-name"};
+	static constexpr std::string_view DataSuppress       {"data-suppress"};
+	static constexpr std::string_view PollTimeout        {"poll-timeout"};
+	static constexpr std::string_view SplitMethod        {"split"};
+	static constexpr std::string_view TrefID             {"tref-id"};
+	static constexpr std::string_view TrefCH             {"tref-ch"};
+};      
 
 
    EventBuilder(); 
@@ -51,12 +51,12 @@ protected:
    std::string fName; // name of this process
    uint32_t fID; // id of this process
    
-	int fNumDestination {0};
-	uint32_t fDirection {0};
-	int fPollTimeoutMS  {0};
-	int fSplitMethod    {0};
-   uint32_t fTrefID {0};
-   uint32_t fTrefCH {0};
+   int fNumDestination {0};
+   uint32_t fDirection {0};
+   int fPollTimeoutMS  {0};
+   int fSplitMethod    {0};
+   uint32_t fTrefID    {0};
+   uint32_t fTrefCH    {0};
 
    std::vector<uint64_t> fTref;  // store reference tbin
    std::vector<std::vector<std::vector<uint64_t>>> fTDCData; // store tdc data in the array of tbin / stfb / nhits
@@ -72,4 +72,4 @@ bool nestdaq::EventBuilder::IsEndDelimiter(uint64_t data)
          || (data & 0xf000'0000'0000'0000) == 0x5000'0000'0000'0000 );
 }
 
- #endif // NESTDAQ_EVENTBUILDER_H
+#endif // NESTDAQ_EVENTBUILDER_H

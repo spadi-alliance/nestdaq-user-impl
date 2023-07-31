@@ -110,7 +110,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 {
 	unsigned int msize = msg->GetSize();
 	unsigned char *pdata = reinterpret_cast<unsigned char *>(msg->GetData());
-	LOG(info) << "CheckData: " << reinterpret_cast<uint64_t*>(pdata) ;
+	if (! fIsShrink) LOG(info) << "CheckData: " << reinterpret_cast<uint64_t*>(pdata) ;
 	uint64_t msg_magic = *(reinterpret_cast<uint64_t *>(pdata));
 
 	#if 0
