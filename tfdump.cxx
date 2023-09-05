@@ -83,7 +83,7 @@ struct TFdump : fair::mq::Device
 
 	bool ConditionalRun() override;
 	void PostRun() override;
-	
+
 private:
 	uint64_t fMaxIterations = 0;
 	uint64_t fNumIterations = 0;
@@ -439,7 +439,6 @@ bool TFdump::HandleData(fair::mq::MessagePtr& msg, int val)
 	}
 
 	CheckData(msg);
-	
 
 	// return true if you want the handler to be called again
 	// (otherwise return false go to the Ready state)

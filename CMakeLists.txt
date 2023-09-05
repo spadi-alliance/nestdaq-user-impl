@@ -1,4 +1,4 @@
-#AA
+#
 cmake_minimum_required(VERSION 3.11)
 
 project(nestdaq LANGUAGES CXX C)
@@ -153,6 +153,7 @@ message(STATUS "HIREDIS_LIB:    ${HIREDIS_LIB}")
 # ---------- add redis++ dependency ---------
 find_path(REDIS_PLUS_PLUS_HEADER sw)
 find_library(REDIS_PLUS_PLUS_LIB redis++)
+#find_package(redis++)
 
 message(STATUS "REDIS_PLUS_PLUS_HEADER: ${REDIS_PLUS_PLUS_HEADER}")
 message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
