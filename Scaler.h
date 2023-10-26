@@ -22,6 +22,9 @@
 #include <sw/redis++/redis++.h>
 #include <sw/redis++/patterns/redlock.h>
 #include <sw/redis++/errors.h>
+#include <Slowdashify.h>
+#include <RedisDataStore.h>
+
 // forward declaration
 namespace sw::redis {
 class Redis;
@@ -84,8 +87,6 @@ private:
     std::string fFileExtension;
   
     std::mutex fMutex;
-    std::shared_ptr<sw::redis::Redis> fClient;
-    std::unique_ptr<sw::redis::Pipeline> fPipe;
     std::string fSeparator;
     std::string fServiceName;
     std::string fTopPrefix;
@@ -103,9 +104,14 @@ private:
     std::string fTsHeartbeatFlagKey;
     std::string fTsHeartbeatCounterKey;
     
-    std::map<uint32_t, uint64_t> tsScaler;
-    std::map<uint32_t, uint64_t> tsPrevScaler;
     std::string fTsScalerKey;
+
+    UH1Book *hScaler {0};
+    UH1Book *hScalerPrev {0};
+    UH1Book *hCountRate {0};
+    UH1Book *hFlag {0};
+    UH1Book *hFlagPrev {0};
+    RedisDataStore *data_store;
 };
 
 //_____________________________________________________________________________

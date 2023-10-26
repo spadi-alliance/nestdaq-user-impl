@@ -158,6 +158,13 @@ find_library(REDIS_PLUS_PLUS_LIB redis++)
 message(STATUS "REDIS_PLUS_PLUS_HEADER: ${REDIS_PLUS_PLUS_HEADER}")
 message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
 
+# ---------- add uhbook dependency ---------
+find_path(UHBOOK_HEADER uhbook.cxx)
+#find_library(UHBOOK_LIB uhbook)
+
+message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
+#message(STATUS "UHBOOK_LIB:       ${UHBOOK_LIB}")
+
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
@@ -180,6 +187,7 @@ foreach(lvar IN ITEMS
     ${ROOT_INCLUDE_DIRS};
     ${HIREDIS_HEADER};
     ${REDIS_PLUS_PLUS_HEADER};
+    ${UHBOOK_HEADER};
     ${CMAKE_SOURCE_DIR};
 #    ${FairLogger_INCDIR};
   )
@@ -196,6 +204,7 @@ foreach(lvar IN ITEMS
     ${ROOT_LIBRARIES};
     ${HIREDIS_LIB};
     ${REDIS_PLUS_PLUS_LIB};
+    ${UHBOOK_LIB};
     FairMQ;
     FairMQStateMachine;
     FairLogger;

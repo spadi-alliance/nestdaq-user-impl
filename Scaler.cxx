@@ -16,10 +16,6 @@
 #include "utility/HexDump.h"
 #include "utility/MessageUtil.h"
 
-#include <sw/redis++/redis++.h>
-#include <sw/redis++/patterns/redlock.h>
-#include <sw/redis++/errors.h>
-
 #include "Scaler.h"
 
 
@@ -79,6 +75,16 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
   }else if(stfHeader->FEMType == 2){
     nCh = 64;
   }
+  if (nCh != hScaler->GetNBins()){
+    hScaler->Reset();
+    hScaler->SetNBins(nCh);
+    hScaler->SetMinimum(0.);
+    hScaler->SetMaximum((double)nCh);
+    hScalerPrev->Reset();
+    hScalerPrev->SetNBins(nCh);
+    hScalerPrev->SetMinimum(0.);
+    hScalerPrev->SetMaximum((double)nCh);
+  }
   
   (void)index;
   assert(parts.Size()>=2);
@@ -87,64 +93,31 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
     auto dt = std::chrono::steady_clock::now() - fPrevUpdate;
     if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fUpdateIntervalInMs) {
       try {
-	if (fPipe) {
-          fTsHeartbeatCounterKey = join({"scaler", fdevId, "heartbeatCounter"}, fSeparator);
-          fPipe->command("ts.add", fTsHeartbeatCounterKey, "*", std::to_string(tsHeartbeatCounter));
-
-	  fTsHeartbeatFlagKey = join({"scaler", fdevId, "heartbeatFlag"}, fSeparator);
-	  fPipe->command("ts.add", fTsHeartbeatFlagKey, "*", std::to_string(tsHeartbeatFlag));
-	  
-	  std::string fCountsVsCh = join({"scaler", fdevId, "counts-vs-ch"}, fSeparator);
-	  std::stringstream ssCounts;
-	  ssCounts << "{" ;
-	  ssCounts << "\"bins\": {\"min\": 0, \"max\": " << nCh << " },";
-	  ssCounts << "\"counts\": [";
-	  for ( int ich = 0; ich < nCh - 1; ++ich){
-	    if( tsScaler.find(ich) == tsScaler.end() ){
-	      tsScaler.insert({ich, 0});	
-	    }
-	    ssCounts << tsScaler[ich] << ", ";	  
-          }
-	  if( tsScaler.find(nCh-1) == tsScaler.end() ){
-	    tsScaler.insert({nCh, 0});	
-	  }
-	  ssCounts << tsScaler[nCh-1];
-	  ssCounts << "] }";
-	  fPipe->set(fCountsVsCh,ssCounts.str());
-
-	  std::string fRateVsCh = join({"scaler", fdevId, "rate-vs-ch"}, fSeparator);
-	  std::stringstream ssRate;
-	  uint64_t deltaHeartbeatCounter = tsHeartbeatCounter - fPrevHeartbeatCounter;
-	  double   dt_in_sec = deltaHeartbeatCounter * 0.000524; /* 1 heart beat = 512 us */
-	  if (dt_in_sec == 0.) {
-	    dt_in_sec = 1.;
-	  }
-	  ssRate << "{" ;
-	  ssRate << "\"bins\": {\"min\": 0, \"max\": " << nCh << " },";
-	  ssRate << "\"counts\": [";
-	  for ( int ich = 0; ich < nCh - 1; ++ich){
-	    ssRate << (tsScaler[ich] - tsPrevScaler[ich]) / dt_in_sec << ", ";
-          }
-	  ssRate << (tsScaler[nCh-1] - tsPrevScaler[nCh-1]) / dt_in_sec;
-	  ssRate << "] }";
-	  fPipe->set(fRateVsCh,ssRate.str());
-
-	  // for checking the flag bit for AmQ
-	  std::string fFlagBit = join({"flag", fdevId, "bit"}, fSeparator);
-	  std::stringstream ssFlag;
-	  int nBit = 10;
-	  
-	  ssFlag <<"{" ;
-	  ssFlag << "\"bins\": {\"min\": 0, \"max\": " << nBit << " },";
-	  ssFlag << "\"counts\": [";
-	  for( int ibit = 0; ibit < nBit - 1; ++ibit){
-	    ssFlag << FlagSum[ibit] << ", ";
-	  }
-	  ssFlag << FlagSum[nBit -1];
-	  ssFlag << "] }";
-	  fPipe->set(fFlagBit,ssFlag.str());	  
-	  
+        fTsHeartbeatCounterKey = join({"scaler", fdevId, "heartbeatCounter"}, fSeparator);
+	data_store->ts_add(fTsHeartbeatCounterKey, "*", std::to_string(tsHeartbeatCounter));
+	fTsHeartbeatFlagKey = join({"scaler", fdevId, "heartbeatFlag"}, fSeparator);
+	data_store->ts_add(fTsHeartbeatFlagKey, "*", std::to_string(tsHeartbeatFlag));
+	
+	std::string fCountsVsCh = join({"scaler", fdevId, "counts-vs-ch"}, fSeparator);
+	data_store->write(fCountsVsCh,Slowdashify(*hScaler));
+	
+	uint64_t deltaHeartbeatCounter = tsHeartbeatCounter - fPrevHeartbeatCounter;
+	double   dt_in_sec = deltaHeartbeatCounter * 0.000524; /* 1 heart beat = 512 us */
+	if (dt_in_sec == 0.) {
+	  dt_in_sec = 1.;
 	}
+	UH1Book hCountRate(*hScaler);
+	hCountRate.Subtract(*hScalerPrev);
+	for (int i=1; i <= hScaler->GetNBins(); i++) {
+	  hCountRate.SetBinContent(i, hCountRate.GetBinContent(i)/dt_in_sec);
+	}
+	
+	std::string fRateVsCh = join({"scaler", fdevId, "rate-vs-ch"}, fSeparator);
+	data_store->write(fRateVsCh,Slowdashify(hCountRate));
+	
+	// for checking the flag bit for AmQ
+	std::string fFlagBit = join({"flag", fdevId, "bit"}, fSeparator);
+	data_store->write(fFlagBit,Slowdashify(*hFlag));
 	
 	LOG(info) << "tsHeartbeatCounter: " << tsHeartbeatCounter;
 	LOG(info) << "tsHeartbeatFlag   : " << tsHeartbeatFlag;
@@ -154,13 +127,14 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
       } catch (...) {
       	LOG(error) << "Scaler " << __FUNCTION__ << " exception : unknown ";
       }
-      fPipe->exec();
 
       fPrevUpdate = std::chrono::steady_clock::now();
       fPrevHeartbeatCounter = tsHeartbeatCounter;
-      for ( int ich = 0; ich < nCh; ++ich){
-	tsPrevScaler[ich] = tsScaler[ich];	  
-      }
+      *hScalerPrev = *hScaler;
+      hFlag->Print();
+      hFlag->Draw();
+      hScaler->Print();
+      hScaler->Draw();
     }
   }
   
@@ -203,6 +177,9 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	for(int i=0; i<10; i++){
 	  auto bit_sum = (wb->hbflag >> i) & 0x01;
 	  FlagSum[i] = fpreFlagSum[i] + bit_sum;
+	  if (bit_sum) {
+	    hFlag->Fill(i);
+	  }
 	}      
 	tsHeartbeatFlag = wb->hbflag;      
 
@@ -239,12 +216,9 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	  }
 	
 	  if( (stfHeader->FEMType == 1) || (stfHeader->FEMType==3) ) {
-
-	    tsScaler[iwb->ch]++;	      
-	    
+	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
 	  }else if(stfHeader->FEMType==2) {
-	      
-	    tsScaler[iwb->ch]++;	      	      
+	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
 	  }
 	    
 	}//
@@ -266,24 +240,8 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
   auto outdata  = std::make_unique<std::vector<uint64_t>>();
   auto scHeader = std::make_unique<STF::Header>();
   
-#if 0
-  LOG(debug) << "=========== Scaler ==============";
-  LOG(debug) << "ch               scaler"; 
-  for(const auto& [ch, nsc] : tsScaler){
-    if( nsc > 0)
-    LOG(debug) << ch << " ........... " << nsc;
-  }
-#endif
-  
   for ( int ich = 0; ich < nCh; ++ich){
-    
-    if( tsScaler.find(ich) == tsScaler.end() ){
-	
-      LOG(debug) << "insert key channel: " << ich;	
-      tsScaler.insert({ich, 0});	
-    }
-
-    outdata->push_back(tsScaler[ich]);	      
+    outdata->push_back(hScaler->GetBinContent(ich+1));	      
   }
       
   /* send data to Filesink */
@@ -377,13 +335,10 @@ void Scaler::InitTask()
     fHbc.resize(fNumSource);
 
     using opt = Scaler::OptionKey;
-    std::string serverUri;
-    serverUri = fConfig->GetProperty<std::string>(opt::ServerUri.data());
-    if (!serverUri.empty()) {
-        fClient = std::make_shared<sw::redis::Redis>(serverUri);
-    }
+    std::string serverUri = fConfig->GetProperty<std::string>(opt::ServerUri.data());
     LOG(debug) << "serverUri: " << serverUri;
-    fPipe = std::make_unique<sw::redis::Pipeline>(std::move(fClient->pipeline()));
+    data_store = new RedisDataStore(serverUri);
+    
     fdevId        = fConfig->GetProperty<std::string>("id");
     LOG(debug) << "fdevId: " << fdevId;
     fTopPrefix   = "scaler";
@@ -392,10 +347,9 @@ void Scaler::InitTask()
     const auto fCreatedTimeKey = join({fTopPrefix, opt::CreatedTimePrefix.data()},   fSeparator);
     const auto fHostNameKey    = join({fTopPrefix, opt::HostnamePrefix.data()},      fSeparator);
     const auto fIpAddressKey   = join({fTopPrefix, opt::HostIpAddressPrefix.data()}, fSeparator);
-    fPipe->hset(fCreatedTimeKey, fdevId, "n/a")
-      .hset(fHostNameKey,    fdevId, fConfig->GetProperty<std::string>("hostname"))
-      .hset(fIpAddressKey,   fdevId, fConfig->GetProperty<std::string>("host-ip"))
-      .exec();
+    data_store->hset(fCreatedTimeKey, fdevId, "n/a");
+    data_store->hset(fHostNameKey,    fdevId, fConfig->GetProperty<std::string>("hostname"));
+    data_store->hset(fIpAddressKey,   fdevId, fConfig->GetProperty<std::string>("host-ip"));
 
     Reporter::Reset();
 
@@ -425,6 +379,10 @@ void Scaler::PreRun()
       FlagSum[i] = 0;
       fpreFlagSum[i] = 0;
     }
+    hScaler     = new UH1Book("ScalerHisto",128,0.,128.);
+    hScalerPrev = new UH1Book("ScalerHistoPrev",128,0.,128.);
+    hFlag       = new UH1Book("FlagHisto",10,0.,10.);
+    hFlagPrev   = new UH1Book("FlagHistoPrev",10,0.,10.);
 }
 //______________________________________________________________________________
 void Scaler::PostRun()
@@ -458,12 +416,10 @@ void Scaler::PostRun()
     std::stringstream ss;
     ss << "Scaler data at PostRun()" << std::endl;
     ss << "== scaler --> module:  "  << std::hex << fFEMId << std::endl;
-    for (auto& [ch, sc] : tsScaler){
-      ss << "ch: " << ch << "     sc: " << sc << std::endl;      
-    }    
+    for (int i = 0; i < hScaler->GetNBins(); i++){
+      ss << "ch: " << i << "     sc: " << hScaler->GetBinContent(i+1) << std::endl;
+    }
     ss << " --> scaler ==" << std::endl;
-
-    tsScaler.clear();
     
     fFile->Write(reinterpret_cast<const char *>(ss.str().c_str()), ss.str().length());
     ss.str("");
@@ -471,6 +427,9 @@ void Scaler::PostRun()
     fFile->Close();
     fFile->ClearBranch();
 
+    delete hScaler;
+    delete hScalerPrev;
+    delete hFlag;
+    delete hFlagPrev;  
     LOG(debug) << __func__ << " done";
 }
-
