@@ -19,7 +19,7 @@ git clone https://github.com/spadi-alliance/uhbook
 git clone https://github.com/spadi-alliance/nestdaq-user-impl
 cd $HOME/nestdaq/src/nestdaq-user-impl
 cmake  -DCMAKE_INSTALL_PREFIX=$HOME/nestdaq \
-               -DCMAKE_PREFIX_PATH="$HOME/nestdaq;$HOME/nestdaq/src/uhbook”\
+               -DCMAKE_PREFIX_PATH="$HOME/nestdaq;$HOME/nestdaq/src/uhbook"\
                -B ./build     -S .
 cd build
 make
