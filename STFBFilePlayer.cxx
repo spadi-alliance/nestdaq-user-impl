@@ -11,7 +11,7 @@
 #include <sstream>
 #include <sys/time.h>
 
-#include <fmt/core.h>
+//#include <fmt/core.h>
 
 #include <fairmq/runDevice.h>
 
@@ -192,7 +192,7 @@ bool STFBFilePlayer::ConditionalRun()
 #endif
 
 
-#if 1
+#if 0
     LOG(debug4) << fmt::format(
                     "STF header: magic = {:016x}, tf-id = {:d}, rsv = {:08x}, FEM-type = {:08x}, FEM-id = {:08x}, bytes = {:d}, n-msg = {:d}, sec = {:d}, usec = {:d}",
                     stfHeader->magic, stfHeader->timeFrameId, stfHeader->reserved, stfHeader->FEMType,

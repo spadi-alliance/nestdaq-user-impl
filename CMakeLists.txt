@@ -120,13 +120,16 @@ if(NOT FairLogger_INCDIR)
   set(FairLogger_INCDIR "${FairMQ_INCDIR}/fairlogger/bundled")
 endif()
 message(STATUS "FairLogger_INCDIR: ${FairLogger_INCDIR}")
-message(STATUS "FairLogger_LIBDIR: ${FairLogger_LIBDIR}")
 
-find_package(fmt)
-if(fmt_DIR)
-  message(STATUS "fmt_DIR: ${fmt_DIR}")
-  set(fmt_LIB fmt::fmt)
-  message(STATUS "fmt_LIB: ${fmt_LIB}")
+#find_package(fmt)
+#if(fmt_DIR)
+#  message(STATUS "fmt_DIR: ${fmt_DIR}")
+#  set(fmt_LIB fmt::fmt)
+#  message(STATUS "fmt_LIB: ${fmt_LIB}")
+#endif()
+if(FairLogger_INCDIR)
+  set(fmt_INCDIR "${FairMQ_INCDIR}/fairlogger/bundled")
+  message(STATUS "fmt_INCDIR: ${fmt_INCDIR}")
 endif()
 
 #==============================================================================
@@ -159,7 +162,7 @@ message(STATUS "REDIS_PLUS_PLUS_HEADER: ${REDIS_PLUS_PLUS_HEADER}")
 message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
 
 # ---------- add uhbook dependency ---------
-find_path(UHBOOK_HEADER uhbook.cxx)
+find_path(UHBOOK_HEADER uhbook.cxx ../uhbook/)
 #find_library(UHBOOK_LIB uhbook)
 
 message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
@@ -190,6 +193,7 @@ foreach(lvar IN ITEMS
     ${UHBOOK_HEADER};
     ${CMAKE_SOURCE_DIR};
 #    ${FairLogger_INCDIR};
+    ${fmt_INCDIR};
   )
 
   target_link_directories(${EXEC} PUBLIC
@@ -200,7 +204,7 @@ foreach(lvar IN ITEMS
 
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
-    ${fmt_LIB};
+#    ${fmt_LIB};
     ${ROOT_LIBRARIES};
     ${HIREDIS_LIB};
     ${REDIS_PLUS_PLUS_LIB};
@@ -224,7 +228,7 @@ endforeach()
 # AmQStrSampler (for the read-out of AmQ)
 #==============================================================================
 add_executable(AmQStrTdcSampler
-               AmQStrTdcSampler.cxx;
+    AmQStrTdcSampler.cxx;
 )
 
 target_include_directories(AmQStrTdcSampler PUBLIC 
@@ -241,17 +245,17 @@ target_link_directories(AmQStrTdcSampler PUBLIC
 )
 
 target_link_libraries(AmQStrTdcSampler  PUBLIC
-                        ${fmt_LIB};
-                        FairMQ;
-                        FairLogger;
-                        FairMQStateMachine;
-                        ${Boost_LIBRARIES};
-			Utility;
+#                        ${fmt_LIB};
+    FairMQ;
+    FairLogger;
+    FairMQStateMachine;
+    ${Boost_LIBRARIES};
+    Utility;
 )
 
 install(TARGETS
-  AmQStrTdcSampler
-  RUNTIME DESTINATION ${PROJECT_INSTALL_BINDIR}
+    AmQStrTdcSampler
+    RUNTIME DESTINATION ${PROJECT_INSTALL_BINDIR}
 )
 
 #================================================================================

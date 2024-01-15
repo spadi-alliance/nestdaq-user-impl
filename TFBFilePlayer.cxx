@@ -1,7 +1,7 @@
 #include <functional>
 
 //#include <fmt/core.h>
-#include <fairmq/FairMQLogger.h>
+//#include <fairmq/FairMQLogger.h>
 #include <fairmq/Poller.h>
 #include <fairmq/runDevice.h>
 
