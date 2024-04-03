@@ -26,8 +26,12 @@ constexpr uint64_t MAGIC = {0x004b4e53454c4946}; /* "FILESNK " */
 struct Header { /* Total size: 304 bytes */
     uint64_t magic               {MAGIC}; /* 64 bits = 8 bytes */
     union {
-        uint32_t size            {0};     /* 64 bits = 8 bytes */
-        uint32_t hLength            ;     /* 64 bits = 8 bytes */
+        uint64_t size            {0};     /* 64 bits = 8 bytes */
+        struct {
+            uint32_t length         ;
+            uint16_t hLength        ;
+            uint16_t type           ;
+        };
     };
     uint64_t fairMQDeviceType    {0};     /* 64 bits = 8 bytes */
     uint64_t runNumber           {0};     /* 64 bits = 8 bytes */
