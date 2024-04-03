@@ -430,8 +430,8 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
         stfHeader->timeFrameId = fSTFId;
     }
     fSTFId = -1;
-    stfHeader->FEMType      = fFEMType;
-    stfHeader->FEMId        = fFEMId;
+    stfHeader->femType      = fFEMType;
+    stfHeader->femId        = fFEMId;
     stfHeader->length       = std::accumulate(fWorkingPayloads->begin(), fWorkingPayloads->end(), sizeof(STF::Header),
     [](auto init, auto& m) {
         return (!m) ? init : init + m->GetSize();
@@ -440,13 +440,12 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
 
     struct timeval curtime;
     gettimeofday(&curtime, NULL);
-    stfHeader->time_sec = curtime.tv_sec;
-    stfHeader->time_usec = curtime.tv_usec;
+    stfHeader->timeSec = curtime.tv_sec;
+    stfHeader->timeUSec = curtime.tv_usec;
 
-    //  std::cout << "femtype:  "<< stfHeader->FEMType << std::endl;
-
-    //  std::cout << "sec:  "<< stfHeader->time_sec << std::endl;
-    //  std::cout << "usec: "<< stfHeader->time_usec << std::endl;
+    //  std::cout << "femtype:  "<< stfHeader->femType << std::endl;
+    //  std::cout << "sec:  "<< stfHeader->timeSec << std::endl;
+    //  std::cout << "usec: "<< stfHeader->timeUSec << std::endl;
 
     // replace first element with STF header
     fWorkingPayloads->at(0) = MessageUtil::NewMessage(*this, std::move(stfHeader));
@@ -592,7 +591,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
                     LOG(info) << "Device is not RUNNING";
                     return false;
                 }
-                LOG(error) << "Failed to enqueue sub time frame (DQM) : FEM = " << std::hex << h->FEMId << std::dec << "  STF = " << h->timeFrameId << std::endl;
+                LOG(error) << "Failed to enqueue sub time frame (DQM) : FEM = " << std::hex << h->femId << std::dec << "  STF = " << h->timeFrameId << std::endl;
             }
         }
 
@@ -611,7 +610,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
                 return false;
             }
             if( err_count < 10 )
-                LOG(error) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->FEMId << std::dec << "  STF = " << h->timeFrameId << std::endl;
+                LOG(error) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->femId << std::dec << "  STF = " << h->timeFrameId << std::endl;
 
             err_count++;
         }
@@ -673,12 +672,12 @@ void AmQStrTdcSTFBuilder::InitTask()
 
     //  fromFEMInfo feminfo;
     auto femInfo = reinterpret_cast<FEMInfo*>(msginfo->GetData());
-    auto femID   = femInfo->FEMId;
-    auto femType = femInfo->FEMType;
+    auto femID   = femInfo->femId;
+    auto femType = femInfo->femType;
 
     LOG(info) << "magic: "<< std::hex << femInfo->magic << std::dec;
-    LOG(info) << "FEMId: "<< std::hex << femID << std::dec;
-    LOG(info) << "FEMType: "<< std::hex << femType << std::dec;
+    LOG(info) << "femId: "<< std::hex << femID << std::dec;
+    LOG(info) << "femType: "<< std::hex << femType << std::dec;
     ////
 
     fFEMId = femID;

@@ -65,10 +65,10 @@ bool TFBFilePlayer::ConditionalRun()
     char tempbuf[sizeof(struct Filter::Header)];
     fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(uint64_t));
 
-    if (magic == Filter::Magic) {
+    if (magic == Filter::MAGIC) {
         fInputFile.read(tempbuf, sizeof(struct Filter::Header) - sizeof(uint64_t));
     } else 
-    if (magic == FSH::Magic) {
+    if (magic == FSH::MAGIC) {
         FSH::Header fsh;
         fsh.magic = magic;
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -79,7 +79,7 @@ bool TFBFilePlayer::ConditionalRun()
             << "(" << hmagic << ")" << " size : " << std::dec << fsh.size << std::endl;
         return true;
     } else
-    if (magic == FST::Magic) {
+    if (magic == FST::MAGIC) {
         FST::Trailer fst;
         fst.magic = magic;
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -90,7 +90,7 @@ bool TFBFilePlayer::ConditionalRun()
             << "(" << hmagic << ")" << " size : " << std::dec << fst.size << std::endl;
         return true;
     } else
-    if (magic != TF::Magic) {
+    if (magic != TF::MAGIC) {
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         LOG(error) << "Unkown magic = " << std::hex << magic << "(" << hmagic << ")";
@@ -104,7 +104,7 @@ bool TFBFilePlayer::ConditionalRun()
     outParts.AddPart(NewMessage(sizeof(TF::Header)));
     auto &msgTFHeader = outParts[0];
 
-    if (magic == TF::Magic) {
+    if (magic == TF::MAGIC) {
         *(reinterpret_cast<uint64_t *>(msgTFHeader.GetData())) = magic;
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()) + sizeof(uint64_t),
             msgTFHeader.GetSize() - sizeof(uint64_t));
@@ -314,20 +314,20 @@ void TFBFilePlayer::PreRun()
         return;
     }
     LOG(info) << "check FS header";
-    if (buf == TimeFrame::Magic) {
+    if (buf == TimeFrame::MAGIC) {
         fInputFile.seekg(0, std::ios_base::beg);
         fInputFile.clear();
         LOG(debug) << "No FS header";
-    } else if (buf == FileSinkHeader::Magic) { /* For new FileSinkHeader after 2023.06.15 */
+    } else if (buf == FileSinkHeader::MAGIC) { /* For new FileSinkHeader after 2023.06.15 */
         uint64_t hsize{0};
         fInputFile.read(reinterpret_cast<char*>(&hsize), sizeof(hsize));
-        LOG(debug) << "New FS header (Order: Magic + FS header size)";
+        LOG(debug) << "New FS header (Order: MAGIC + FS header size)";
         fInputFile.seekg(hsize - 2*sizeof(uint64_t), std::ios_base::cur);
     } else { /* For old FileSinkHeader before 2023.06.15 */
         uint64_t magic{0};
         fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-        if (magic == FileSinkHeader::Magic) {
-            LOG(debug) << "Old FS header (Order: FS header size + Magic)";
+        if (magic == FileSinkHeader::MAGIC) {
+            LOG(debug) << "Old FS header (Order: FS header size + MAGIC)";
             fInputFile.seekg(buf - 2*sizeof(uint64_t), std::ios_base::cur);
         }
     }

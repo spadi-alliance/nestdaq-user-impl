@@ -120,17 +120,17 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
       LOG(debug) << "nmsg: " << nmsg;      
       LOG(debug) << "magic: " << std::hex << h->magic << std::dec;
       LOG(debug) << "timeFrameId: " << h->timeFrameId;
-      LOG(debug) << "FEMType: " << h->FEMType;
-      LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
+      LOG(debug) << "femType: " << h->femType;
+      LOG(debug) << "femId: " << std::hex << h->femId << std::dec;
       LOG(debug) << "length: " << h->length;
-      LOG(debug) << "time_sec: " << h->time_sec;
-      LOG(debug) << "time_sec: " << h->time_usec;
+      LOG(debug) << "time_sec: " << h->timeSec;
+      LOG(debug) << "time_sec: " << h->timeUSec;
     }
 
-    if (!fFEMId.count(h->FEMId)) {
-      LOG(debug) << "FEMTId: " << std::hex << h->FEMId << std::dec;
-      fFEMId[h->FEMId] = fId;
-      fModuleIp[fId] = h->FEMId & 0xff;
+    if (!fFEMId.count(h->femId)) {
+      LOG(debug) << "femId: " << std::hex << h->femId << std::dec;
+      fFEMId[h->femId] = fId;
+      fModuleIp[fId] = h->femId & 0xff;
       LOG(debug) << "fId: "<< fId <<  " mIp: " << fModuleIp[fId];
       
       fId++;
@@ -139,8 +139,8 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
     //auto len   = h->length - sizeof(STF::Header); // data size including tdc measurement
     //auto nword = len/sizeof(Word);
     //auto nhit  = nword - nmsg;
-    auto femIdx = fFEMId[h->FEMId];
-    //    auto femIdx = (h->FEMId & 0x0f) - 1;
+    auto femIdx = fFEMId[h->femId];
+    //    auto femIdx = (h->femId & 0x0f) - 1;
 
     timeFrameId[h->timeFrameId].insert(femIdx);
     length[h->length].insert(femIdx);
@@ -166,7 +166,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
 	}
 
         if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
-          LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
+          LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << h->femId << std::dec << " " << femIdx;
         }
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
@@ -195,7 +195,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
         break;
       case Data::SpillOn: 
         if (spillOn.count(femIdx)) {
-          LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
+          LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->femId << std::dec << " " << femIdx;
         }
 
         spillOn.insert(femIdx);
@@ -203,7 +203,7 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
         break;
       case Data::SpillEnd: 
         if (spillEnd.count(femIdx)) {
-          LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->FEMId << std::dec << " " << femIdx;
+          LOG(error) << " double count of spill end in TF " << h->timeFrameId << " " << std::hex << h->femId << std::dec << " " << femIdx;
         }
 
         spillEnd.insert(femIdx);
@@ -212,27 +212,27 @@ void AmQStrTdcDqm::Check(std::vector<STFBuffer>& stfs)
       case Data::Data:
 	
 	if(fDebug){
-	  LOG(debug) << "FEMtype: "<< h->FEMType;
+	  LOG(debug) << "FEMtype: "<< h->femType;
 	  LOG(debug) << "femIdx: " << std::hex << femIdx << std::dec;	  
-	  LOG(debug) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec << " " << femIdx
+	  LOG(debug) << "AmQStrTdc : " << std::hex << h->femId << std::dec << " " << femIdx
 		     << " receives Head of tdc data : " << std::hex << wb->head << std::dec;
 	}
 
 	if(fDebug){
-	  if( (h->FEMType==1) || (h->FEMType==3) )
+	  if( (h->femType==1) || (h->femType==3) )
 	    LOG(debug) << "hrtdc: "   << std::hex << wb->hrtdc << std::dec;
 
-	  if(h->FEMType==2)	  
+	  if(h->femType==2)	  
 	    LOG(debug) << "hrtdcCh: " << std::hex << wb->hrch << std::dec;
 	}
 
 	
-	if( (h->FEMType==1) || (h->FEMType==3) ) lrtdcCnt[wb->ch].insert(femIdx);
-	if(h->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
+	if( (h->femType==1) || (h->femType==3) ) lrtdcCnt[wb->ch].insert(femIdx);
+	if(h->femType==2) hrtdcCnt[wb->hrch].insert(femIdx);
 	
         break;
       default:
-        LOG(error) << "AmQStrTdc : " << std::hex << h->FEMId << std::dec  << " " << femIdx
+        LOG(error) << "AmQStrTdc : " << std::hex << h->femId << std::dec  << " " << femIdx
                    << " unknown Head : " << std::hex << wb->head << std::dec;
         break;
       }
@@ -389,16 +389,16 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
     nmsg++;
     //    LOG(debug) << " STF msg size : " << msgSize ;
 
-    if (!fFEMId.count(stfh->FEMId)) {
-      LOG(debug) << "FEMTId: " << std::hex << stfh->FEMId << std::dec;
-      fFEMId[stfh->FEMId] = fId;
-      fModuleIp[fId] = stfh->FEMId & 0xff;
+    if (!fFEMId.count(stfh->femId)) {
+      LOG(debug) << "FEMTId: " << std::hex << stfh->femId << std::dec;
+      fFEMId[stfh->femId] = fId;
+      fModuleIp[fId] = stfh->femId & 0xff;
       LOG(debug) << "fId: "<< fId <<  " mIp: " << fModuleIp[fId];
       
       fId++;
     }
 
-    auto femIdx = fFEMId[stfh->FEMId];
+    auto femIdx = fFEMId[stfh->femId];
 
     timeFrameId[stfh->timeFrameId].insert(femIdx);
     length[stfh->length].insert(femIdx);
@@ -414,7 +414,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
       case Data::Heartbeat:
 
         if (heartbeatCnt.count(wb->hbframe) && heartbeatCnt.at(wb->hbframe).count(femIdx)) {
-          LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << stfh->FEMId << std::dec << " " << femIdx;
+          LOG(error) << " double count of heartbeat " << wb->hbframe << " " << std::hex << stfh->femId << std::dec << " " << femIdx;
         }
 	
         heartbeatCnt[wb->hbframe].insert(femIdx);
@@ -427,7 +427,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
         break;
       case Data::SpillOn: 
 	if (spillOn.count(femIdx)) {
-          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId
+          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->femId
 		     << std::dec << " " << femIdx;
         }
 
@@ -436,7 +436,7 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
         break;
       case Data::SpillEnd: 
         if (spillEnd.count(femIdx)) {
-          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->FEMId
+          LOG(error) << " double count of spill end in TF " << stfh->timeFrameId << " " << std::hex << stfh->femId
 		     << std::dec << " " << femIdx;
         }
 
@@ -445,12 +445,12 @@ bool AmQStrTdcDqm::HandleDataTFB(FairMQParts& parts, int index)
         break;
       case Data::Data:
 	
-	if( (stfh->FEMType==1) || (stfh->FEMType==3) ) lrtdcCnt[wb->ch].insert(femIdx);
-	if(stfh->FEMType==2) hrtdcCnt[wb->hrch].insert(femIdx);
+	if( (stfh->femType==1) || (stfh->femType==3) ) lrtdcCnt[wb->ch].insert(femIdx);
+	if(stfh->femType==2) hrtdcCnt[wb->hrch].insert(femIdx);
 
         break;
       default:
-        LOG(error) << "AmQStrTdc : " << std::hex << stfh->FEMId << std::dec  << " " << femIdx
+        LOG(error) << "AmQStrTdc : " << std::hex << stfh->femId << std::dec  << " " << femIdx
                    << " unknown Head : " << std::hex << wb->head << std::dec
 		   << " word = " << std::hex << wb->raw << std::dec;
         break;

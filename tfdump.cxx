@@ -118,7 +118,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 		<< " Size: " << std::dec << msize << std::endl;
 	#endif
 
-	if (msg_magic == Filter::Magic) {
+	if (msg_magic == Filter::MAGIC) {
 		if (fIsShrink) {
 			std::cout << "F";
 		} else {
@@ -132,7 +132,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< " elapse: " << std::dec <<  pflt->elapseTime
 			<< std::endl;
 		}
-	} else if (msg_magic == TimeFrame::Magic) {
+	} else if (msg_magic == TimeFrame::MAGIC) {
 		if (fIsShrink) {
 			std::cout << "T";
 		} else {
@@ -145,7 +145,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< " len: " << std::dec <<  ptf->length
 			<< std::endl;
 		}
-	} else if (msg_magic == SubTimeFrame::Magic) {
+	} else if (msg_magic == SubTimeFrame::MAGIC) {
 		if (fIsShrink) {
 			std::cout << "S";
 		} else {
@@ -155,17 +155,17 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< std::hex << std::setw(8) << std::setfill('0') <<  pstf->magic
 			<< " id: " << std::setw(8) << std::setfill('0') <<  pstf->timeFrameId
 			//<< " res: " << std::setw(8) << std::setfill('0') <<  pstf->reserved
-			<< " Type: " << std::setw(8) << std::setfill('0') <<  pstf->FEMType
-			<< " FE: " << std::setw(8) << std::setfill('0') <<  pstf->FEMId
+			<< " Type: " << std::setw(8) << std::setfill('0') <<  pstf->femType
+			<< " FE: " << std::setw(8) << std::setfill('0') <<  pstf->femId
 			<< std::endl << "# "
 			<< " len: " << std::dec <<  pstf->length
 			<< " nMsg: " << std::dec <<  pstf->numMessages
 			<< std::endl << "# "
-			<< " Ts: " << std::dec << pstf->time_sec
-			<< " Tus: " << std::dec << pstf->time_usec
+			<< " Ts: " << std::dec << pstf->timeSec
+			<< " Tus: " << std::dec << pstf->timeUSec
 			<< std::endl;
 
-		fFE_type = pstf->FEMType;
+		fFE_type = pstf->femType;
 		}
 	} else {
 		if (fIsShrink) {
@@ -279,7 +279,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 		<< " Size: " << std::dec << msize << std::endl;
 	#endif
 
-	if (msg_magic == TimeFrame::Magic) {
+	if (msg_magic == TimeFrame::MAGIC) {
 		TimeFrame::Header *ptf
 			= reinterpret_cast<TimeFrame::Header *>(pdata);
 		ltimeframe.magic = ptf->magic;
@@ -294,7 +294,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			<< " len: " << std::dec <<  ptf->length
 			<< std::endl;
 
-	} else if (msg_magic == SubTimeFrame::Magic) {
+	} else if (msg_magic == SubTimeFrame::MAGIC) {
 		SubTimeFrame::Header *pstf
 			= reinterpret_cast<SubTimeFrame::Header *>(pdata);
 		if (nsubtimeframe != 0) {
@@ -303,7 +303,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 
 		lsubtimeframe.magic = pstf->magic;
 		lsubtimeframe.timeFrameId = pstf->timeFrameId;
-		lsubtimeframe.FEMId = pstf->FEMId;
+		lsubtimeframe.femId = pstf->femId;
 		lsubtimeframe.length = pstf->length;
 		lsubtimeframe.numMessages = pstf->numMessages;
 		nsubtimeframe = lsubtimeframe.numMessages - 1;
@@ -311,7 +311,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 		std::cout << "#STF Header "
 			<< std::hex << std::setw(8) << std::setfill('0') <<  pstf->magic
 			<< " id: " << std::setw(8) << std::setfill('0') <<  pstf->timeFrameId
-			<< " FE: " << std::setw(8) << std::setfill('0') <<  pstf->FEMId
+			<< " FE: " << std::setw(8) << std::setfill('0') <<  pstf->femId
 			<< " len: " << std::dec <<  pstf->length
 			<< " nMsg: " << std::dec <<  pstf->numMessages
 			<< std::endl;

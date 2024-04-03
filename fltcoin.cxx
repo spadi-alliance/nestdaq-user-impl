@@ -224,7 +224,7 @@ bool FltCoin::CheckData(fair::mq::MessagePtr &msg)
 	std::cout << "#Msg Top(8B): " << std::hex << msg_magic
 		<< " Size: " << std::dec << msize << std::endl;
 
-	if (msg_magic == TimeFrame::Magic) {
+	if (msg_magic == TimeFrame::MAGIC) {
 		TimeFrame::Header *ptf = reinterpret_cast<TimeFrame::Header *>(pdata);
 		std::cout << "#TF Header "
 			<< std::hex << std::setw(16) << std::setfill('0') <<  ptf->magic
@@ -246,28 +246,28 @@ bool FltCoin::CheckData(fair::mq::MessagePtr &msg)
 		std::cout << std::endl;
 		#endif
 		
-	} else if (msg_magic == SubTimeFrame::Magic) {
+	} else if (msg_magic == SubTimeFrame::MAGIC) {
 		SubTimeFrame::Header *pstf
 				= reinterpret_cast<SubTimeFrame::Header *>(pdata);
 		std::cout << "#STF Header "
 			<< std::hex << std::setw(8) << std::setfill('0') <<  pstf->magic
 			<< " id: " << std::setw(8) << std::setfill('0') <<  pstf->timeFrameId
-			<< " Type: " << std::setw(8) << std::setfill('0') <<  pstf->FEMType
-			<< " FE: " << std::setw(8) << std::setfill('0') <<  pstf->FEMId
+			<< " Type: " << std::setw(8) << std::setfill('0') <<  pstf->femType
+			<< " FE: " << std::setw(8) << std::setfill('0') <<  pstf->femId
 			<< std::endl << "# "
 			<< " len: " << std::dec <<  pstf->length
 			<< " nMsg: " << std::dec <<  pstf->numMessages
 			<< std::endl << "# "
-			<< " Ts: " << std::dec << pstf->time_sec
-			<< " Tus: " << std::dec << pstf->time_usec
+			<< " Ts: " << std::dec << pstf->timeSec
+			<< " Tus: " << std::dec << pstf->timeUSec
 			<< std::endl;
 
-		fe_type = pstf->FEMType;
+		fe_type = pstf->femType;
 
 		//// toriaezu debug no tameni ireru. atodekesukoto
 		//fe_type = 1;
-		//pstf->FEMType = 1;
-		//pstf->FEMId = 1234;
+		//pstf->femType = 1;
+		//pstf->femId = 1234;
 		////
 
 	} else {
@@ -386,7 +386,7 @@ bool FltCoin::ConditionalRun()
 		sw_start = std::chrono::system_clock::now();
 
 		struct DataBlock {
-			uint32_t FEMId;
+			uint32_t femId;
 			uint32_t Type;
 			int HBFrame;
 			bool is_HB;
@@ -408,11 +408,11 @@ bool FltCoin::ConditionalRun()
 					= reinterpret_cast<TimeFrame::Header *>(inParts[i].GetData());
 				struct SubTimeFrame::Header *stbh
 					= reinterpret_cast<SubTimeFrame::Header *>(inParts[i].GetData());
-				if (tbh->magic == TimeFrame::Magic) {
+				if (tbh->magic == TimeFrame::MAGIC) {
 					std::cout << "TF Id: "
 						<< tbh->timeFrameId  << " Nsrc: " << tbh->numSource;
 				} else
-				if (stbh->magic == SubTimeFrame::Magic) {
+				if (stbh->magic == SubTimeFrame::MAGIC) {
 					std::cout << std::endl << "* STF : " << std::hex
 						<< std::setw(8) << stbh->timeFrameId << " :"; 
 				} else {
@@ -439,15 +439,15 @@ bool FltCoin::ConditionalRun()
 			auto stfHeader = reinterpret_cast<struct SubTimeFrame::Header *>(inParts[i].GetData());
 			struct DataBlock dblock;
 
-			if (tfHeader->magic == TimeFrame::Magic) {
+			if (tfHeader->magic == TimeFrame::MAGIC) {
 				ifem = -1;
 				stf.clear();
 				stf.resize(0);
 				i_tfHeader = tfHeader;
 			} else
-			if (stfHeader->magic == SubTimeFrame::Magic) {
-				femid = stfHeader->FEMId;
-				devtype = stfHeader->FEMType;
+			if (stfHeader->magic == SubTimeFrame::MAGIC) {
+				femid = stfHeader->femId;
+				devtype = stfHeader->femType;
 				if (blocks.size() > 0) block_map.push_back(blocks);
 				stf.push_back(*stfHeader);
 				dblock.is_HB = false;
@@ -474,7 +474,7 @@ bool FltCoin::ConditionalRun()
 				#endif
 
 				if (hbframe < 0) {
-					dblock.FEMId = femid;
+					dblock.femId = femid;
 					dblock.Type = devtype;
 					dblock.is_HB = false;
 					dblock.msg_index = i;
@@ -502,7 +502,7 @@ bool FltCoin::ConditionalRun()
 							//assert(0);
 							#endif
 
-							dblock.FEMId = femid;
+							dblock.femId = femid;
 							dblock.Type = SubTimeFrame::NULDEV;
 							dblock.is_HB = false;
 							//dblock.msg_index = i - 1;
@@ -514,7 +514,7 @@ bool FltCoin::ConditionalRun()
 					}
 
 					dblock.HBFrame = hbframe;
-					dblock.FEMId = femid;
+					dblock.femId = femid;
 					dblock.Type = devtype;
 					dblock.is_HB = true;
 					dblock.msg_index = i;
@@ -569,7 +569,7 @@ bool FltCoin::ConditionalRun()
 			/// mark Hits
 			for (size_t iifem = 0 ; iifem < block_map.size() ; iifem++) {
 				struct DataBlock *dbl = &block_map[iifem][i];
-				uint64_t vfemid = dbl->FEMId;
+				uint64_t vfemid = dbl->femId;
 				//int mindex = dbl->msg_index;
 				//if (mindex > 0) {
 				if (!(dbl->is_HB)) {
@@ -623,7 +623,7 @@ bool FltCoin::ConditionalRun()
 			std::cout << "# HB: " << std::dec << i;
 			for (size_t iifem = 0 ; iifem < block_map.size() ; iifem++) {
 				struct DataBlock *dbl = &block_map[iifem][i];
-				uint64_t vfemid = dbl->FEMId;
+				uint64_t vfemid = dbl->femId;
 				uint64_t vhbframe = dbl->HBFrame;
 				//std::cout << "# HB: " << std::dec << i
 				//<< " FEM: " << std::hex << vfemid
@@ -678,7 +678,7 @@ bool FltCoin::ConditionalRun()
 					//std::cout << "#D mindex: " << mindex
 					//	<< " h: " << is_HB
 					//	<< " t: " << block_map[iifem][i].Type
-					//	<< " i: " << std::hex << block_map[iifem][i].FEMId
+					//	<< " i: " << std::hex << block_map[iifem][i].femId
 					//	<< std::dec << std::endl;;
 
 					if ((mindex > 0) && (! is_HB)) {
@@ -704,7 +704,7 @@ bool FltCoin::ConditionalRun()
 					//std::cout << "#D H mindex: " << mindex
 					//	<< " h: " << is_HB
 					//	<< " t: " << block_map[iifem][i].Type
-					//	<< " i: " << std::hex << block_map[iifem][i].FEMId
+					//	<< " i: " << std::hex << block_map[iifem][i].femId
 					//	<< " Nhits: " << std::dec << nhits
 					//	<< std::endl;;
 				}
@@ -813,7 +813,7 @@ bool FltCoin::ConditionalRun()
 			for (int ii = 0 ; ii < inParts.Size() ; ii++) {
 				auto stfh = reinterpret_cast<struct SubTimeFrame::Header *>
 					(inParts[ii].GetData());
-				if (stfh->magic == SubTimeFrame::Magic) {
+				if (stfh->magic == SubTimeFrame::MAGIC) {
 					uint32_t len_stf = 0;
 					uint32_t nmsg_stf = 0;
 					int kk = ii + 1;
@@ -821,7 +821,7 @@ bool FltCoin::ConditionalRun()
 						auto sstf =
 							reinterpret_cast<struct SubTimeFrame::Header *>
 							(inParts[jj].GetData());
-						if (sstf->magic == SubTimeFrame::Magic) {
+						if (sstf->magic == SubTimeFrame::MAGIC) {
 							kk = jj;
 							break;
 						} else
@@ -882,7 +882,7 @@ bool FltCoin::ConditionalRun()
 		uint64_t flt_len = tf_len + sizeof(struct Filter::Header);	
 		
 		auto fltHeader = std::make_unique<struct Filter::Header>();
-		fltHeader->magic = Filter::Magic;
+		fltHeader->magic = Filter::MAGIC;
 		fltHeader->length = flt_len;
 		fltHeader->numTrigs = totalhits;
 		fltHeader->workerId = fId;
@@ -917,7 +917,7 @@ bool FltCoin::ConditionalRun()
 		for (unsigned int ii = 0 ; ii < msg_size ; ii++) {
 			auto stfHeader = reinterpret_cast<struct SubTimeFrame::Header *>
 				(inParts[ii].GetData());
-			if (stfHeader->magic == SubTimeFrame::Magic) std::cout << std::endl;
+			if (stfHeader->magic == SubTimeFrame::MAGIC) std::cout << std::endl;
 			std::cout << flag_sending[ii];
 			if (flag_sending[ii]) flagcount++;
 		}

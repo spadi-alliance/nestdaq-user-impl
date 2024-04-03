@@ -14,8 +14,8 @@
 
 struct FEMInfo {
     uint64_t magic    {0};
-    uint32_t FEMType  {0};
-    uint32_t FEMId    {0};
+    uint32_t femType  {0};
+    uint32_t femId    {0};
     uint64_t reserved {0};
 };
 

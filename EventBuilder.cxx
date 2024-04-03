@@ -109,12 +109,12 @@ bool EventBuilder::ConditionalRun()
         auto& part = inParts[iPart];
         auto headertype = *reinterpret_cast<uint64_t *>(part.GetData());
 
-        if (headertype == Filter::Magic) {
+        if (headertype == Filter::MAGIC) {
             continue;
         }
 
         // count the number of subtime frames and the heartbeat frames for  each FEM
-        if (headertype == TimeFrame::Magic) {
+        if (headertype == TimeFrame::MAGIC) {
 
             sw_start = std::chrono::system_clock::now();
 
@@ -135,13 +135,13 @@ bool EventBuilder::ConditionalRun()
                 }
                 auto& part = inParts[iPart];
                 auto header = reinterpret_cast<struct SubTimeFrame::Header*>(part.GetData());
-                if (header->magic != SubTimeFrame::Magic) {
+                if (header->magic != SubTimeFrame::MAGIC) {
                     LOG(error) << "header magic is required " << std::hex << header->magic;
 
                     for (int i = 0 ; i < inParts.Size() ; i++) {
                         uint64_t *pmsgdata = reinterpret_cast<uint64_t *>(inParts[i].GetData());
                         std::cout << "#D Msg top: " << i << ":" << std::hex << pmsgdata[0];
-                        if (pmsgdata[0] == SubTimeFrame::Magic) {
+                        if (pmsgdata[0] == SubTimeFrame::MAGIC) {
                             auto hh = reinterpret_cast<struct SubTimeFrame::Header*>(inParts[i].GetData());
                             std::cout << " Nmsg: " << hh->numMessages << std::endl;
                         } else {
@@ -154,7 +154,7 @@ bool EventBuilder::ConditionalRun()
                 }
 #if 0
                 LOG(info) << "STFB found " << std::hex <<  header->magic << std::dec << " in Part[" << iPart << "]";
-                LOG(info) << "    FEMType = " << header->FEMType << ", FEMID = " << std::hex <<  header->FEMId ;
+                LOG(info) << "    femType = " << header->femType << ", femID = " << std::hex <<  header->femId ;
                 LOG(info) << "    numMessages = " << header->numMessages << ", length = " << header->length ;
 #endif
                 auto& stf = stfs[iSrc];
@@ -170,7 +170,7 @@ bool EventBuilder::ConditionalRun()
                     }
                     auto& part = inParts[iPart];
                     auto header = reinterpret_cast<struct SubTimeFrame::Header*>(part.GetData());
-                    if (header->magic == SubTimeFrame::Magic) {
+                    if (header->magic == SubTimeFrame::MAGIC) {
                         LOG(warn) << "numMessages is not correct used " << iMsg << " instead of  " << header->numMessages;
                         iPart--;
                         break;
@@ -234,11 +234,11 @@ bool EventBuilder::ConditionalRun()
                 for (int iSrc = 0, nSrc = tfbheader->numSource; iSrc != nSrc; ++iSrc) {
                     const auto& stf = stfs[iSrc];
 #if   0
-                    LOG(info) << "[" << iSrc << "]" << "num data = " << stf.data.size() << " in " << std::hex << stf.header->FEMId
-                        << "(type = " << stf.header->FEMType << ")";
+                    LOG(info) << "[" << iSrc << "]" << "num data = " << stf.data.size() << " in " << std::hex << stf.header->femId
+                        << "(type = " << stf.header->femType << ")";
 #endif
                     printf("iSrc = %d\n",iSrc);
-                    auto femtype = stf.header->FEMType;
+                    auto femtype = stf.header->femType;
 
                     uint32_t size = stf.datasize[iframe]/sizeof(uint64_t);
                     //	  printf("size[%d][%d] = %d\n",iSrc,iframe,size);
@@ -261,7 +261,7 @@ bool EventBuilder::ConditionalRun()
                             fTDCIdx[tdc.tdc4n] = fTDCData.size() - 1;
                         }
                         fTDCData[fTDCIdx[tdc.tdc4n]][iSrc].push_back(stf.data[iframe][idata]);
-                        if (stf.header->FEMId != target[0][0]) continue;
+                        if (stf.header->femId != target[0][0]) continue;
                         if (tdc.ch != target[0][1]) continue;
 #if 0
                         LOG(info) << "target found at " << iSrc << "/" << iframe << "/"

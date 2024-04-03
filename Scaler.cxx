@@ -70,9 +70,9 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 
   auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
   int nCh = 0;
-  if(stfHeader->FEMType == 1 || stfHeader->FEMType == 3){
+  if(stfHeader->femType == 1 || stfHeader->femType == 3){
     nCh = 128;
-  }else if(stfHeader->FEMType == 2){
+  }else if(stfHeader->femType == 2){
     nCh = 64;
   }
   if (nCh != hScaler->GetNBins()){
@@ -192,11 +192,11 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	break;
       }
     case Data::SpillOn: 
-      LOG(info) << "SpillOn:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->FEMId ;
+      LOG(info) << "SpillOn:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->femId ;
       break;
 
     case Data::SpillEnd: 
-      LOG(info) << "SpillEnd:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->FEMId ;
+      LOG(info) << "SpillEnd:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->femId ;
       break;
 	
     case Data::Data:
@@ -209,15 +209,15 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	  auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
 	  
 	  if(fDebug){
-	    if( (stfHeader->FEMType == 1) || (stfHeader->FEMType==3) )
+	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) )
 	      LOG(debug) << "LRtdc: "   << std::hex << iwb->tdc << std::dec;
-	    if(stfHeader->FEMType == 2)	  
+	    if(stfHeader->femType == 2)	  
 	      LOG(debug) << "HRtdc: " << std::hex << iwb->hrtdc<< std::dec;
 	  }
 	
-	  if( (stfHeader->FEMType == 1) || (stfHeader->FEMType==3) ) {
+	  if( (stfHeader->femType == 1) || (stfHeader->femType==3) ) {
 	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
-	  }else if(stfHeader->FEMType==2) {
+	  }else if(stfHeader->femType==2) {
 	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
 	  }
 	    
@@ -228,7 +228,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 
     default:
       LOG(error) << " unknown Head : " << std::hex << wb->head << std::dec
-		 << " FEMId: " << std::hex << stfHeader->FEMId;
+		 << " FEMId: " << std::hex << stfHeader->femId;
                    
       break;
     }
@@ -246,16 +246,16 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
       
   /* send data to Filesink */
   FairMQParts outParts;
-  fFEMId = stfHeader->FEMId;
+  fFEMId = stfHeader->femId;
   
-  //  auto femid = stfHeader->FEMId & 0xff;
-  scHeader->FEMType     = 200;  
-  scHeader->FEMId       = stfHeader->FEMId;
+  //  auto femid = stfHeader->femId & 0xff;
+  scHeader->femType     = 200;  
+  scHeader->femId       = stfHeader->femId;
   scHeader->length      = outdata->size()*sizeof(uint64_t) + sizeof(STF::Header);  
   scHeader->timeFrameId = stfHeader->timeFrameId;
   scHeader->numMessages = stfHeader->numMessages;
-  scHeader->time_sec    = stfHeader->time_sec;
-  scHeader->time_usec   = stfHeader->time_usec;     
+  scHeader->timeSec    = stfHeader->timeSec;
+  scHeader->timeUSec   = stfHeader->timeUSec;     
     
     
   FairMQMessagePtr tmsg = MessageUtil::NewMessage(*this, std::move(scHeader));

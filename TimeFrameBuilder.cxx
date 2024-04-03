@@ -67,7 +67,7 @@ bool TimeFrameBuilder::ConditionalRun()
         LOG(debug4) << "msg size: " << inParts.Size();
 
         #if 1
-        auto fem     = stfHeader->FEMId;
+        auto fem     = stfHeader->femId;
         auto lastmsg = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
         unsigned int type = (lastmsg[0] & 0xfc00'0000'0000'0000) >> 58;
         if ((type == 0x1c) || (type == 0x18) || (type == 0x14)) {
@@ -108,7 +108,7 @@ bool TimeFrameBuilder::ConditionalRun()
                 FairMQParts dqmParts;
                 
                 auto h = std::make_unique<TF::Header>();
-                h->magic       = TF::Magic;
+                h->magic       = TF::MAGIC;
                 h->timeFrameId = stfId;
                 h->numSource   = fNumSource;
                 h->length      = std::accumulate(tfBuf.begin(), tfBuf.end(), sizeof(TF::Header),
@@ -222,10 +222,10 @@ bool TimeFrameBuilder::ConditionalRun()
                         auto & msg = stfBuf.parts[0];
                         SubTimeFrame::Header *stfheader
                             = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
-                        //std::cout << " ID" << std::hex << stfheader->FEMId << std::dec;
-                        femid.push_back(stfheader->FEMId);
+                        //std::cout << " ID" << std::hex << stfheader->femId << std::dec;
+                        femid.push_back(stfheader->femId);
                         for (auto it = expected.begin() ; it != expected.end() ;) {
-                            if (*it == (stfheader->FEMId && 0xff)) {
+                            if (*it == (stfheader->femId && 0xff)) {
                                 it = expected.erase(it);
                             } else {
                                 it++;
@@ -241,7 +241,7 @@ bool TimeFrameBuilder::ConditionalRun()
                                 hb.push_back(hb00);
                         }
                     }
-                    //std::cout << "#D lost FEMid :" << stfId << ":";
+                    //std::cout << "#D lost femId :" << stfId << ":";
                     //for (auto & i : expected) std::cout << " " << (i & 0xff);
                     std::cout << "#D FEM TFN: " << stfId << ", N: " << femid.size() << ", id:";
                     for (auto & i : femid) std::cout << " " << (i & 0xff);

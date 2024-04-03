@@ -304,7 +304,7 @@ void FileSink::PostRun()
         }
     }
 
-    fFileSinkTrailer.magic            = FileSinkTrailer::Magic;
+    fFileSinkTrailer.magic            = FileSinkTrailer::MAGIC;
     fFileSinkTrailer.size             = sizeof(FileSinkTrailer::Trailer);
     fFileSinkTrailer.fairMQDeviceType = fFileSinkHeader.fairMQDeviceType;
     fFileSinkTrailer.runNumber        = fFileSinkHeader.runNumber;
@@ -416,7 +416,7 @@ void FileSink::PreRun()
         fWorker->Run();
     }
 
-    fFileSinkHeader.magic            = FileSinkHeader::Magic;
+    fFileSinkHeader.magic            = FileSinkHeader::MAGIC;
     fFileSinkHeader.size             = sizeof(FileSinkHeader::Header);
     fFileSinkHeader.fairMQDeviceType = 99;
     fFileSinkHeader.runNumber        = fRunNumber;

@@ -103,22 +103,22 @@ void STFBFilePlayer::PreRun()
     }
     LOG(info) << "check FS header : " << buf;
 
-    if (buf == SubTimeFrame::Magic) {
+    if (buf == SubTimeFrame::MAGIC) {
         //if ((buf[0] != nestdaq::FileSinkHeaderBlock::kMagic)
         //    || (buf[1] != nestdaq::FileSinkHeaderBlock::kMagi)) {
         fInputFile.seekg(0, std::ios_base::beg);
         fInputFile.clear();
         LOG(debug) << "No FS header";
-    } else if (buf == FileSinkHeader::Magic) { /* For new FileSinkHeader after 2023.06.15 */
+    } else if (buf == FileSinkHeader::MAGIC) { /* For new FileSinkHeader after 2023.06.15 */
         uint64_t hsize{0};
         fInputFile.read(reinterpret_cast<char*>(&hsize), sizeof(hsize));
-	LOG(debug) << "New FS header (Order: Magic + FS header size)";
+	LOG(debug) << "New FS header (Order: MAGIC + FS header size)";
 	fInputFile.seekg(hsize - 2*sizeof(uint64_t), std::ios_base::cur);
     } else { /* For old FileSinkHeader before 2023.06.15 */
         uint64_t magic{0};
         fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-        if (magic == FileSinkHeader::Magic) {
-            LOG(debug) << "Old FS header (Order: FS header size + Magic)";
+        if (magic == FileSinkHeader::MAGIC) {
+            LOG(debug) << "Old FS header (Order: FS header size + MAGIC)";
             fInputFile.seekg(buf - 2*sizeof(uint64_t), std::ios_base::cur);
         }
     }
@@ -150,8 +150,8 @@ bool STFBFilePlayer::ConditionalRun()
     auto stfHeader = reinterpret_cast<STF::Header*>(msgSTFHeader.GetData());
 
     // This code may not be beautiful. This can be rewritten by Takahashi-san or Igarashi-san. Nobu 2023.06.15
-    if (stfHeader->magic != STF::Magic) {
-        if (stfHeader->magic == FST::Magic) {
+    if (stfHeader->magic != STF::MAGIC) {
+        if (stfHeader->magic == FST::MAGIC) {
             auto fsTrailer = reinterpret_cast<FST::Trailer*>(stfHeader);
 	    LOG(info) << "maigic : " << std::hex << fsTrailer->magic
 	              << " size : " << std::dec << fsTrailer->size;
