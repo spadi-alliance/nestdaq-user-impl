@@ -314,6 +314,7 @@ void AmQStrTdcSampler::PostRun()
     FPGAModule fModule(fIpSiTCP.c_str(), 4660, &rbcpHeader, 0);
     fModule.WriteModule(DCT::addr_gate,  0, 1);
     */
+    /*
     int recv_status = 0;
     int num_recieved_bytes = 0;
     int n_word = 0;
@@ -325,7 +326,7 @@ void AmQStrTdcSampler::PostRun()
       LOG(info) << "Receiving remaining data:" << n_word << "read";
       continue;
     }
-
+    */
     close(fAmqSocket);
     LOG(info) << "Socket close";
     LOG(info) << "End DAQ";

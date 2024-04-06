@@ -95,9 +95,9 @@ private:
     std::string fHostNameKey;
     std::string fIpAddressKey;
 
-    uint32_t    fpreFlagSum[10]; 
+    uint32_t    fpreFlagSum[16]; 
   
-    uint32_t    FlagSum[10];
+    uint32_t    FlagSum[16];
     uint32_t    tsHeartbeatFlag {0};
     uint64_t    tsHeartbeatCounter {0};
     uint64_t    fPrevHeartbeatCounter {0};

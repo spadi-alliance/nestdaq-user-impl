@@ -57,7 +57,7 @@ public:
 private:
     void BuildFrame(FairMQMessagePtr& msg, int index);
     void FillData(AmQStrTdc::Data::Word* first,
-                  AmQStrTdc::Data::Word* last,
+ 		  AmQStrTdc::Data::Word* last,
                   MsgType isType);
     void FinalizeSTF();
     bool HandleData(FairMQMessagePtr&, int index);

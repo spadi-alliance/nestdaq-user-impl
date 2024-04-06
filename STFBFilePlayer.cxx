@@ -225,7 +225,7 @@ bool STFBFilePlayer::ConditionalRun()
         if (fSplitMethod == 0) {
             switch (d->head) {
             //-----------------------------
-            case AmQStrTdc::Data::SpillEnd:
+	      //	    case AmQStrTdc::Data::SpillEnd:
             //-----------------------------
             case AmQStrTdc::Data::Heartbeat: {
                 outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
@@ -251,7 +251,7 @@ bool STFBFilePlayer::ConditionalRun()
         } else {
             switch (d->head) {
             //-----------------------------
-            case AmQStrTdc::Data::SpillEnd:
+	      //            case AmQStrTdc::Data::SpillEnd:
             //-----------------------------
             case AmQStrTdc::Data::Heartbeat: {
 

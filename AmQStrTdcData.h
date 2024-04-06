@@ -8,9 +8,9 @@ namespace AmQStrTdc::Data {
   struct Word {
     uint8_t d[8];
   };
-
-  inline namespace v0 {
-
+  
+  namespace v0 {
+	   
   struct Bits {
     union {
       uint8_t d[8];
@@ -75,8 +75,8 @@ namespace AmQStrTdc::Data {
   } // namespace v0
 
 
-  namespace v1 {
-
+  inline namespace v1 {
+        
   struct Bits {
     union {
       uint8_t d[8];
@@ -110,7 +110,7 @@ namespace AmQStrTdc::Data {
 
       // 1st heartbeat
       struct {
-	uint64_t zero_h     : 24;
+	uint64_t hbframe    : 24; // [23,0]
 	uint64_t toffset    : 16; // [39,24]
 	uint64_t hbflag     : 16; // [55,40]
 	uint64_t reserve1   : 2;  // [57,56]
@@ -131,7 +131,7 @@ namespace AmQStrTdc::Data {
 
   enum HeadTypes {
     Data              = 0x0B,
-    Heartbeat1st      = 0x1C,
+    Heartbeat         = 0x1C,
     Heartbeat2nd      = 0x1E,    
     Trailer           = 0x0D,
     ThrottlingT1Start = 0x19,
