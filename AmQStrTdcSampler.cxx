@@ -130,16 +130,16 @@ bool AmQStrTdcSampler::ConditionalRun()
         delete[] nbuffer;
     }
     */
-    
-    FairMQMessagePtr msg(NewMessage((char*)buffer,
-                                    //fnByte*fnWordPerCycle,
-				    kOutBufByte*n_word,
-                                    [](void* object, void*)
-    {
-        delete [] static_cast<uint8_t*>(object);
-    }
-                                   )
-                        );
+
+    FairMQMessagePtr msg(
+        NewMessage( (char*)buffer,
+            //fnByte*fnWordPerCycle,
+            kOutBufByte*n_word,
+            [](void* object, void*) {
+                delete [] static_cast<uint8_t*>(object);
+            }
+        )
+    );
 
 
     //    while (Send(msg, fOutputChannelName) == -2);
@@ -190,6 +190,8 @@ void AmQStrTdcSampler::SendFEMInfo()
         fem_info_.FEMType = fTdcType;
     }
 
+
+    #if 0
     // bit set-up for module information
     unsigned char* fbuf = new uint8_t[sizeof(fem_info_)];
 
@@ -210,17 +212,16 @@ void AmQStrTdcSampler::SendFEMInfo()
 
     uint8_t resv[8] = {0};
     memcpy(&fbuf[16], &resv, sizeof(char)*8);
-
     //memcpy(fbuf, &fem_info_, sizeof(fem_info_));
 
-    FairMQMessagePtr initmsg( NewMessage((char*)fbuf,
-                                         kOutBufByte*3,
-                                         [](void* object, void*)
-    {
-        delete [] static_cast<uint8_t*>(object);
-    }
-                                        )
-                            );
+    FairMQMessagePtr initmsg(
+        NewMessage((char*)fbuf,
+            kOutBufByte*3,
+            [](void* object, void*) {
+            delete [] static_cast<uint8_t*>(object);
+            }
+        )
+    );
 
     LOG(info) << "Sending FEMInfo \"" << sizeof(fem_info_) << "\"";
 
@@ -236,6 +237,7 @@ void AmQStrTdcSampler::SendFEMInfo()
             break;
         }
     }
+    #endif
 
 }
 
@@ -314,17 +316,20 @@ void AmQStrTdcSampler::PostRun()
     FPGAModule fModule(fIpSiTCP.c_str(), 4660, &rbcpHeader, 0);
     fModule.WriteModule(DCT::addr_gate,  0, 1);
     */
+
+    #if 0
     int recv_status = 0;
     int num_recieved_bytes = 0;
     int n_word = 0;
     uint8_t buffer[optnByte*fnWordPerCycle];
     while( ( recv_status = Event_Cycle(buffer, num_recieved_bytes)) > 0) {
-      n_word = num_recieved_bytes/optnByte;
-      // if consition requires n_word = -1, sometime fails to break the loop
-      // when n_word = -4 comes
-      LOG(info) << "Receiving remaining data:" << n_word << "read";
-      continue;
+        n_word = num_recieved_bytes/optnByte;
+        // if consition requires n_word = -1, sometime fails to break the loop
+        // when n_word = -4 comes
+        LOG(info) << "Receiving remaining data:" << n_word << "read";
+        continue;
     }
+    #endif
 
     close(fAmqSocket);
     LOG(info) << "Socket close";
@@ -376,6 +381,7 @@ int AmQStrTdcSampler::Event_Cycle(uint8_t* buffer, int& num_recieved_bytes)
     //  static const unsigned int sizeData = fnByte*fnWordPerCycle*sizeof(uint8_t);
     static const unsigned int sizeData = optnByte*fnWordPerCycle*sizeof(uint8_t);
     int ret = receive(fAmqSocket, (char*)buffer, sizeData, num_recieved_bytes);
+
     return ret;
     //    if(ret <= 0) return ret;
 

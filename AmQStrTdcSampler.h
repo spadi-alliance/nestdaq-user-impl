@@ -14,8 +14,8 @@
 constexpr uint64_t Magic {0x4f464e492d4d4546};
 constexpr int kOutBufByte           {8};
 //  const int fnWordPerCycle {16384*10};
-constexpr int fnWordPerCycle {16384};
-//constexpr int fnWordPerCycle {1024};
+//constexpr int fnWordPerCycle {16384};
+constexpr int fnWordPerCycle {1024};
 
 struct FEMInfo {
     uint64_t magic    {Magic};
