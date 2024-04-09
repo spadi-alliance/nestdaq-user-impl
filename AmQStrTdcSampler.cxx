@@ -116,20 +116,6 @@ bool AmQStrTdcSampler::ConditionalRun()
         return true;
     }
 #endif
-
-    /*    
-    if(fTdcType == 1) {
-        //    auto data5 = reinterpret_cast<lrWord*>(buffer);
-        //    auto data8 = reinterpret_cast<uint64_t*>(data5);
-        uint8_t* nbuffer = new uint8_t[kOutBufByte*fnWordPerCycle] {};
-
-        for(int i=0; i<n_word; i++) {
-            memcpy(&nbuffer[8*i + 3], &buffer[i*5], 5);
-        }
-        memcpy(&buffer[0], &nbuffer[0], kOutBufByte*n_word);
-        delete[] nbuffer;
-    }
-    */
     
     FairMQMessagePtr msg(NewMessage((char*)buffer,
                                     //fnByte*fnWordPerCycle,
@@ -144,6 +130,7 @@ bool AmQStrTdcSampler::ConditionalRun()
 
     //    while (Send(msg, fOutputChannelName) == -2);
 
+    // LOG(debug) << "Send data";
     Send(msg, fOutputChannelName);
 
     //     ++fNumIterations;
@@ -391,6 +378,7 @@ int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length, int
 
     while(revd_size < length) {
         tmp_ret = recv(sock, data_buf + revd_size, length -revd_size, 0);
+	//	LOG(debug) << "tmp_ret: " << tmp_ret;
 
         if(tmp_ret == 0) break;
         if(tmp_ret < 0) {

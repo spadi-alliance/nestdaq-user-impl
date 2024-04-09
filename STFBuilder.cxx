@@ -72,7 +72,17 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 				 Data::ThrottlingT1Start, Data::ThrottlingT1End,
 				 Data::ThrottlingT2Start, Data::ThrottlingT2End  }) {
 	  if (h == validHead) isHeadValid = true;
+
+	  if (h == Data::ThrottlingT1Start)
+	    LOG(debug) << "ThrottlingT1Start";
+
+	  if (h == Data::ThrottlingT2Start)
+	    LOG(debug) << "ThrottlingT2Start";
+
         }
+
+	//	LOG(warn) << std::hex << "raw = " << word->raw << std::dec << std::endl;
+
 
         if (!isHeadValid) {
 
@@ -94,6 +104,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
         }
 
 	// in case of one delimiter...
+	/*
 	if(hbf_flag == 1){
 	  
 	  if ( h != Data::Heartbeat2nd ) {
@@ -122,6 +133,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	    }
 	    ///
 	    
+  
 	    auto first = msgBegin + offset;
 	    auto last  = msgBegin + i - 1;
 	    offset     = i;
@@ -153,7 +165,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	  }
 	}
 	/////
-	
+	*/
 
 	//check Heartbeat delimiter
         if ((h == Data::Heartbeat) || (h == Data::Heartbeat2nd)) {
@@ -162,12 +174,14 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 fdelimiterFrameId = word->hbframe & 0xFFFFFF;
 		hbf_flag++;
 
-		//LOG(debug) << " 1st delimiter comes " << std::hex << word->hbframe << ", raw = " << word->raw;
+		LOG(debug) << " 1st delimiter comes " << std::hex << word->hbframe << ", raw = " << word->raw;
 		//LOG(debug) << " delimiterFrameId:    " << std::hex << fdelimiterFrameId;
 		
                 continue;
 
             } else if (h == Data::Heartbeat2nd) {
+	        LOG(debug) << " 2nd delimiter comes  h = " << std::hex << static_cast<uint16_t>(h) 
+			   << ", raw = " << word->raw;
 		hbf_flag++;
             } else {
                 // unexpected @TODO
@@ -199,7 +213,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
                 fSTFId = fdelimiterFrameId;
             }
 
-            if(mdebug) {
+            if(true) {
                 LOG(debug) << " Fill " << std::setw(10) << offset << " -> " << std::setw(10) << i << " : " << std::hex << word->raw << std::dec;
             }
 

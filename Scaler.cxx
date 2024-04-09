@@ -146,7 +146,8 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
     const auto& msg = parts.At(imsg);
     
     auto wb =  reinterpret_cast<Bits*>(msg->GetData());
-    if(fDebug){
+    //    if(fDebug){
+    if(true){
       LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
       LOG(debug) << " head =" << std::hex << wb->head << std::dec;
     }
@@ -155,7 +156,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
     case Data::Heartbeat:
       {
 	//      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
-	if(fDebug){
+	if(true){
 	  LOG(debug) << "== Data::Heartbeat --> ";
 	  LOG(debug) << "hbframe#: " << std::hex << wb->hbframe << std::dec;
 	  LOG(debug) << "toffset : " << std::hex << wb->toffset << std::dec;
