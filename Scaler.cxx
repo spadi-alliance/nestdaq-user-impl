@@ -146,7 +146,8 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
     const auto& msg = parts.At(imsg);
     
     auto wb =  reinterpret_cast<Bits*>(msg->GetData());
-    if(fDebug){
+    //    if(fDebug){
+    if(true){
       LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
       LOG(debug) << " head =" << std::hex << wb->head << std::dec;
     }
@@ -155,12 +156,12 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
     case Data::Heartbeat:
       {
 	//      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
-	if(fDebug){
+	if(true){
 	  LOG(debug) << "== Data::Heartbeat --> ";
-	  LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
-	  LOG(debug) << "hbspill#: " << std::hex << wb->hbspilln << std::dec;
+	  LOG(debug) << "hbframe#: " << std::hex << wb->hbframe << std::dec;
+	  LOG(debug) << "toffset : " << std::hex << wb->toffset << std::dec;
 	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
-	  LOG(debug) << "header: " << std::hex << wb->htype << std::dec;
+	  LOG(debug) << "hbtype1: " << std::hex << wb->hbtype1 << std::dec;
 	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
 	  LOG(debug) << "== scaler --> ";
 	}
@@ -174,7 +175,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	
 	tsHeartbeatCounter++;
 	
-	for(int i=0; i<10; i++){
+	for(int i=0; i<16; i++){
 	  auto bit_sum = (wb->hbflag >> i) & 0x01;
 	  FlagSum[i] = fpreFlagSum[i] + bit_sum;
 	  if (bit_sum) {
@@ -183,7 +184,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	}      
 	tsHeartbeatFlag = wb->hbflag;      
 
-	for(int i=0; i<10; i++)
+	for(int i=0; i<16; i++)
 	  fpreFlagSum[i] = FlagSum[i];
             
 	//      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
@@ -191,14 +192,21 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	
 	break;
       }
-    case Data::SpillOn: 
-      LOG(info) << "SpillOn:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->femId ;
-      break;
 
-    case Data::SpillEnd: 
-      LOG(info) << "SpillEnd:  timeframeId->" << stfHeader->timeFrameId << " " << std::hex << stfHeader->femId ;
-      break;
-	
+    case Data::Heartbeat2nd:
+      {
+	if(fDebug){
+	  LOG(debug) << "== Data::Heartbeat2nd --> ";
+	  LOG(debug) << "transSize: " << std::hex << wb->transSize << std::dec;
+	  LOG(debug) << "geneSize : " << std::hex << wb->geneSize << std::dec;
+	  LOG(debug) << "userReg: " << std::hex << wb->userReg << std::dec;
+	  LOG(debug) << "hbtype2: " << std::hex << wb->hbtype2 << std::dec;
+	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
+	  LOG(debug) << "== scaler --> ";
+	}
+		
+	break;
+      }
     case Data::Data:
       {
 	auto msgBegin = reinterpret_cast<Data::Word*>(msg->GetData());	

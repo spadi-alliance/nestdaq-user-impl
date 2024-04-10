@@ -12,6 +12,15 @@
 
 #include "AmQStrTdcData.h"
 
+constexpr uint64_t HBFMagic = 0x444145482d464248;
+#pragma pack(4)
+struct HBFHeader {
+  uint64_t magic      {HBFMagic};
+  uint32_t size       {0};
+  uint32_t type       {0};
+};		  
+#pragma pack()
+
 struct FEMInfo {
     uint64_t magic    {0};
     uint32_t femType  {0};
@@ -25,10 +34,6 @@ enum class TimeFrameIdType : int {
     SequenceNumberOfTimeFrames
 };
 
-enum class MsgType : int {
-    separatedDelimiter = 0,
-    indataDelimiter 
-};
 
 class AmQStrTdcSTFBuilder : public fair::mq::Device
 {
@@ -44,7 +49,6 @@ public:
         static constexpr std::string_view DQMChannelName    {"dqm-chan-name"};
         static constexpr std::string_view StripHBF          {"strip-hbf"};
         static constexpr std::string_view MaxHBF            {"max-hbf"};
-        static constexpr std::string_view MsgType           {"msg-type"};
         static constexpr std::string_view SplitMethod       {"split"};
         static constexpr std::string_view TimeFrameIdType   {"time-frame-id-type"};
     };
@@ -57,8 +61,7 @@ public:
 private:
     void BuildFrame(FairMQMessagePtr& msg, int index);
     void FillData(AmQStrTdc::Data::Word* first,
-                  AmQStrTdc::Data::Word* last,
-                  MsgType isType);
+ 		  AmQStrTdc::Data::Word* last);
     void FinalizeSTF();
     bool HandleData(FairMQMessagePtr&, int index);
     void Init() override;
@@ -67,10 +70,9 @@ private:
     void PostRun() override;
     void PreRun() override;
 
-    uint64_t fRemain  {0};
     uint64_t fFEMId   {0};
     uint64_t fFEMType {0};
-    int         fNumDestination {0};
+    int      fNumDestination {0};
     std::string fInputChannelName;
     std::string fOutputChannelName;
     std::string fDQMChannelName;
@@ -85,12 +87,11 @@ private:
     int fH_flag {0};
 
     TimeFrameIdType fTimeFrameIdType;
-    MsgType         fMsgType;
     int32_t fSTFId{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
 
     bool mdebug;
     RecvBuffer fInputPayloads;
-    RecvBuffer fInputDelimiter;
+    RecvBuffer fInputDataloads;
     WorkBuffer fWorkingPayloads;
     SendBuffer fOutputPayloads;
 };

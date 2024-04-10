@@ -176,7 +176,7 @@ foreach(lvar IN ITEMS
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   fltcoin; tfdump; onlinedisplay; 
   EventBuilder; 
-  AmQStrTdcDqm;
+#  AmQStrTdcDqm;
   Scaler)
 
   set(EXEC ${lvar})

@@ -116,31 +116,16 @@ bool AmQStrTdcSampler::ConditionalRun()
         return true;
     }
 #endif
-
-    /*    
-    if(fTdcType == 1) {
-        //    auto data5 = reinterpret_cast<lrWord*>(buffer);
-        //    auto data8 = reinterpret_cast<uint64_t*>(data5);
-        uint8_t* nbuffer = new uint8_t[kOutBufByte*fnWordPerCycle] {};
-
-        for(int i=0; i<n_word; i++) {
-            memcpy(&nbuffer[8*i + 3], &buffer[i*5], 5);
-        }
-        memcpy(&buffer[0], &nbuffer[0], kOutBufByte*n_word);
-        delete[] nbuffer;
+    
+    FairMQMessagePtr msg(NewMessage((char*)buffer,
+                                    //fnByte*fnWordPerCycle,
+				    kOutBufByte*n_word,
+                                    [](void* object, void*)
+    {
+        delete [] static_cast<uint8_t*>(object);
     }
-    */
-
-    FairMQMessagePtr msg(
-        NewMessage( (char*)buffer,
-            //fnByte*fnWordPerCycle,
-            kOutBufByte*n_word,
-            [](void* object, void*) {
-                delete [] static_cast<uint8_t*>(object);
-            }
-        )
-    );
-
+                                   )
+                        );
 
     //    while (Send(msg, fOutputChannelName) == -2);
 
@@ -191,7 +176,6 @@ void AmQStrTdcSampler::SendFEMInfo()
     }
 
 
-    #if 0
     // bit set-up for module information
     unsigned char* fbuf = new uint8_t[sizeof(fem_info_)];
 
@@ -237,7 +221,6 @@ void AmQStrTdcSampler::SendFEMInfo()
             break;
         }
     }
-    #endif
 
 }
 
@@ -262,17 +245,6 @@ void AmQStrTdcSampler::InitTask()
     header_pos = 7;
     optnByte = 8;
 
-    /*
-    if(fTdcType == 1) {
-        header_pos = 4;
-        optnByte = 5;
-        LOG(info) << "LRTDC nByte: " << optnByte << "  header_pos: " << header_pos << std::endl;
-    } else {
-        header_pos = 7;
-        optnByte = 8;
-        LOG(info) << "HRTDC nByte: " << optnByte << "  header_pos: " << header_pos << std::endl;
-    }
-    */
 
     /*
     rbcp_header rbcpHeader;
@@ -316,20 +288,6 @@ void AmQStrTdcSampler::PostRun()
     FPGAModule fModule(fIpSiTCP.c_str(), 4660, &rbcpHeader, 0);
     fModule.WriteModule(DCT::addr_gate,  0, 1);
     */
-
-    #if 0
-    int recv_status = 0;
-    int num_recieved_bytes = 0;
-    int n_word = 0;
-    uint8_t buffer[optnByte*fnWordPerCycle];
-    while( ( recv_status = Event_Cycle(buffer, num_recieved_bytes)) > 0) {
-        n_word = num_recieved_bytes/optnByte;
-        // if consition requires n_word = -1, sometime fails to break the loop
-        // when n_word = -4 comes
-        LOG(info) << "Receiving remaining data:" << n_word << "read";
-        continue;
-    }
-    #endif
 
     close(fAmqSocket);
     LOG(info) << "Socket close";
@@ -384,7 +342,6 @@ int AmQStrTdcSampler::Event_Cycle(uint8_t* buffer, int& num_recieved_bytes)
 
     return ret;
     //    if(ret <= 0) return ret;
-
     //    return fnWordPerCycle;
 }
 
@@ -396,13 +353,14 @@ int AmQStrTdcSampler::receive(int sock, char* data_buf, unsigned int length, int
 
     while(revd_size < length) {
         tmp_ret = recv(sock, data_buf + revd_size, length -revd_size, 0);
+	//	LOG(debug) << "tmp_ret: " << tmp_ret;
 
         if(tmp_ret == 0) break;
         if(tmp_ret < 0) {
             int errbuf = errno;
             perror("TCP receive");
             if(errbuf == EAGAIN) {
-                // this is time out
+              // this is time out
 	      //	      std::cout << "#D : TCP recv time out"  << std::endl;
               //	remain = revd_size;
 	      LOG(debug) << "#D: recv time out, recieved byte size: " << revd_size;

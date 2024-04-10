@@ -3,6 +3,7 @@
 
 #include <cstdint>
 
+#pragma pack(4)
 namespace TimeFrame {
 
 // This format is temporary and should be updated.
@@ -33,5 +34,6 @@ struct Header {
 } // namespace v1
 
 } // namespace TimeFrame
+#pragma pack()
 
 #endif

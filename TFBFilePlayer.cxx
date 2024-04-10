@@ -171,7 +171,7 @@ bool TFBFilePlayer::ConditionalRun()
 //            LOG(debug4) << fmt::format(" data type = {:x}", type);
             switch (d->head) {
             //-----------------------------
-            case AmQStrTdc::Data::SpillEnd:
+	      //	    case AmQStrTdc::Data::SpillEnd:
             //-----------------------------
             case AmQStrTdc::Data::Heartbeat: {
                 FairMQMessage *pmsg;

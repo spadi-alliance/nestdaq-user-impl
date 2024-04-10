@@ -3,7 +3,8 @@
 
 #include <cstdint>
 
-namespace SubTimeFrame {
+#pragma pack(4)
+inline namespace SubTimeFrame {
 
 // This format is temporary and should be updated.
 namespace v0 {
@@ -24,12 +25,12 @@ struct Header {
     uint64_t magic        {MAGIC};
     uint32_t timeFrameId  {0}; 
     uint32_t reserved     {0};
-    uint32_t FEMType      {0};
-    uint32_t FEMId        {0};
+    uint32_t femType      {0};
+    uint32_t femId        {0};
     uint32_t length       {0};
     uint32_t numMessages  {0};
-    uint64_t time_sec     {0};
-    uint64_t time_usec    {0};
+    uint64_t timeSec     {0};
+    uint64_t timeUSec    {0};
 };
 
 } // namespace v0
@@ -64,5 +65,6 @@ struct Header {
 } // namespace v1
 
 } // namespace SubTimeFrame
+#pragma pack()
 
 #endif

@@ -4,6 +4,7 @@
 #include <ctime>
 #include <cstdint>
 
+#pragma pack(4)
 namespace FileSinkHeader {
 
 namespace v0 {
@@ -43,5 +44,6 @@ struct Header { /* Total size: 304 bytes */
 
 
 } //namespace FileSinkHeader
+#pragma pack()
 
 #endif
