@@ -70,7 +70,7 @@ bool TimeFrameBuilder::ConditionalRun()
         auto fem     = stfHeader->femId;
         auto lastmsg = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
         unsigned int type = (lastmsg[0] & 0xfc00'0000'0000'0000) >> 58;
-        if ((type == 0x1c) || (type == 0x18) || (type == 0x14)) {
+        if ((type == 0x1c) || (type == 0x18) || (type == 0x14) || (type == 0x1e)) {
         } else {
             LOG(warn) << "BAD delimitor " << std::hex << lastmsg[0]
                 << " FEM: " << std::dec << (fem & 0xff);
@@ -359,7 +359,7 @@ void TimeFrameBuilder::PostRun()
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 } else {
-                    LOG(debug) << __func__ << " data comes..";
+//                    LOG(debug) << __func__ << " data comes..";
                 }
             }
         }

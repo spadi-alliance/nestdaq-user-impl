@@ -7,7 +7,7 @@
 inline namespace SubTimeFrame {
 
 // This format is temporary and should be updated.
-inline namespace v0 {
+namespace v0 {
 
 // "DAEH-FTS" : little endian of "STF-HEAD"
 constexpr uint64_t MAGIC  {0x444145482d465453};
@@ -35,7 +35,7 @@ struct Header {
 
 } // namespace v0
 
-namespace v1 {
+inline namespace v1 {
 
 // " EMITBUS" : little endian of "SUBTIME "
 constexpr uint64_t MAGIC  {0x00454d4954425553};
