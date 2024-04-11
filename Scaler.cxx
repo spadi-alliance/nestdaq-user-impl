@@ -404,7 +404,7 @@ void Scaler::PreRun()
     fFile->SetRunNumber(fRunNumber);
     fFile->ClearBranch();
     fFile->Open();
-  LOG(debug) << "2...";
+
     for(int i=0; i<10; ++i){
       FlagSum[i] = 0;
       fpreFlagSum[i] = 0;
@@ -412,8 +412,8 @@ void Scaler::PreRun()
 
     hScaler     = new UH1Book("ScalerHisto",128,0.,128.);
     hScalerPrev = new UH1Book("ScalerHistoPrev",128,0.,128.);
-    hFlag       = new UH1Book("FlagHisto",10,0.,10.);
-    hFlagPrev   = new UH1Book("FlagHistoPrev",10,0.,10.);
+    hFlag       = new UH1Book("FlagHisto",10,0.,16.);
+    hFlagPrev   = new UH1Book("FlagHistoPrev",10,0.,16.);
 }
 //______________________________________________________________________________
 void Scaler::PostRun()
