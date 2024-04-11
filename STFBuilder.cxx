@@ -140,15 +140,15 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 	    
 	    ///
 	    if( (h == Data::Heartbeat2nd) &&  (fHBFCounter==0) ){
-	      auto rdelim = word->hbframe % fMaxHBF;
-	      //	      LOG(debug) << "rdelim:   "<< rdelim;
-	      //	      LOG(debug) << "hbfframe + 1 : "<< word->hbframe + 1;
-	      //	      LOG(debug) << "fMaxHBF: "<< fMaxHBF;	      	      
+	      auto rdelim = fdelimiterFrameId % fMaxHBF;
+	      // LOG(debug) << "rdelim:   "<< rdelim;
+	      // LOG(debug) << "hbfframe : "<< fdelimiterFrameId;
+	      // LOG(debug) << "fMaxHBF: "<< fMaxHBF;	      	      
 
 	      if(rdelim != 0){
 		offset   = i+1;
 		hbf_flag = 0;
-		LOG(error) << "(HBF % fMaxHBF) != 0:  HBF = " << word->hbframe
+		LOG(warn) << "(HBF % fMaxHBF) != 0:  HBF = " << fdelimiterFrameId
 			   << " fMaxHBF = " << fMaxHBF;
 	        continue;
 	      }

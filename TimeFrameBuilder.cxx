@@ -58,19 +58,35 @@ bool TimeFrameBuilder::ConditionalRun()
     if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
         assert(inParts.Size() >= 2);
 
-        LOG(debug4) << " received message parts size = " << inParts.Size() << std::endl;
+        LOG(debug) << " received message parts size = " << inParts.Size() << std::endl;
 
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
 
         LOG(debug4) << "stfId: "<< stfId;
         LOG(debug4) << "msg size: " << inParts.Size();
+	
+	auto nmsg = inParts.Size();
+	const auto& msg =inParts.At(nmsg -1);
+
+	auto msgSize  = msg->GetSize();
+	auto nWord    = msgSize / sizeof(uint64_t);
+	auto msgBegin = reinterpret_cast<uint64_t *>(msg->GetData());
+
+	auto firstHBF  = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 2));
+	//	auto secondHBF = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 1));
+	
+	//LOG(debug) << "HBFmagic: " << std::hex << *msgBegin;
+	//LOG(debug) << "firstHBF: " << std::hex << *firstHBF;
+	//LOG(debug) << "secondHBF: " << std::hex << *secondHBF;
 
         #if 1
         auto fem     = stfHeader->femId;
         auto lastmsg = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
-        unsigned int type = (lastmsg[0] & 0xfc00'0000'0000'0000) >> 58;
-        if ((type == 0x1c) || (type == 0x18) || (type == 0x14) || (type == 0x1e)) {
+	//	LOG(debug) << "firstHBF[0]: " << std::hex << firstHBF[0];
+        unsigned int type = (firstHBF[0] & 0xfc00'0000'0000'0000) >> 58;
+        //if ((type == 0x1c) || (type == 0x18) || (type == 0x14) || (type == 0x1e)) {
+        if ((type == 0x1c) || (type == 0x1e)) {
         } else {
             LOG(warn) << "BAD delimitor " << std::hex << lastmsg[0]
                 << " FEM: " << std::dec << (fem & 0xff);
@@ -102,6 +118,7 @@ bool TimeFrameBuilder::ConditionalRun()
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
 
                 LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
+
 
                 // move ownership to complete time frame
                 FairMQParts outParts;
