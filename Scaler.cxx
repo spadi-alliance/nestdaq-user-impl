@@ -42,8 +42,8 @@ void addCustomOptions(bpo::options_description& options)
      //using fopt = fu::OptionKey;
      //using sopt = fu::SplitOption;
      //using oopt = fu::OpenmodeOption;
-         auto &desc = fu::GetDescriptions();	
-         fu::AddOptions(options);
+     auto &desc = fu::GetDescriptions();	
+     fu::AddOptions(options);
    }
 }
 
@@ -64,15 +64,16 @@ Scaler::Scaler()
 //______________________________________________________________________________
 bool Scaler::HandleData(FairMQParts& parts, int index)
 {
+
   namespace STF = SubTimeFrame;
   namespace Data = AmQStrTdc::Data;
   using Bits = Data::Bits;
 
   auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
   int nCh = 0;
-  if(stfHeader->femType == 1 || stfHeader->femType == 3){
+  if(stfHeader->femType == 1 || stfHeader->femType == 3 || stfHeader->femType == 5){
     nCh = 128;
-  }else if(stfHeader->femType == 2){
+  }else if(stfHeader->femType == 2 || stfHeader->femType == 4){
     nCh = 64;
   }
   if (nCh != hScaler->GetNBins()){
@@ -97,9 +98,10 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	data_store->ts_add(fTsHeartbeatCounterKey, "*", std::to_string(tsHeartbeatCounter));
 	fTsHeartbeatFlagKey = join({"scaler", fdevId, "heartbeatFlag"}, fSeparator);
 	data_store->ts_add(fTsHeartbeatFlagKey, "*", std::to_string(tsHeartbeatFlag));
-	
+
 	std::string fCountsVsCh = join({"scaler", fdevId, "counts-vs-ch"}, fSeparator);
 	data_store->write(fCountsVsCh,Slowdashify(*hScaler));
+
 	
 	uint64_t deltaHeartbeatCounter = tsHeartbeatCounter - fPrevHeartbeatCounter;
 	double   dt_in_sec = deltaHeartbeatCounter * 0.000524; /* 1 heart beat = 512 us */
@@ -141,107 +143,126 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
   //  Check(stfs);
   
   auto nmsg      = parts.Size();
+  //  LOG(debug) <<"nmsg: " << nmsg;
+
   for(int imsg = 1; imsg < nmsg; ++imsg){
 
     const auto& msg = parts.At(imsg);
+    auto mSize    = msg->GetSize();
+    auto nword    = mSize / sizeof(uint64_t);
+    auto msgStart =  reinterpret_cast<uint64_t *>(msg->GetData());
     
-    auto wb =  reinterpret_cast<Bits*>(msg->GetData());
-    //    if(fDebug){
-    if(true){
-      LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
-      LOG(debug) << " head =" << std::hex << wb->head << std::dec;
+    uint64_t htype[2];
+    htype[1] = *(msgStart + 2); // if nword > 2 (tdc hits are inclued), data start. 
+    htype[0] = *(msgStart + (nword - 2));
+    //    LOG(debug) << "htype[0]: " << std::hex << htype[0];
+    //    LOG(debug) << "htype[1]: " << std::hex << htype[1];
+
+    int nchk;
+    if(htype[0]!=htype[1]){
+      nchk = 2;
+    }else if(htype[0]==htype[1]){
+      nchk = 1;
     }
+    // nchk = 1; only for checking heartbeat frame
       
-    switch (wb->head) {
-    case Data::Heartbeat:
-      {
-	//      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
-	if(true){
-	  LOG(debug) << "== Data::Heartbeat --> ";
-	  LOG(debug) << "hbframe#: " << std::hex << wb->hbframe << std::dec;
-	  LOG(debug) << "toffset : " << std::hex << wb->toffset << std::dec;
-	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
-	  LOG(debug) << "hbtype1: " << std::hex << wb->hbtype1 << std::dec;
-	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
-	  LOG(debug) << "== scaler --> ";
-	}
-	if(fDebug){
-	  LOG(debug) << "============================";
-	  LOG(debug) << "HB frame : " << wb->hbframe;		
-	  LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
-	  LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
-	  LOG(debug) << "hbflag: "  << wb->hbflag;
-	}
-	
-	tsHeartbeatCounter++;
-	
-	for(int i=0; i<16; i++){
-	  auto bit_sum = (wb->hbflag >> i) & 0x01;
-	  FlagSum[i] = fpreFlagSum[i] + bit_sum;
-	  if (bit_sum) {
-	    hFlag->Fill(i);
-	  }
-	}      
-	tsHeartbeatFlag = wb->hbflag;      
+    for(int iw = 0; iw < nchk; iw++){
+      auto wb = reinterpret_cast<Bits*>(&htype[iw]);
+      
+      //      LOG(debug) << "msgStart: " << *msgStart;
+      //      LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
+      //      LOG(debug) << " head =" << std::hex << wb->head << std::dec;
 
-	for(int i=0; i<16; i++)
-	  fpreFlagSum[i] = FlagSum[i];
-            
-	//      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
-	//      LOG(info) << "HBF Flag:  " << tsHeartbeatFlag;
-	
-	break;
-      }
-
-    case Data::Heartbeat2nd:
-      {
-	if(fDebug){
-	  LOG(debug) << "== Data::Heartbeat2nd --> ";
-	  LOG(debug) << "transSize: " << std::hex << wb->transSize << std::dec;
-	  LOG(debug) << "geneSize : " << std::hex << wb->geneSize << std::dec;
-	  LOG(debug) << "userReg: " << std::hex << wb->userReg << std::dec;
-	  LOG(debug) << "hbtype2: " << std::hex << wb->hbtype2 << std::dec;
-	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
-	  LOG(debug) << "== scaler --> ";
-	}
-		
-	break;
-      }
-    case Data::Data:
-      {
-	auto msgBegin = reinterpret_cast<Data::Word*>(msg->GetData());	
-	auto msgSize  = msg->GetSize();
-	auto nWord    = msgSize / sizeof(uint64_t);
-	
-	for(long unsigned int i = 0; i < nWord; ++i){	  
-	  auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
-	  
+      switch (wb->head) {
+      case Data::Heartbeat:
+	{
+	  //      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
 	  if(fDebug){
-	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) )
-	      LOG(debug) << "LRtdc: "   << std::hex << iwb->tdc << std::dec;
-	    if(stfHeader->femType == 2)	  
-	      LOG(debug) << "HRtdc: " << std::hex << iwb->hrtdc<< std::dec;
+	    LOG(debug) << "== Data::Heartbeat --> ";
+	    LOG(debug) << "hbframe#: " << std::hex << wb->hbframe << std::dec;
+	    LOG(debug) << "toffset : " << std::hex << wb->toffset << std::dec;
+	    LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
+	    LOG(debug) << "hbtype1: " << std::hex << wb->hbtype1 << std::dec;
+	    LOG(debug) << "head =" << std::hex << wb->head << std::dec;
+	    LOG(debug) << "== scaler --> ";
+	  }
+	  if(fDebug){
+	    LOG(debug) << "============================";
+	    LOG(debug) << "HB frame : " << wb->hbframe;		
+	    LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
+	    LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
+	    LOG(debug) << "hbflag: "  << wb->hbflag;
 	  }
 	
-	  if( (stfHeader->femType == 1) || (stfHeader->femType==3) ) {
-	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
-	  }else if(stfHeader->femType==2) {
-	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
-	  }
-	    
-	}//
-      }
+	  tsHeartbeatCounter++;
 	
-      break;	
+	  for(int i=0; i<16; i++){
+	    auto bit_sum = (wb->hbflag >> i) & 0x01;
+	    FlagSum[i] = fpreFlagSum[i] + bit_sum;
+	    if (bit_sum) {
+	      hFlag->Fill(i);
+	    }
+	  }      
+	  tsHeartbeatFlag = wb->hbflag;      
 
-    default:
-      LOG(error) << " unknown Head : " << std::hex << wb->head << std::dec
-		 << " FEMId: " << std::hex << stfHeader->femId;
+	  for(int i=0; i<16; i++)
+	    fpreFlagSum[i] = FlagSum[i];
+            
+	  //      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
+	  //      LOG(info) << "HBF Flag:  " << tsHeartbeatFlag;
+	
+	  break;
+	}
+
+      case Data::Heartbeat2nd:
+	{
+	  if(fDebug){
+	    LOG(debug) << "== Data::Heartbeat2nd --> ";
+	    LOG(debug) << "transSize: " << std::hex << wb->transSize << std::dec;
+	    LOG(debug) << "geneSize : " << std::hex << wb->geneSize << std::dec;
+	    LOG(debug) << "userReg: " << std::hex << wb->userReg << std::dec;
+	    LOG(debug) << "hbtype2: " << std::hex << wb->hbtype2 << std::dec;
+	    LOG(debug) << "head =" << std::hex << wb->head << std::dec;
+	    LOG(debug) << "== scaler --> ";
+	  }
+		
+	  break;
+	}
+      case Data::Data:
+	{
+	  auto msgBegin = reinterpret_cast<Data::Word*>(msg->GetData());	
+	  auto msgSize  = msg->GetSize();
+	  auto nWord    = msgSize / sizeof(uint64_t);
+	
+	  for(long unsigned int i = 0; i < nWord; ++i){	  
+	    auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
+	  
+	    if(fDebug){
+	      if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==5) )
+	      LOG(debug) << "LRtdc: "   << std::hex << iwb->tdc << std::dec;
+	      if(stfHeader->femType == 2 || (stfHeader->femType==4))	  
+	      LOG(debug) << "HRtdc: " << std::hex << iwb->hrtdc<< std::dec;
+	    }
+	
+	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==5) ) {
+	      hScaler->Fill(static_cast<int>(iwb->ch)+1);
+	    }else if(stfHeader->femType == 2 || (stfHeader->femType==4)) {
+	      hScaler->Fill(static_cast<int>(iwb->ch)+1);
+	    }
+	    
+	  }//
+	}
+	
+	break;	
+
+      default:
+	LOG(error) << " unknown Head : " << std::hex << wb->head << std::dec
+		   << " FEMId: " << std::hex << stfHeader->femId;
                    
-      break;
+	break;
+      }
     }
   }
-
 
   /* make scaler data */
 
@@ -367,6 +388,7 @@ void Scaler::InitTask()
     fFileExtension = fFile->GetExtension();
 
     //
+    LOG(debug) << "Handle";
     OnData(fInputChannelName, &Scaler::HandleData);
     
 }
@@ -382,11 +404,12 @@ void Scaler::PreRun()
     fFile->SetRunNumber(fRunNumber);
     fFile->ClearBranch();
     fFile->Open();
-
+  LOG(debug) << "2...";
     for(int i=0; i<10; ++i){
       FlagSum[i] = 0;
       fpreFlagSum[i] = 0;
     }
+
     hScaler     = new UH1Book("ScalerHisto",128,0.,128.);
     hScalerPrev = new UH1Book("ScalerHistoPrev",128,0.,128.);
     hFlag       = new UH1Book("FlagHisto",10,0.,10.);

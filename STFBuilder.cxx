@@ -72,13 +72,6 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 				 Data::ThrottlingT1Start, Data::ThrottlingT1End,
 				 Data::ThrottlingT2Start, Data::ThrottlingT2End  }) {
 	  if (h == validHead) isHeadValid = true;
-
-	  if (h == Data::ThrottlingT1Start)
-	    LOG(debug) << "ThrottlingT1Start";
-
-	  if (h == Data::ThrottlingT2Start)
-	    LOG(debug) << "ThrottlingT2Start";
-
         }
 
 	//	LOG(warn) << std::hex << "raw = " << word->raw << std::dec << std::endl;
@@ -324,13 +317,10 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
         auto& payload = fOutputPayloads.front();
 
         for (auto& tmsg : *payload) {
-	  //      std::for_each(reinterpret_cast<uint64_t*>(tmsg->GetData()),
-	  //                    reinterpret_cast<uint64_t*>(tmsg->GetData() + tmsg->GetSize()),
-	  //                    ::HexDump{4});
-
 
             if (dqmSocketExists) {
                 if (tmsg->GetSize()==sizeof(STF::Header)) {
+
                     FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
                     msgCopy->Copy(*tmsg);
                     dqmParts.AddPart(std::move(msgCopy));
@@ -346,7 +336,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
                         dqmParts.AddPart(std::move(msgCopy));
 		    }
 		  */
-		    
+
 		  FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
 		  msgCopy->Copy(*tmsg);
 		  dqmParts.AddPart(std::move(msgCopy));		  
@@ -357,6 +347,7 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
         }
 
         fOutputPayloads.pop();
+
 	/*
 #if 1	
 	{ // for debug-begin
@@ -392,24 +383,24 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
 	auto h = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
 	
         if (dqmSocketExists) {
-            if (Send(dqmParts, fDQMChannelName) < 0) {
+	  if (Send(dqmParts, fDQMChannelName) < 0) {
+
                 // timeout
                 if (NewStatePending()) {
                     LOG(info) << "Device is not RUNNING";
                     return false;
                 }
-                LOG(error) << "Failed to enqueue sub time frame (DQM) : FEM = " << std::hex << h->femId << std::dec << "  STF = " << h->timeFrameId << std::endl;
+                LOG(error) << "Failed to enqueue sub time frame (DQM) : FEM = " << std::hex << h->femId 
+			   << std::dec << "  STF = " << h->timeFrameId << std::endl;
             }
-        }
+	}
 
         auto direction = (fTimeFrameIdType==TimeFrameIdType::SequenceNumberOfTimeFrames)
                          ? (h->timeFrameId % fNumDestination)
                          : ((h->timeFrameId/fMaxHBF) % fNumDestination);
 
-        if(mdebug)
-            std::cout << "direction: " << direction << std::endl;
-
         unsigned int err_count = 0;
+	
         while (Send(parts, fOutputChannelName, direction, 0) < 0) {
             // timeout
             if (NewStatePending()) {
