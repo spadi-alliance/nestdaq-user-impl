@@ -305,7 +305,10 @@ void FileSink::PostRun()
     }
 
     fFileSinkTrailer.magic            = FileSinkTrailer::MAGIC;
-    fFileSinkTrailer.size             = sizeof(FileSinkTrailer::Trailer);
+    //fFileSinkTrailer.size             = sizeof(FileSinkTrailer::Trailer);
+    fFileSinkTrailer.length           = sizeof(FileSinkTrailer::Trailer);
+    fFileSinkTrailer.hLength          = sizeof(FileSinkTrailer::Trailer);
+    fFileSinkTrailer.type             = 0;
     fFileSinkTrailer.fairMQDeviceType = fFileSinkHeader.fairMQDeviceType;
     fFileSinkTrailer.runNumber        = fFileSinkHeader.runNumber;
     fFileSinkTrailer.startUnixtime    = fFileSinkHeader.startUnixtime;
@@ -417,14 +420,18 @@ void FileSink::PreRun()
     }
 
     fFileSinkHeader.magic            = FileSinkHeader::MAGIC;
-    fFileSinkHeader.size             = sizeof(FileSinkHeader::Header);
+    //fFileSinkHeader.size             = sizeof(FileSinkHeader::Header);
+    fFileSinkHeader.length           = sizeof(FileSinkHeader::Header);
+    fFileSinkHeader.hLength          = sizeof(FileSinkHeader::Header);
+    fFileSinkHeader.type             = 0;
     fFileSinkHeader.fairMQDeviceType = 99;
     fFileSinkHeader.runNumber        = fRunNumber;
     fFileSinkHeader.startUnixtime    = time(0);
     fFileSinkHeader.stopUnixtime     = 0;
     strcpy(fFileSinkHeader.comments, "FileSinkHeader.h test");
     LOG(debug) << "FileSink::Header.magic            : " << fFileSinkHeader.magic;
-    LOG(debug) << "FileSink::Header.size             : " << fFileSinkHeader.size;
+    //LOG(debug) << "FileSink::Header.size             : " << fFileSinkHeader.size;
+    LOG(debug) << "FileSink::Header.hLength          : " << fFileSinkHeader.hLength;
     LOG(debug) << "FileSink::Header.fairMQDeviceType : " << fFileSinkHeader.fairMQDeviceType;
     LOG(debug) << "FileSink::Header.runNumber        : " << fFileSinkHeader.runNumber;
     LOG(debug) << "FileSink::Header.startUnixtime    : " << fFileSinkHeader.startUnixtime;

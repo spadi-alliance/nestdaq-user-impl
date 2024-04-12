@@ -7,7 +7,7 @@
 namespace TimeFrame {
 
 // This format is temporary and should be updated.
-inline namespace v0 {
+namespace v0 {
 // "DAEH-FT@" : little endian of "@TF-HEAD"
 constexpr uint64_t MAGIC {0x444145482d465440};
 struct Header {
@@ -19,7 +19,7 @@ struct Header {
 
 } // namespace v0
 
-namespace v1 {
+inline namespace v1 {
 // " MRFEMIT" : little endian of "TIMEFRM "
 constexpr uint64_t MAGIC {0x004d5246454d4954};
 struct Header {
