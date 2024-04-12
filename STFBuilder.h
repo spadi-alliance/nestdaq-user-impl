@@ -12,12 +12,14 @@
 
 #include "AmQStrTdcData.h"
 
-constexpr uint64_t HBFMagic = 0x444145482d464248;
+/* HBFRAME */
+constexpr uint64_t HBFMagic = 0x00454d4152464248;
 #pragma pack(4)
 struct HBFHeader {
-  uint64_t magic      {HBFMagic};
-  uint32_t size       {0};
-  uint32_t type       {0};
+  uint64_t magic         {HBFMagic};
+  uint32_t totSize       {0};
+  uint16_t headerSize    {0};
+  uint16_t reserve       {0};  
 };		  
 #pragma pack()
 

@@ -218,8 +218,9 @@ AmQStrTdcSTFBuilder::FillData(AmQStrTdc::Data::Word* first, AmQStrTdc::Data::Wor
     
     auto sbuf  = std::make_unique<decltype(fInputDataloads)>(std::move(fInputDataloads));    
     HBFHeader hbfHeader;
-    hbfHeader.size = sizeof(hbfHeader) + buf->size()*sizeof(uint64_t);
-    hbfHeader.type = 0;
+    hbfHeader.totSize    = sizeof(hbfHeader) + buf->size()*sizeof(uint64_t);
+    hbfHeader.headerSize = sizeof(hbfHeader); // byte
+    hbfHeader.reserve    = 0;
 
     const auto whbfHeader = reinterpret_cast<Data::Word*>(&hbfHeader); 
     sbuf->insert(sbuf->end(), *whbfHeader);
