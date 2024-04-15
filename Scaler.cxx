@@ -71,9 +71,9 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 
   auto stfHeader = reinterpret_cast<STF::Header*>(parts.At(0)->GetData());
   int nCh = 0;
-  if(stfHeader->femType == 1 || stfHeader->femType == 3 || stfHeader->femType == 5){
+  if(stfHeader->femType == 1 || stfHeader->femType == 3 || stfHeader->femType == 6){
     nCh = 128;
-  }else if(stfHeader->femType == 2 || stfHeader->femType == 4){
+  }else if(stfHeader->femType == 2 || stfHeader->femType == 5){
     nCh = 64;
   }
   if (nCh != hScaler->GetNBins()){
@@ -238,15 +238,15 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	    auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
 	  
 	    if(fDebug){
-	      if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==5) )
+	      if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==6) )
 	      LOG(debug) << "LRtdc: "   << std::hex << iwb->tdc << std::dec;
-	      if(stfHeader->femType == 2 || (stfHeader->femType==4))	  
+	      if(stfHeader->femType == 2 || (stfHeader->femType==5))	  
 	      LOG(debug) << "HRtdc: " << std::hex << iwb->hrtdc<< std::dec;
 	    }
 	
-	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==5) ) {
+	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==6) ) {
 	      hScaler->Fill(static_cast<int>(iwb->ch)+1);
-	    }else if(stfHeader->femType == 2 || (stfHeader->femType==4)) {
+	    }else if(stfHeader->femType == 2 || (stfHeader->femType==5)) {
 	      hScaler->Fill(static_cast<int>(iwb->ch)+1);
 	    }
 	    
