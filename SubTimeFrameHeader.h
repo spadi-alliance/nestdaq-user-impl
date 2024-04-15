@@ -52,7 +52,7 @@ constexpr uint32_t NULDEV    {0};
 struct Header {
     uint64_t magic        {MAGIC};
     uint32_t length       {0};
-    uint16_t hLength      {40};
+    uint16_t hLength      {48};
     uint16_t type         {0};
     uint32_t timeFrameId  {0}; 
     uint32_t femType      {0};
