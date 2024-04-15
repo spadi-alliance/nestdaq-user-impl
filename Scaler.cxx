@@ -412,8 +412,8 @@ void Scaler::PreRun()
 
     hScaler     = new UH1Book("ScalerHisto",128,0.,128.);
     hScalerPrev = new UH1Book("ScalerHistoPrev",128,0.,128.);
-    hFlag       = new UH1Book("FlagHisto",10,0.,16.);
-    hFlagPrev   = new UH1Book("FlagHistoPrev",10,0.,16.);
+    hFlag       = new UH1Book("FlagHisto",16,0.,16.);
+    hFlagPrev   = new UH1Book("FlagHistoPrev",16,0.,16.);
 }
 //______________________________________________________________________________
 void Scaler::PostRun()
