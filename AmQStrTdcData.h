@@ -93,10 +93,10 @@ namespace AmQStrTdc::Data {
    
       // lrtdc
       struct {
-	uint64_t zero_t1    : 16; // [15:0]	  	  
-	uint64_t tdc        : 19; // [34:16]
-	uint64_t tot        : 16; // [50:35]
-	uint64_t ch         :  7; // [57:51]
+	uint64_t zero_t1    : 15; // [14:0]	  	  
+	uint64_t tdc        : 19; // [33:15]
+	uint64_t tot        : 16; // [49:34]
+	uint64_t ch         :  8; // [57:50]
 	uint64_t dtype      :  6; // [63:58]
       };
 
