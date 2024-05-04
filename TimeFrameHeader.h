@@ -3,7 +3,6 @@
 
 #include <cstdint>
 
-#pragma pack(4)
 namespace TimeFrame {
 
 // This format is temporary and should be updated.
@@ -29,11 +28,21 @@ struct Header {
     uint16_t type        {0};
     uint32_t timeFrameId {0};
     uint32_t numSource   {0};
+
+
+
+   void Print() {
+      printf("TimeFrameHeader\n");
+      printf("Length        = %d\n",length);
+      printf("Header Lenght = %d\n",hLength);
+      printf("Type          = %d\n",type);
+      printf("timeframeid   = %d\n",timeFrameId);
+      printf("numSource     = %d\n",numSource);
+   }
 };
 
 } // namespace v1
 
 } // namespace TimeFrame
-#pragma pack()
 
 #endif

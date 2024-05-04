@@ -3,8 +3,7 @@
 
 #include <cstdint>
 
-#pragma pack(4)
-inline namespace SubTimeFrame {
+namespace SubTimeFrame {
 
 // This format is temporary and should be updated.
 namespace v0 {
@@ -18,7 +17,10 @@ constexpr uint32_t TDC64H_V1 {2};
 constexpr uint32_t TDC64L    {3};
 constexpr uint32_t TDC64L_V1 {1};
 constexpr uint32_t TDC64L_V2 {3};
+constexpr uint32_t TDC64H_V3 {5};
+constexpr uint32_t TDC64L_V3 {6};
 
+constexpr uint32_t FLT_TDC   {0x0000'1000};
 constexpr uint32_t NULDEV    {0};
 
 struct Header {
@@ -44,6 +46,10 @@ constexpr uint32_t TDC64H_V1 {2};
 constexpr uint32_t TDC64L    {3};
 constexpr uint32_t TDC64L_V1 {1};
 constexpr uint32_t TDC64L_V2 {3};
+//constexpr uint32_t TDC64H_V3 {4};
+//constexpr uint32_t TDC64L_V3 {5};
+constexpr uint32_t TDC64H_V3 {5};
+constexpr uint32_t TDC64L_V3 {6};
 constexpr uint32_t FLT_TDC   {0x0000'1000};
 
 constexpr uint32_t NULDEV    {0};
@@ -54,17 +60,16 @@ struct Header {
     uint32_t length       {0};
     uint16_t hLength      {48};
     uint16_t type         {0};
-    uint32_t timeFrameId  {0}; 
+    uint32_t timeFrameId  {0};
     uint32_t femType      {0};
     uint32_t femId        {0};
     uint32_t numMessages  {0};
     uint64_t timeSec     {0};
     uint64_t timeUSec    {0};
-};
+};  
 
 } // namespace v1
 
 } // namespace SubTimeFrame
-#pragma pack()
 
 #endif

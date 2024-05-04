@@ -1,7 +1,7 @@
 #ifndef HBFHeader_H
 #define HBFHeader_H
 
-namespace HartbeatFrame
+namespace HeartbeatFrame
 {
 // "HRTBEAT\0" -> "\0TAEBTRH"
 constexpr uint64_t MAGIC = 0x0054414542545248;
@@ -13,6 +13,6 @@ struct Header {
     uint16_t type       {0};
 };
 #pragma pack()
-}
+};
 
 #endif

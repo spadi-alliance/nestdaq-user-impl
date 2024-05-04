@@ -7,17 +7,6 @@
 #include <iomanip>
 
 
-struct tdc64 {
-	int type;
-	int ch;
-	int tot;
-	int tdc;
-	int tdc4n;
-	int flag;
-	int spill;
-	int hartbeat;
-};
-
 namespace TDC40 {
 
 static constexpr unsigned int T_TDC = 0xd;
@@ -77,7 +66,16 @@ int Unpack(unsigned char *data, struct tdc40 *tdc)
 
 namespace TDC64H {
 
-
+struct tdc64 {
+	int type;
+	int ch;
+	int tot;
+	int tdc;
+	int tdc4n;
+	int flag;
+	int spill;
+	int hartbeat;
+};
 
 static constexpr unsigned int T_TDC        = (0x2c >> 2);
 static constexpr unsigned int T_TDC_L      = (0x2c >> 2);
@@ -164,14 +162,20 @@ int GetHBFrame(unsigned char *pdata, unsigned char *pend, unsigned char **ppnext
 
 	return i * sizeof(uint64_t);
 }
-
-
-
-} //namespace TDC64
+} //namespace TDC64H
 
 namespace TDC64L {
 
-
+struct tdc64 {
+	int type;
+	int ch;
+	int tot;
+	int tdc;
+	int tdc4n;
+	int flag;
+	int spill;
+	int hartbeat;
+};
 
 namespace v1 {
 static constexpr unsigned int T_TDC       = (0x2c >> 2);
@@ -233,6 +237,8 @@ static constexpr unsigned int T_THR1_END   = (0x44 >> 2);
 static constexpr unsigned int T_THR2_START = (0x68 >> 2);
 static constexpr unsigned int T_THR2_END   = (0x48 >> 2);
 static constexpr unsigned int T_HB         = (0x70 >> 2);
+static constexpr unsigned int T_HB1        = (0x70 >> 2);
+static constexpr unsigned int T_HB2        = (0x78 >> 2);
 static constexpr unsigned int T_SPL_START  = (0x60 >> 2);
 static constexpr unsigned int T_SPL_END    = (0x50 >> 2);
 
@@ -253,7 +259,7 @@ int Unpack(uint64_t data, struct tdc64 *tdc)
 		tdc->hartbeat = -1;
 	} else
 	if (tdc->type == T_HB) {
-		tdc->ch	= -1;
+		tdc->ch	      = -1;
 		tdc->tot      = -1;
 		tdc->tdc      = -1;
 		tdc->tdc4n    = -1;
@@ -284,8 +290,182 @@ int Unpack(uint64_t data, struct tdc64 *tdc)
 } //namespace v2
 
 } //namespace TDC64L
+ 
 
+namespace TDC64H_V3 {
 
+struct tdc64 {
+	int type;
+	int ch;
+	int tot;
+	int tdc;
+	int tdc4n;
+	int flag;
+	int toffset;
+	int genesize;
+	int transize;
+	int hartbeat;
+};
+
+inline namespace v2 {
+static constexpr unsigned int T_TDC        = (0x2c >> 2);
+static constexpr unsigned int T_TDC_L      = (0x2c >> 2);
+static constexpr unsigned int T_TDC_T      = (0x34 >> 2);
+static constexpr unsigned int T_THR1_START = (0x64 >> 2);
+static constexpr unsigned int T_THR1_END   = (0x44 >> 2);
+static constexpr unsigned int T_THR2_START = (0x68 >> 2);
+static constexpr unsigned int T_THR2_END   = (0x48 >> 2);
+static constexpr unsigned int T_HB         = (0x70 >> 2);
+static constexpr unsigned int T_HB1        = (0x70 >> 2);
+static constexpr unsigned int T_HB2        = (0x78 >> 2);
+static constexpr unsigned int T_SPL_START  = (0x60 >> 2);
+static constexpr unsigned int T_SPL_END    = (0x50 >> 2);
+
+int Unpack(uint64_t data, struct tdc64 *tdc)
+{
+	//unsigned char *cdata = reinterpret_cast<unsigned char *>(&data);
+
+	tdc->type = (data & 0xfc00'0000'0000'0000) >> 58;
+	if (  (tdc->type == T_TDC_L)     || (tdc->type == T_TDC_T)
+	   || (tdc->type == T_THR1_START) || (tdc->type == T_THR1_END)
+	   || (tdc->type == T_THR2_START) || (tdc->type == T_THR2_END)  ) {
+		tdc->ch	      = (data & 0x03f8'0000'0000'0000) >> 51;
+		tdc->tot      = (data & 0x0007'ffff'e000'0000) >> 29;
+		tdc->tdc      = (data & 0x0000'0000'1fff'ffff);
+		tdc->tdc4n    = (data & 0x0000'0000'1fff'ffff) >> 12;
+		tdc->flag     = -1;
+		tdc->toffset  = -1;
+		tdc->hartbeat = -1;
+		tdc->genesize = -1;
+		tdc->transize = -1;
+	} else
+	if (tdc->type == T_HB1) {
+		tdc->ch	      = -1;
+		tdc->tot      = -1;
+		tdc->tdc      = -1;
+		tdc->tdc4n    = -1;
+		tdc->flag     = (data & 0x00ff'ff00'0000'0000) >> 40;
+		tdc->toffset  = (data & 0x0000'00ff'ff00'0000) >> 24;
+		tdc->hartbeat = (data & 0x0000'0000'00ff'ffff) >>  0;
+		tdc->genesize = -1;
+		tdc->transize = -1;
+	} else
+	if (tdc->type == T_HB2) {
+		tdc->ch	      = -1;
+		tdc->tot      = -1;
+		tdc->tdc      = -1;
+		tdc->tdc4n    = -1;
+		tdc->flag     = (data & 0x00ff'ff00'0000'0000) >> 40;
+		tdc->toffset  = -1;
+		tdc->hartbeat = -1;
+		tdc->genesize = (data & 0x0000'00ff'fff0'0000) >> 20;
+		tdc->transize = (data & 0x0000'0000'000f'ffff) >>  0;
+	} else
+	{
+		tdc->ch       = -1;
+		tdc->tot      = -1;
+		tdc->tdc      = -1;
+		tdc->tdc4n    = -1;
+		tdc->flag     = -1;
+		tdc->toffset  = -1;
+		tdc->hartbeat = -1;
+		tdc->genesize = -1;
+		tdc->transize = -1;
+	}
+
+	return tdc->type;
+}
+} //namespace v2
+
+} //namespace TDC64H_V3
+ 
+namespace TDC64L_V3 {
+
+struct tdc64 {
+	int type;
+	int ch;
+	int tot;
+	int tdc;
+	int tdc4n;
+	int flag;
+	int toffset;
+	int genesize;
+	int transize;
+	int hartbeat;
+};
+
+inline namespace v2 {
+static constexpr unsigned int T_TDC        = (0x2c >> 2);
+static constexpr unsigned int T_TDC_L      = (0x2c >> 2);
+static constexpr unsigned int T_TDC_T      = (0x34 >> 2);
+static constexpr unsigned int T_THR1_START = (0x64 >> 2);
+static constexpr unsigned int T_THR1_END   = (0x44 >> 2);
+static constexpr unsigned int T_THR2_START = (0x68 >> 2);
+static constexpr unsigned int T_THR2_END   = (0x48 >> 2);
+static constexpr unsigned int T_HB         = (0x70 >> 2);
+static constexpr unsigned int T_HB1        = (0x70 >> 2);
+static constexpr unsigned int T_HB2        = (0x78 >> 2);
+static constexpr unsigned int T_SPL_START  = (0x60 >> 2);
+static constexpr unsigned int T_SPL_END    = (0x50 >> 2);
+
+int Unpack(uint64_t data, struct tdc64 *tdc)
+{
+	//unsigned char *cdata = reinterpret_cast<unsigned char *>(&data);
+
+	tdc->type = (data & 0xfc00'0000'0000'0000) >> 58;
+	if (  (tdc->type == T_TDC_L)     || (tdc->type == T_TDC_T)
+	   || (tdc->type == T_THR1_START) || (tdc->type == T_THR1_END)
+	   || (tdc->type == T_THR2_START) || (tdc->type == T_THR2_END)  ) {
+		tdc->ch	      = (data & 0x03fc'0000'0000'0000) >> 51;
+		tdc->tot      = (data & 0x0003'fffc'0000'0000) >> 35;
+		tdc->tdc      = (data & 0x0000'0003'ffff'8000) >> 15;
+		tdc->tdc4n    = (data & 0x0000'0003'fffe'0000) >> 17;
+		tdc->flag     = -1;
+		tdc->toffset  = -1;
+		tdc->genesize = -1;
+		tdc->transize = -1;
+		tdc->hartbeat = -1;
+	} else
+	if (tdc->type == T_HB1) {
+		tdc->ch	      = -1;
+		tdc->tot      = -1;
+		tdc->tdc      = -1;
+		tdc->tdc4n    = -1;
+		tdc->flag     = (data & 0x00ff'ff00'0000'0000) >> 40;
+		tdc->toffset  = (data & 0x0000'00ff'ff00'0000) >> 24;
+		tdc->hartbeat = (data & 0x0000'0000'00ff'ffff) >>  0;
+		tdc->genesize = -1;
+		tdc->transize = -1;
+	} else
+	if (tdc->type == T_HB2) {
+		tdc->ch	      = -1;
+		tdc->tot      = -1;
+		tdc->tdc      = -1;
+		tdc->tdc4n    = -1;
+		tdc->flag     = (data & 0x00ff'ff00'0000'0000) >> 40;
+		tdc->toffset  = -1;
+		tdc->hartbeat = -1;
+		tdc->genesize   = (data & 0x0000'00ff'fff0'0000) >> 20;
+		tdc->transize   = (data & 0x0000'0000'000f'ffff) >>  0;
+	} else
+	{
+		tdc->ch       = -1;
+		tdc->tot      = -1;
+		tdc->tdc      = -1;
+		tdc->tdc4n    = -1;
+		tdc->flag     = -1;
+		tdc->toffset  = -1;
+		tdc->hartbeat = -1;
+		tdc->genesize = -1;
+		tdc->transize = -1;
+	}
+
+	return tdc->type;
+}
+} //namespace v2
+
+} //namespace TDC64L3
+ 
 
 #ifdef TEST_MAIN_UNPACKTDC
 //#if 0

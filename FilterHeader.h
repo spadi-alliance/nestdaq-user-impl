@@ -5,7 +5,6 @@
 #include <sys/time.h>
 
 namespace Filter {
-
 namespace v0 {
 // "NIOC-TLF" : little endian of "FLT-COIN"
 constexpr uint64_t MAGIC {0x4e494f43'2d544c46};
@@ -24,7 +23,7 @@ inline namespace v1 {
 #pragma pack(4)
 
 // " IGOLTLF" : little endian of "FLTLOGI "
-constexpr uint64_t MAGIC {0x0049474f'4c544c46};
+static constexpr uint64_t MAGIC {0x0049474f'4c544c46};
 
 struct Header {
     uint64_t magic       {MAGIC};
@@ -40,7 +39,7 @@ struct Header {
 };
 
 // " EMITGRT"
-constexpr uint64_t TDC_MAGIC {0x00454d49'54475254};
+static constexpr uint64_t TDC_MAGIC {0x00454d49'54475254};
 struct TrgTimeHeader {
     union {
         uint32_t u32data[4];
