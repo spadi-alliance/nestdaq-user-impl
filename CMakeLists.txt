@@ -174,8 +174,9 @@ message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
 foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
-  fltcoin; tfdump; onlinedisplay; 
-  EventBuilder; 
+  fltcoin; LogicFilter;
+  tfdump; onlinedisplay; 
+#  EventBuilder; 
 #  AmQStrTdcDqm;
   Scaler)
 

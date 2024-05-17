@@ -20,6 +20,7 @@
 
 #include "SubTimeFrameHeader.h"
 #include "TimeFrameHeader.h"
+#include "HartbeatFrameHeader.h"
 #include "FilterHeader.h"
 #include "UnpackTdc.h"
 #include "KTimer.cxx"
@@ -116,7 +117,7 @@ private:
 	int fNumSource = 0;
 	int fFeType = 0;
 	uint32_t fFEMId = 0;
-	int fPrescale = 10;
+	int fPrescale = 2;
 
 	KTimer fKt1;
 	KTimer fKt2;
@@ -144,6 +145,13 @@ bool OnlineDisplay::CheckData(fair::mq::MessagePtr& msg)
 			<< " Id: " << std::setw(8) << pflt->workerId
 			<< " elapse: " << std::dec <<  pflt->elapseTime
 			<< std::endl;
+
+	} else if (msg_magic == Filter::TDC_MAGIC) {
+		gTrig.clear();
+		gTrig.resize(0);
+		Filter::TrgTime *trg = reinterpret_cast<Filter::TrgTime *>(pdata + sizeof(Filter::TrgTimeHeader));
+		int len = (msize - sizeof(Filter::TrgTimeHeader)) / sizeof(Filter::TrgTime);
+		for (int i = 0 ; i < len ; i++) gTrig.emplace_back(trg[i].time);
 
 	} else if (msg_magic == TimeFrame::MAGIC) {
 		TimeFrame::Header *ptf
@@ -193,14 +201,14 @@ bool OnlineDisplay::CheckData(fair::mq::MessagePtr& msg)
 				std::cout << "TDC ";
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
 				if (fFeType == SubTimeFrame::TDC64H) {
-					struct tdc64 tdc;
+					struct TDC64H::tdc64 tdc;
 					TDC64H::Unpack(*dword, &tdc);
 					std::cout << "H :"
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
 						<< " TDC: " << std::setw(7) << tdc.tdc << std::endl;
 				} else
 				if (fFeType == SubTimeFrame::TDC64L) {
-					struct tdc64 tdc;
+					struct TDC64L::tdc64 tdc;
 					TDC64L::Unpack(*dword, &tdc);
 					std::cout << "L :"
 						<< " CH: " << std::dec << std::setw(3) << tdc.ch
@@ -213,7 +221,7 @@ bool OnlineDisplay::CheckData(fair::mq::MessagePtr& msg)
 				std::cout << "Hart beat" << std::endl;
 
 				uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
-				struct tdc64 tdc;
+				struct TDC64H::tdc64 tdc;
 				TDC64H::Unpack(*dword, &tdc);
 				int hbflag = tdc.flag;
 			        if (hbflag > 0) {
@@ -267,10 +275,12 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 	unsigned char *pdata = reinterpret_cast<unsigned char *>(msg->GetData());
 	uint64_t msg_magic = *(reinterpret_cast<uint64_t *>(pdata));
 
-	if (msg_magic == Filter::MAGIC) {
-		#if 0
+	if (false) {
+
+	} else if (msg_magic == Filter::MAGIC) {
 		Filter::Header *pflt
 			= reinterpret_cast<Filter::Header *>(pdata);
+		#if 0
 		std::cout << "#FLT Header "
 			<< std::hex << std::setw(16) << std::setfill('0') <<  pflt->magic
 			<< " len: " << std::dec << std::setw(8) <<  pflt->length
@@ -278,6 +288,33 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 			<< " Id: " << std::setw(8) << pflt->workerId
 			<< " elapse: " << std::dec <<  pflt->elapseTime
 			<< std::endl;
+		#endif
+
+		gHistFlt(pflt);
+		gHistTrig_clear();
+
+	} else if (msg_magic == Filter::TDC_MAGIC) {
+		Filter::TrgTimeHeader *pflttdc
+			= reinterpret_cast<Filter::TrgTimeHeader *>(pdata);
+		Filter::TrgTime *data = reinterpret_cast<Filter::TrgTime *>(pdata + sizeof(Filter::TrgTimeHeader));
+		int len = (pflttdc->length - sizeof(Filter::TrgTimeHeader)) / sizeof(Filter::TrgTime);
+		gHistTrig(data, len);
+
+		#if 0
+		std::cout << "#FLTTDC Header "
+			<< std::hex << std::setw(16) << std::setfill('0') <<  pflttdc->magic
+			<< " len: " << std::dec << std::setw(8) <<  pflttdc->length
+			<< " hLen: " << std::setw(8) << pflttdc->hLength
+			<< " type: " << std::setw(8) << pflttdc->type
+			<< std::endl;
+		if (len > 0) {
+			std::cout << "Trig: ";
+			for (int i = 0 ; i < len ; i++) {
+				Filter::TrgTime *trg = reinterpret_cast<Filter::TrgTime *>(data + i);
+				std::cout << " " << trg->trg.time;
+			}
+			std::cout << std::endl;
+		}
 		#endif
 
 	} else if (msg_magic == TimeFrame::MAGIC) {
@@ -306,30 +343,39 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 			<< " len: " << std::dec <<  pstf->length
 			<< " nMsg: " << std::dec <<  pstf->numMessages
 			<< std::endl << "# "
-			<< " Ts: " << std::dec << pstf->time_sec
-			<< " Tus: " << std::dec << pstf->time_usec
+			<< " Ts: " << std::dec << pstf->timeSec
+			<< " Tus: " << std::dec << pstf->timeUSec
 			<< std::endl;
 		#endif
 
 		fFEMId = pstf->femId;
 		fFeType = pstf->femType;
 
+	} else if (msg_magic == HartbeatFrame::MAGIC) {
+
+		gHistBook(msg, fFEMId, fFeType);
+
 	} else {
 
 		#if 0
+		for (int j = 0 ; j < 16 ; j += 8) {
 		std::cout << "# " << std::setw(8) << j << " : "
 			<< std::hex << std::setw(2) << std::setfill('0')
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 7]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 6]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 5]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 4]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 3]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 2]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 1]) << " "
-			<< std::setw(2) << static_cast<unsigned int>(pdata[0 + 0]) << " : ";
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 7]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 6]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 5]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 4]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 3]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 2]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 1]) << " "
+			<< std::setw(2) << static_cast<unsigned int>(pdata[j + 0]) << " : "
+			<< std::endl;
+		}
 		#endif
 
-		if        ((pdata[0 + 7] & 0xfc) == (TDC64H::T_TDC << 2)) {
+		if (false) {
+
+		} else if ((pdata[0 + 7] & 0xfc) == (TDC64H::T_TDC << 2)) {
 
 			gHistBook(msg, fFEMId, fFeType);
 
@@ -337,14 +383,14 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 			std::cout << "TDC ";
 			uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[0]));
 			if (fFeType == SubTimeFrame::TDC64H) {
-				struct tdc64 tdc;
+				struct TDC64H::tdc64 tdc;
 				TDC64H::Unpack(*dword, &tdc);
 				std::cout << "H :"
 					<< " CH: " << std::dec << std::setw(3) << tdc.ch
 					<< " TDC: " << std::setw(7) << tdc.tdc << std::endl;
 			} else
 			if (fFeType == SubTimeFrame::TDC64L) {
-				struct tdc64 tdc;
+				struct TDC64L::tdc64 tdc;
 				TDC64L::Unpack(*dword, &tdc);
 				std::cout << "L :"
 					<< " CH: " << std::dec << std::setw(3) << tdc.ch
@@ -358,7 +404,7 @@ void OnlineDisplay::BookData(fair::mq::MessagePtr& msg)
 			#if 0
 			std::cout << "Hart beat" << std::endl;
 			uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[0]));
-			struct tdc64 tdc;
+			struct TDC64H::tdc64 tdc;
 			TDC64H::Unpack(*dword, &tdc);
 			int hbflag = tdc.flag;
 			if (hbflag > 0) {
@@ -432,7 +478,7 @@ bool OnlineDisplay::ConditionalRun()
 		#if 0
 		for(auto& vmsg : inParts) CheckData(vmsg);
 		#else
-		if ((counts % 100) == 0) std::cout << "." << std::flush;
+		//if ((counts % 100) == 0) std::cout << "." << std::flush;
 		if ((counts % fPrescale) == 0) for(auto& vmsg : inParts) BookData(vmsg);
 		#endif
 

@@ -16,7 +16,9 @@ struct Header {
     uint32_t numTrigs    {0};
     uint32_t workerId    {0};
     uint32_t elapseTime  {0};
-    struct timeval processTime {0, 0};
+    //struct timeval processTime {0, 0};
+    uint64_t timeSec     {0};
+    uint64_t timeUSec    {0};
 };
 } //namespace v0
 
@@ -36,7 +38,10 @@ struct Header {
     uint32_t workerId    {0};
     uint32_t numMessages {0};
     uint32_t elapseTime  {0};
-    struct timeval processTime {0, 0};
+    uint32_t reserve     {0xff00ff00};
+    //struct timeval processTime {0, 0};
+    uint64_t timeSec     {0};
+    uint64_t timeUSec    {0};
 };
 
 // " EMITGRT"
@@ -57,11 +62,11 @@ struct TrgTimeHeader {
 constexpr unsigned char FLT_TDC_TYPE {0xaa};
 struct TrgTime {
     union {
-        unsigned char cdata[4]  {0, 0, 0, FLT_TDC_TYPE};
         struct {
-            uint32_t time : 24;
-            uint32_t type :  8;
+            uint32_t time;
+            uint32_t type;
         };
+        unsigned char cdata[8]  {0, 0, 0, 0, 0, 0, 0, FLT_TDC_TYPE};
     };
 };
 
