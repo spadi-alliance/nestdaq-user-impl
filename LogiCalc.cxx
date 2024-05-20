@@ -12,6 +12,7 @@
 
 #include <algorithm>
 
+#include "infixtorp.cxx"
 
 class LogiCalc
 {
@@ -74,8 +75,21 @@ int LogiCalc::ComPushBack(std::string &word)
 	return fCommands.size();
 }
 
-std::vector<std::string> & LogiCalc::SetFormula(std::string sform)
+std::vector<std::string> & LogiCalc::SetFormula(std::string sparam)
 {
+
+	std::string sform;
+	if ((sparam.substr(0,3) == "RPN") || (sparam.substr(0,3) == "rpn")) {
+		sform =  sparam.substr(3);
+	} else {
+		sform = infixtorp(sparam)->to_rpn();
+	}
+
+	#if 0
+	std::cout << "#D input formula: " << sparam << std::endl;
+	std::cout << "#D rpn formula  : " << sform << std::endl;
+	#endif
+
 	fCommands.clear();
 	fCommands.resize(0);
 	fSigMax = 0;
@@ -156,7 +170,8 @@ int main(int argc, char *argv[])
 	if (argc > 1) {
 		formula = argv[1];
 	} else {
-		formula = "0 1 & 2 3 & | 4 5 & 6 7 & | &";
+		//formula = "RPN 0 1 & 2 3 & | 4 5 & 6 7 & | &";
+		formula = "((0 & 1) | (2 & 3)) & ((4 & 5) | (6 & 7))";
 	}
 
 	LogiCalc calc;

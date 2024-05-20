@@ -266,7 +266,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
     });
 
     stfHeader->hLength      = sizeof(stfHeader);
-    stfHeader->numMessages  = fWorkingPayloads->size();
+    stfHeader->numMessages  = fWorkingPayloads->size() - 1;
 
     struct timeval curtime;
     gettimeofday(&curtime, NULL);

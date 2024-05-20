@@ -2,7 +2,7 @@
  * @file EventBuilder.h 
  * @brief EventBuilder for NestDAQ
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-04 17:34:31 JST
+ *       Last Modified : 2024-05-16 18:18:41 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -18,6 +18,7 @@
 #include "TimeFrameHeader.h"
 #include "FilterHeader.h"
 #include "HeartbeatFrameHeader.h"
+#include "FrameContainer.h"
 
 namespace nestdaq {
    class TimeFrameSlicerByLogicTiming;
@@ -39,66 +40,49 @@ public:
       static constexpr std::string_view InputChannelName {"in-chan-name"};
       static constexpr std::string_view OutputChannelName {"out-chan-name"};
       static constexpr std::string_view DQMChannelName {"out-chan-name"};
+      static constexpr std::string_view TimeOffsetBegin {"time-offset-begin"};
+      static constexpr std::string_view TimeOffsetEnd {"time-offset-end"};
+      static constexpr std::string_view PollTimeout        {"poll-timeout"};
+      static constexpr std::string_view SplitMethod        {"split"};
    };
 
 protected:
 
-   bool GetNextHBF(FairMQParts& inParts);
+   bool ParseMessages(FairMQParts& inParts);
    
    std::string fInputChannelName;
    std::string fOutputChannelName;
 
    std::string fName;
    uint32_t fID;
+   int fOffset[2];
 
 
    std::vector<KTimer> fKTimer;
    bool fDoCheck;
    
 
-   template <typename frametype> class Header {
-   public:
-      void SetHeader(void* data) { fHeader = reinterpret_cast<frametype*>(data); }
-      frametype* GetHeader() { return fHeader; }
-   protected:
-      frametype *fHeader;
-   };
-
-   template <class frametype, class datatype> class DataFrame : public Header<frametype>  {
-   public:
-      void Set(void* data) {
-         this->SetHeader(data);
-         fData = reinterpret_cast<datatype*>(data) + sizeof(frametype);
-         fNumData = (this->GetHeader()->length - this->GetHeader()->hLength)/sizeof(datatype);
-      }
-   protected:
-      datatype* fData;
-      uint64_t fNumData;
-   };
-
-   
-   template <class frametype, class child> class ContainerFrame : public Header<frametype>, public std::vector<child*>  {
-   }  ;
-
-   
-   class THBF : public DataFrame<struct HeartbeatFrame::Header,uint64_t> {
-   };
-
-   using TTT = DataFrame<struct Filter::TrgTimeHeader,uint32_t>;
-   class TLF : public ContainerFrame<struct Filter::Header,TTT> {
-   };
-
-   class TSTF : public ContainerFrame<struct SubTimeFrame::Header,THBF> {
-   };
-
-   class TTF : public ContainerFrame<struct TimeFrame::Header,TSTF> {
-   };
 
    TTF fTF;
    TLF fLF; // logic filter
+
+   uint32_t fIdxHBF;
+   uint32_t fNumHBF;
    
    int fNextIdx;
    bool fEOM;
+
+   // for the output
+   uint64_t fTFHidx;
+
+
+   // output
+   int fNumDestination {0};
+   uint32_t fDirection {0};
+   int fPollTimeoutMS  {0};
+   int fSplitMethod    {0};
+   
+
 };
 
 

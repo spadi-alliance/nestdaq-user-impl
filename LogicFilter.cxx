@@ -117,7 +117,7 @@ struct LogicFilter : fair::mq::Device
 	bool CheckData(fair::mq::MessagePtr&);
 
 private:
-	int IsHeartBeat(uint64_t, uint32_t);
+	int IsHartBeat(uint64_t, uint32_t);
 	int RemoveData(fair::mq::Parts &, int);
 	void CheckMultiPart(FairMQParts &);
 	int MakeBlockMap(FairMQParts &,
@@ -332,7 +332,7 @@ bool LogicFilter::CheckData(fair::mq::MessagePtr &msg)
 				}
 
 			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_HB << 2)) {
-				std::cout << "Heart beat" << std::endl;
+				std::cout << "Hart beat" << std::endl;
 			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_SPL_START << 2)) {
 				std::cout << "SPILL Start" << std::endl;
 			} else if ((pdata[j + 7] & 0xfc) == (TDC64H::T_SPL_END << 2)) {
@@ -350,7 +350,7 @@ bool LogicFilter::CheckData(fair::mq::MessagePtr &msg)
 	return true;
 }
 
-int LogicFilter::IsHeartBeat(uint64_t val, uint32_t type)
+int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 {
 	int hbflag = -1;
 	int hbframe = -1;
@@ -508,7 +508,7 @@ void LogicFilter::CheckMultiPart(FairMQParts &inParts)
 				<< std::setw(8) << inParts[i].GetSize() << " :"; 
 		} else {
 			std::cout << "UK " << std::setw(8) << std::setfill('0')
-				<< IsHeartBeat(top[0], SubTimeFrame::TDC64H);
+				<< IsHartBeat(top[0], SubTimeFrame::TDC64H);
 		}
 	}
 	std::cout << std::dec << std::endl;
@@ -570,7 +570,7 @@ int LogicFilter::MakeBlockMap(
 			// make block map;
 
 			uint64_t *data = reinterpret_cast<uint64_t *>(inParts[i].GetData());
-			int hbframe = IsHeartBeat(data[0], devtype);
+			int hbframe = IsHartBeat(data[0], devtype);
 
 			#if 0
 			std::cout << "#DDD msg" << std::dec << std::setw(3) << i << ":"
@@ -718,7 +718,7 @@ int LogicFilter::MakeBlockMap2(
 			// make block map;
 
 			uint64_t *data = reinterpret_cast<uint64_t *>(inParts[i].GetData());
-			int hbframe = IsHeartBeat(data[0], devtype);
+			int hbframe = IsHartBeat(data[0], devtype);
 
 			#if 0
 			std::cout << "#DDD msg" << std::dec << std::setw(3) << i << ":"
@@ -915,6 +915,7 @@ int LogicFilter::AddFilterMessage(
 	fltHeader->timeFrameId = tf_id;
 	fltHeader->numTrigs = totalhits;
 	fltHeader->workerId = fId;
+        fltHeader->numMessages = fltdata.size();
 	fltHeader->elapseTime = elapse;
 	fltHeader->processTime.tv_sec = sec;
 	fltHeader->processTime.tv_usec = usec;
@@ -1304,7 +1305,7 @@ bool LogicFilter::ConditionalRun()
 					// }
 					stfh->length
 						= len_stf + sizeof(struct SubTimeFrame::Header);
-					stfh->numMessages = nmsg_stf;
+					stfh->numMessages = nmsg_stf + 1; // Nmsg = Nstf + NFLTHeader(1)
 					ii = kk - 1;
 				}
 			}
