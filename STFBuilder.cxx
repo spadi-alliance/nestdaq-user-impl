@@ -265,7 +265,7 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
         return (!m) ? init : init + m->GetSize();
     });
 
-    stfHeader->hLength      = sizeof(stfHeader);
+    stfHeader->hLength      = sizeof(*stfHeader);
     stfHeader->numMessages  = fWorkingPayloads->size() - 1;
 
     struct timeval curtime;
