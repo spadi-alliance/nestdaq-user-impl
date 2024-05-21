@@ -30,7 +30,7 @@ static constexpr uint64_t MAGIC {0x0049474f'4c544c46};
 struct Header {
     uint64_t magic       {MAGIC};
     uint32_t length      {0};
-    uint16_t hLength     {36};
+    uint16_t hLength     {56};
     uint16_t type        {0};
     uint32_t timeFrameId {0};
     uint32_t numTrigs    {0};
@@ -51,7 +51,7 @@ struct TrgTimeHeader {
         struct {
             uint64_t magic       {TDC_MAGIC};
             uint32_t length      {0};
-            uint16_t hLength     {0x14};
+            uint16_t hLength     {16};
             uint16_t type        {0};
             //uint32_t timeFrameId {0};
         };
