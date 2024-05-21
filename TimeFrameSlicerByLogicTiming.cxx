@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-21 10:27:30 JST
+ *       Last Modified : 2024-05-21 16:25:56 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -109,7 +109,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
        ***********************************************************************/
 
       //----------------------------------------------------------------------
-      // make summary block
+      // make summary block (meta)
       //----------------------------------------------------------------------
       
       // copy time frame header
@@ -140,6 +140,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          // modify size of subtime frame
          auto stfh = (SubTimeFrame::Header*) &((*outdata)[stfhidx]);
          stfh->length = (outdata->size() - stfhidx) * sizeof(copyUnit);
+         stfh->hLength = sizeof(struct SubTimeFrame::Header);
          // modify size of heartbeat frame
          auto hbfh = (HeartbeatFrame::Header*) &((*outdata)[hbfhidx]);
          hbfh->length = (outdata->size() - hbfhidx) * sizeof(copyUnit);
@@ -241,6 +242,8 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
             hbfh->length = (outdata->size() - hbfhidx) * sizeof(copyUnit);
             auto stfh = (SubTimeFrame::Header*) &((*outdata)[stfhidx]);
             stfh->length = (outdata->size() - stfhidx) * sizeof(copyUnit);
+            stfh->hLength = sizeof(struct SubTimeFrame::Header);
+            stfh->numMessages = 2; // by definition the number of heartbeat frame is one and then num message is one
          }
          
          auto tfsh = (TimeFrame::Header*) &((*outdata)[tfidx]);
