@@ -176,7 +176,8 @@ foreach(lvar IN ITEMS
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
   fltcoin; LogicFilter;
-  tfdump; onlinedisplay; 
+  tfdump; onlinedisplay;
+  FilterTimeFrameSliceABC;
 #  AmQStrTdcDqm;
   Scaler)
 
