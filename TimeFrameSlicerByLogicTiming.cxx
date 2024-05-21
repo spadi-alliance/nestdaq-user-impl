@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-16 15:52:19 JST
+ *       Last Modified : 2024-05-21 10:27:30 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -13,9 +13,7 @@
 #include "utility/MessageUtil.h"
 #include "UnpackTdc.h"
 
-
-#define DO_LOG if (fDoCheck && DEBUG) 
-
+#define DEBUG 0
 
 using nestdaq::TimeFrameSlicerByLogicTiming;
 namespace bpo = boost::program_options;
@@ -64,7 +62,9 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
    fNumHBF = INT_MAX;
    fIdxHBF = 0;
    fDoCheck = fKTimer[0].Check();
+#if DEBUG   
    if (fDoCheck) LOG(info) << "Let's build";
+#endif   
    std::chrono::system_clock::time_point sw_start, sw_end;
 
    
@@ -73,10 +73,11 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
    if (Receive(inParts, fInputChannelName,0,1) <= 0) return true;
    // inParts should have at least two messages
 
+#if DEBUG   
    if (fDoCheck) {
       LOG(info) << "inParts : " << inParts.Size();
    }
-
+#endif
    ParseMessages(inParts);
 
    using copyUnit = uint32_t;
@@ -153,6 +154,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
       /***********************************************************************
        * Prepare the slices 
        ***********************************************************************/
+#if DEBUG      
       if (fDoCheck) {
          LOG(info) << "Num Sources = " << fTF.size() << " / " << fTF.GetHeader()->numSource;
          LOG(info) << " Num HB = " << fNumHBF << " / " << fTF[0]->GetHeader()->numMessages;
@@ -162,7 +164,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
             LOG(info) << " Trg[" << i << "] = " << fLF[fIdxHBF]->UncheckedAt(i);
          }
       }
-
+#endif
       //----------------------------------------------------------------------
       // start analyzing tdc data
       //----------------------------------------------------------------------
@@ -180,13 +182,14 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
       }
 
       for (uint32_t iTrig = 0; iTrig < nTrig; ++iTrig) {
-         auto trig = lf->UncheckedAt(iTrig);
+         auto trig = lf->UncheckedAt(iTrig).time;
          auto trigBegin = trig + fOffset[0];
          auto trigEnd   = trig + fOffset[1];
+#if DEBUG   
          if (fDoCheck) {
-            LOG(info) << "trigger window [" << trigBegin << "," << trigEnd << "]";
+            LOG(info) << "trigger window [" << trigBegin << "," << trigEnd << "] " << trig;
          }
-         
+#endif         
          //----------------------------------------------------------------------
          // make timeframe for each slice
          //----------------------------------------------------------------------
@@ -225,9 +228,6 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                   TDC64L_V3::Unpack(hbf->UncheckedAt(it),&tdc64l);
                   tdc4n = tdc64l.tdc4n;
                   ch = tdc64l.ch;
-               }
-               if (fDoCheck) {
-                  LOG(info) << "[" << trigBegin << "," << trigEnd << "]" << " : " << tdc4n << " id = " << std::hex << fTF[is]->GetHeader()->femId << std::dec << " ch = " << ch;
                }
                // validate hits
                if (tdc4n < trigBegin) continue;
@@ -308,10 +308,13 @@ void TimeFrameSlicerByLogicTiming::PostRun()
 
 bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
 {
+#if DEBUG   
+   
    if (fDoCheck) {
       LOG(info) << "GetNextHBF";
       LOG(info) << "nParts = " << inParts.Size();
    }
+#endif   
    if (fNextIdx >= inParts.Size()) {
       LOG(info) << "no data is available";
       return !(fEOM = true);
@@ -323,16 +326,20 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
       auto& part = inParts[i];
       auto magic = *reinterpret_cast<uint64_t*>(part.GetData());
       if (magic == TimeFrame::MAGIC) {
+#if DEBUG
          if (fDoCheck) {
             LOG(info) << "analyze timeframe";
          }
+#endif         
          stfIdx = -1; // reset stf index
          fTF.SetHeader(part.GetData());
          auto ns = fTF.GetHeader()->numSource;
+#if DEBUG         
          if (fDoCheck) {
             LOG(info) << "timeframeid = " << fTF.GetHeader()->timeFrameId;
             LOG(info) << "numSource = " << ns;
          }
+#endif         
          if (fTF.size() < ns) {
             fTF.resize(ns);
             for (decltype(ns) is = 0; is < ns; ++is) {
@@ -341,12 +348,15 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
                }
             }
          }
+#if DEBUG         
          if (fDoCheck) {
             LOG(info) << "analyze timeframe done";
          }
+#endif         
       } else if (magic == Filter::MAGIC) {
          fLF.SetHeader(part.GetData());
          auto nm = fLF.GetHeader()->numMessages;
+#if DEBUG         
          if (fDoCheck) {
             auto hdr = fLF.GetHeader();
             LOG(info) << "analyze filter tdc";
@@ -358,14 +368,15 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
             LOG(info) << hdr->numMessages;
             LOG(info) << hdr->elapseTime;
          }
-         
-         if (fLF.size() < nm) {
+#endif         
+         if (fLF.size() < nm - 1) {
             fLF.resize(nm);
             for (decltype(nm) im = 0; im < nm; ++im) {
                if (fLF[im] == nullptr) fLF[im] = new TTT;
             }
          }
       } else if (magic == Filter::TDC_MAGIC) {
+#if DEBUG
          if (fDoCheck) {
             LOG(info) << "analyze filter tdc";
             LOG(info) << fLF.size();
@@ -378,7 +389,7 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
             LOG(info) << *(uint32_t*)((char*)part.GetData()+24);
             LOG(info) << *(uint32_t*)((char*)part.GetData()+28);
          }
-         
+#endif         
          auto& tdcf = *(fLF[fltIdx]);
          tdcf.Set(part.GetData());
          fltIdx++;
@@ -388,20 +399,25 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
          auto& stf = *(fTF[stfIdx]);
          stf.SetHeader(part.GetData());
          uint32_t nh = stf.GetHeader()->numMessages;
+#if DEBUG   
          if (fDoCheck) {
             LOG(info) << stf.size() << " " << nh;
          }
+#endif         
          if (stf.size() < nh) {
             stf.resize(nh);
+#if DEBUG            
             if (fDoCheck) {
                LOG(info) << stf.size() << " " << nh;
             }
+#endif            
             for (decltype(nh) ih = 0; ih < nh; ++ih) {
                if (stf[ih] == nullptr) {
                   stf[ih] = new THBF;
                }
             }
          }
+#if DEBUG         
          if (fDoCheck) {
             auto hdr = stf.GetHeader();
             LOG(info) << "stfIdx = " << stfIdx;
@@ -409,6 +425,7 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
             LOG(info) << "femId = " << hdr->femId;
             LOG(info) << "numMessages = " << hdr->numMessages;
          }
+#endif         
       } else if (magic == HeartbeatFrame::MAGIC) {
          auto& hbf = *(fTF[stfIdx]->at(hbfIdx));
          hbf.Set(part.GetData());

@@ -2,13 +2,15 @@
  * @file FrameContainer.h
  * @brief Frame Structure Container
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-16 18:18:19 JST
+ *       Last Modified : 2024-05-21 10:21:52 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
  */
 #ifndef NESTDAQ_FRAMECONTAINEW_H
 #define NESTDAQ_FRAMECONTAINEW_H
+
+#include "FilterHeader.h"
 
 namespace nestdaq {
    template <typename frametype> class Header {
@@ -69,7 +71,7 @@ namespace nestdaq {
 
    
    using THBF = DataFrame<struct HeartbeatFrame::Header,uint64_t>;
-   using TTT = DataFrame<struct Filter::TrgTimeHeader,uint32_t>;
+   using TTT = DataFrame<struct Filter::TrgTimeHeader,struct Filter::TrgTime>;
    using TLF = ContainerFrame<struct Filter::Header,TTT>;
    using TSTF = ContainerFrame<struct SubTimeFrame::Header,THBF>;
    using TTF = ContainerFrame<struct TimeFrame::Header,TSTF>;
