@@ -2,7 +2,7 @@
  * @file FilterTimeFrameSliceABC.h
  * @brief Abstract base class for filtering time frame slice
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-21 17:18:34 JST
+ *       Last Modified : 2024-05-21 17:36:50 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -30,10 +30,10 @@ public:
    FilterTimeFrameSliceABC();
    virtual ~FilterTimeFrameSliceABC() override = default;
 
-   void PreRun() override;
-   void InitTask() override;
-   bool ConditionalRun() override;
-   void PostRun() override;
+   virtual void PreRun() override;
+   virtual void InitTask() override;
+   virtual bool ConditionalRun() override;
+   virtual void PostRun() override;
 
 
    struct OptionKey {
@@ -46,9 +46,9 @@ public:
 
 protected:
 
-   bool ParseMessages(FairMQParts& inParts);
+   virtual bool ParseMessages(FairMQParts& inParts);
 
-   bool ProcessSlice(TTF& ) { return true; }
+   virtual bool ProcessSlice(TTF& ) { return true; }
    
    std::string fInputChannelName;
    std::string fOutputChannelName;

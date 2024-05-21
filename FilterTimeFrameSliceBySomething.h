@@ -2,7 +2,7 @@
  * @file FilterTimeFrameSliceBySomething.h
  * @brief Abstract base class for filtering time frame slice
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-21 17:23:59 JST
+ *       Last Modified : 2024-05-21 17:37:01 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -30,7 +30,7 @@ public:
    FilterTimeFrameSliceBySomething();
    virtual ~FilterTimeFrameSliceBySomething() override = default;
 
-   bool ProcessSlice(TTF& ) override;
+   virtual bool ProcessSlice(TTF& ) override;
 
 };
 
