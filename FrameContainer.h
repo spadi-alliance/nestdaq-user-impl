@@ -2,7 +2,7 @@
  * @file FrameContainer.h
  * @brief Frame Structure Container
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-21 10:21:52 JST
+ *       Last Modified : 2024-05-21 17:14:02 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -10,13 +10,19 @@
 #ifndef NESTDAQ_FRAMECONTAINEW_H
 #define NESTDAQ_FRAMECONTAINEW_H
 
+#include "SubTimeFrameHeader.h"
+#include "TimeFrameHeader.h"
 #include "FilterHeader.h"
+#include "HeartbeatFrameHeader.h"
+#include <iostream>
 
 namespace nestdaq {
    template <typename frametype> class Header {
    public:
-      void SetHeader(void* data) { fHeader = reinterpret_cast<frametype*>(data); }
-      frametype* GetHeader() { return fHeader; }
+      void SetHeader(void* data) {
+         this->fHeader = static_cast<frametype*>(data);
+      }
+      frametype* GetHeader() { return this->fHeader; }
       template<typename unit>
       void CopyHeaderTo(std::vector<unit>* output) {
          for (uint32_t i = 0, n = sizeof(frametype)/sizeof(unit); i < n; ++i) {
@@ -57,6 +63,18 @@ namespace nestdaq {
             output->push_back(*((unit*)(fData+idx)+j));
          }
       }
+
+      template <typename unit>
+      void CopyAllTo(std::vector<unit>* output) {
+         std::cout << std::hex << this->GetHeader()->magic << " n data = " << this->GetNumData() <<  std::endl;
+         this->template CopyHeaderTo<unit>(output);
+         this->template CopyDataTo<unit>(output);
+      }
+
+      uint64_t GetRealLength() {
+         return sizeof(frametype) + fNumData * sizeof(datatype);
+      }
+         
       
    protected:
       datatype* fData;
@@ -66,14 +84,30 @@ namespace nestdaq {
    
    template <class frametype, class child>
    class ContainerFrame : public Header<frametype>, public std::vector<child*>  {
+   public:
+      uint64_t GetRealLength() {
+         uint64_t length = sizeof(frametype);
+         for (int i = 0, n = this->size(); i<n; ++i) {
+            length += this->at(i)->GetRealLength();
+         }
+         return length;
+      }
+      template <typename unit> void CopyAllTo(std::vector<unit>* output) {
+         this->template CopyHeaderTo<unit>(output);
+         std::cout << std::hex << this->GetHeader()->magic << std::endl;
+         for (int i = 0,n = this->size(); i < n; ++i) {
+            this->at(i)->template CopyAllTo<unit>(output);
+         }
+      }
+      
    };
 
 
-   
    using THBF = DataFrame<struct HeartbeatFrame::Header,uint64_t>;
+   using TSTF = ContainerFrame<struct SubTimeFrame::Header,THBF>;
+   
    using TTT = DataFrame<struct Filter::TrgTimeHeader,struct Filter::TrgTime>;
    using TLF = ContainerFrame<struct Filter::Header,TTT>;
-   using TSTF = ContainerFrame<struct SubTimeFrame::Header,THBF>;
    using TTF = ContainerFrame<struct TimeFrame::Header,TSTF>;
 
 }
