@@ -178,6 +178,7 @@ foreach(lvar IN ITEMS
   fltcoin; LogicFilter;
   tfdump; onlinedisplay;
   FilterTimeFrameSliceABC;
+  FilterTimeFrameSliceBySomething;
 #  AmQStrTdcDqm;
   Scaler)
 
