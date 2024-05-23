@@ -2,15 +2,15 @@
  * @file FilterTimeFrameSliceABC.h
  * @brief Abstract base class for filtering time frame slice
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-21 17:36:50 JST
+ *       Last Modified : 2024-05-23 07:19:25 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
  */
 
 
-#ifndef NESTDAQ_TIMEFRAMESLICERBYLOGICTIMING_H
-#define NESTDAQ_TIMEFRAMESLICERBYLOGICTIMING_H
+#ifndef NESTDAQ_FILTERTIMEFRAMESLICEABC_H
+#define NESTDAQ_FILTERTIMEFRAMESLICEABC_H
 
 #include "fairmq/Device.h"
 #include "KTimer.cxx"
@@ -77,4 +77,4 @@ protected:
 };
 
 
-#endif  // NESTDAQ_TIMEFRAMESLICERBYLOGICTIMING_H
+#endif  // NESTDAQ_FILTERTIMEFRAMESLICEABC_H

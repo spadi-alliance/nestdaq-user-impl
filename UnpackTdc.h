@@ -2,7 +2,8 @@
  *
  *
  */
-
+#ifndef UNPACK_TDC_H
+#define UNPACK_TDC_H
 #include <iostream>
 #include <iomanip>
 
@@ -687,3 +688,4 @@ int main(int argc, char* argv[])
 	return 0;
 }
 #endif
+#endif // UNPACK_TDC_H

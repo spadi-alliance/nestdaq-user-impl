@@ -117,7 +117,12 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 		hbf_flag++;
 
 		//LOG(debug) << " 1st delimiter comes " << std::hex << word->hbframe << ", raw = " << word->raw;
-		
+
+		uint16_t throttlingIn1 = (word->hbflag >> 7) & 0x01; 
+		uint16_t throttlingIn2 = (word->hbflag >> 6) & 0x01;
+		fThrottlingIn  = fThrottlingIn || (throttlingIn1 || throttlingIn2); // 01
+		fThrottlingOut = fThrottlingOut || ((word->hbflag >> 4) & 0x02); // 10	
+
                 continue;
 
             } else if ((h == Data::Heartbeat2nd) && (hbf_flag == 1)) {
@@ -273,6 +278,11 @@ void AmQStrTdcSTFBuilder::FinalizeSTF()
     stfHeader->timeSec = curtime.tv_sec;
     stfHeader->timeUSec = curtime.tv_usec;
 
+    stfHeader->type = fThrottlingOut || fThrottlingIn;
+    
+    fThrottlingOut = 0;
+    fThrottlingIn  = 0;
+    
     //  std::cout << "femtype:  "<< stfHeader->femType << std::endl;
     //  std::cout << "sec:  "<< stfHeader->timeSec << std::endl;
     //  std::cout << "usec: "<< stfHeader->timeUSec << std::endl;
@@ -535,6 +545,9 @@ void AmQStrTdcSTFBuilder::PostRun()
     fWorkingPayloads.reset();
     SendBuffer ().swap(fOutputPayloads);
 
+    fThrottlingOut = 0;
+    fThrottlingIn  = 0;
+    
     fLastHeader = 0;
     hbf_flag = 0;
     

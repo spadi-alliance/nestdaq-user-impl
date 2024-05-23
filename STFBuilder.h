@@ -89,7 +89,10 @@ private:
     int fSplitMethod {0};
     uint8_t fLastHeader {0};
     int fH_flag {0};
+    uint16_t fThrottlingIn  {0};
+    uint16_t fThrottlingOut  {0};
 
+  
     TimeFrameIdType fTimeFrameIdType;
     int32_t fSTFId{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
 
