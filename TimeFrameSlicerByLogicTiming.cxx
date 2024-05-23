@@ -31,11 +31,15 @@ void TimeFrameSlicerByLogicTiming::InitTask()
 
     fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
     fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
-    fOffset[0] = fConfig->GetValue<int>(opt::TimeOffsetBegin.data());
-    fOffset[1] = fConfig->GetValue<int>(opt::TimeOffsetEnd.data());
+    //fOffset[0] = fConfig->GetValue<int>(opt::TimeOffsetBegin.data());
+    //fOffset[1] = fConfig->GetValue<int>(opt::TimeOffsetEnd.data());
+    fOffset[0] = std::stoi(fConfig->GetValue<std::string>(opt::TimeOffsetBegin.data()));
+    fOffset[1] = std::stoi(fConfig->GetValue<std::string>(opt::TimeOffsetEnd.data()));
     LOG(info)
             << "InitTask : Input Channel  = " << fInputChannelName
             << "InitTask : Output Channel = " << fOutputChannelName;
+    LOG(info) << "Time Window [" << fOffset[0] << " : " << fOffset[1] << "]";
+
 
     // identity
     fName = fConfig->GetProperty<std::string>("id");
@@ -459,10 +463,12 @@ void addCustomOptions(bpo::options_description& options)
        bpo::value<std::string>()->default_value("dqm"),
        "Name of the data quality monitoring channel")
       (opt::TimeOffsetBegin.data(),
-       bpo::value<int>()->default_value(-100),
+       //bpo::value<int>()->default_value(-100),
+       bpo::value<std::string>()->default_value("-100"),
        "offset where window begins")
       (opt::TimeOffsetEnd.data(),
-       bpo::value<int>()->default_value(100),
+       //bpo::value<int>()->default_value(100),
+       bpo::value<std::string>()->default_value("100"),
        "offset where window ends")
     (opt::PollTimeout.data(),
      bpo::value<std::string>()->default_value("1"),

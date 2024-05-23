@@ -215,7 +215,7 @@ void LogicFilter::InitTask()
 	int i = 0;
 	for (auto &v : signals) {
 		if (v.size() >= 3) {
-			fTrig->Entry(v[0], v[1], v[2]);
+			fTrig->Entry(v[0], v[1], static_cast<int>(v[2]));
 			union ipval {
 				uint32_t u32;
 				char c[4];
@@ -227,7 +227,7 @@ void LogicFilter::InitTask()
 				<< "."      << static_cast<unsigned int>(mid.c[2] & 0xff)
 				<< "."      << static_cast<unsigned int>(mid.c[1] & 0xff)
 				<< "."      << static_cast<unsigned int>(mid.c[0] & 0xff)
-				<< ", Ch.: " << std::setw(3) << v[1] << ", Offset: " << std::setw(6) << v[2];
+				<< ", Ch.: " << std::setw(3) << v[1] << ", Offset: " << std::setw(6) << static_cast<int>(v[2]);
 			i++;
 		}
 	}
