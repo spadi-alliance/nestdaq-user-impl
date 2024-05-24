@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-24 13:55:21 JST
+ *       Last Modified : 2024-05-24 19:14:59 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -258,14 +258,12 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                hbf->CopyDataTo<copyUnit>(outdata,it);
                it++;
             }
-#if 0            
             if (hasOverlapWithNextTrigger) {
                // if the search window is overlap with next trigger,
                // the index should be rewineded to indicate the first hit in this trigger window.
-               LOG(info) << "is = " << is << "Overlap at iTrig = " << iTrig << " " << tdcidxs[is] << " -> " << iKeep;
+//               LOG(info) << "is = " << is << "Overlap at iTrig = " << iTrig << " " << tdcidxs[is] << " -> " << iKeep;
                tdcidxs[is] = iKeep;
             }
-#endif            
             auto hbfh = (SubTimeFrame::Header*) &((*outdata)[hbfhidx]);
             hbfh->length = (outdata->size() - hbfhidx) * sizeof(copyUnit);
             auto stfh = (SubTimeFrame::Header*) &((*outdata)[stfhidx]);
