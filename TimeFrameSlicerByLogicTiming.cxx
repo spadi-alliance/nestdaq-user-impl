@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-24 20:54:50 JST
+ *       Last Modified : 2024-05-24 21:14:47 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -188,7 +188,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          auto data = hbfs[is]->GetData();
          auto nData = hbfs[is]->GetNumData();
          if (femtype[is] == SubTimeFrame::TDC64H_V3) {
-            std::sort(data,data+nData,
+            std::sort(data,data+nData-2,
                       [](auto const& lhs, auto const& rhs) {
                          struct TDC64H_V3::tdc64 tdc64h;
                          TDC64H_V3::Unpack(lhs,&tdc64h);
@@ -198,7 +198,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                          return t1 < t2;
                       });
          } else if (femtype[is] == SubTimeFrame::TDC64L_V3) {
-            std::sort(data,data+nData,
+            std::sort(data,data+nData-2,
                       [](auto const& lhs, auto const& rhs) {
                          struct TDC64L_V3::tdc64 tdc64l;
                          TDC64L_V3::Unpack(lhs,&tdc64l);
