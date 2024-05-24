@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-24 19:14:59 JST
+ *       Last Modified : 2024-05-24 20:09:59 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -232,7 +232,8 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
             //----------------------------------------------------------------------
             auto iKeep = tdcidxs[is];
             // nt ignores HBD
-            auto& it = tdcidxs[is], nt = hbf->GetNumData() - 2;            
+            auto& it = tdcidxs[is], nt = hbf->GetNumData() - 2;
+            it = 0;
             while ( it < nt) {
                int tdc4n = 0;
                int ch = 0;
@@ -247,6 +248,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                   ch = tdc64l.ch;
                }
                // validate hits
+#if 0               
                if (tdc4n < trigBegin) {
                   iKeep++;
                   it++;
@@ -255,15 +257,20 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                if (tdc4n > trigEnd) {
                   break;
                }
-               hbf->CopyDataTo<copyUnit>(outdata,it);
+#endif
+               if (trigBegin <= tdc4n  && tdc4n <= trigEnd) {
+                  hbf->CopyDataTo<copyUnit>(outdata,it);
+               }
                it++;
             }
+#if 0            
             if (hasOverlapWithNextTrigger) {
                // if the search window is overlap with next trigger,
                // the index should be rewineded to indicate the first hit in this trigger window.
 //               LOG(info) << "is = " << is << "Overlap at iTrig = " << iTrig << " " << tdcidxs[is] << " -> " << iKeep;
                tdcidxs[is] = iKeep;
             }
+#endif            
             auto hbfh = (SubTimeFrame::Header*) &((*outdata)[hbfhidx]);
             hbfh->length = (outdata->size() - hbfhidx) * sizeof(copyUnit);
             auto stfh = (SubTimeFrame::Header*) &((*outdata)[stfhidx]);
