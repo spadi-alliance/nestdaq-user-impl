@@ -2,7 +2,7 @@
  * @file FrameContainer.h
  * @brief Frame Structure Container
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-21 17:14:02 JST
+ *       Last Modified : 2024-05-24 20:26:58 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -46,6 +46,7 @@ namespace nestdaq {
 
       datatype UncheckedAt(uint64_t idx) { return *(fData+idx); }
       auto GetNumData() const { return fNumData; }
+      auto GetData() { return fData; }
       template <typename unit>
       void CopyDataTo(std::vector<unit>* output) {
          auto nj = sizeof(datatype)/sizeof(unit);
@@ -74,8 +75,8 @@ namespace nestdaq {
       uint64_t GetRealLength() {
          return sizeof(frametype) + fNumData * sizeof(datatype);
       }
-         
-      
+
+                                               
    protected:
       datatype* fData;
       uint64_t fNumData;
