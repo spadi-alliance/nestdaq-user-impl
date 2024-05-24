@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-21 16:25:56 JST
+ *       Last Modified : 2024-05-24 13:55:21 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -186,15 +186,24 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          femtype[is] = fTF[is]->GetHeader()->femType;
       }
 
+      // check overlap of two neighboring search window
       for (uint32_t iTrig = 0; iTrig < nTrig; ++iTrig) {
          auto trig = lf->UncheckedAt(iTrig).time;
          auto trigBegin = trig + fOffset[0];
          auto trigEnd   = trig + fOffset[1];
+         bool hasOverlapWithNextTrigger = false;
+         if (iTrig < nTrig - 1) {
+            hasOverlapWithNextTrigger = ((lf->UncheckedAt(iTrig+1).time + fOffset[0]) < trigEnd);
+         }
+            
 #if DEBUG   
          if (fDoCheck) {
             LOG(info) << "trigger window [" << trigBegin << "," << trigEnd << "] " << trig;
          }
-#endif         
+         if (hasOverlapWithNextTrigger) {
+            LOG(info) << "Overlap in triggers" << (lf->UncheckedAt(iTrig+1).time + fOffset[0]) << "<" << trigEnd;
+         }
+#endif
          //----------------------------------------------------------------------
          // make timeframe for each slice
          //----------------------------------------------------------------------
@@ -221,7 +230,10 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
             //----------------------------------------------------------------------
             // comparison of tdc 
             //----------------------------------------------------------------------
-            for (auto& it = tdcidxs[is], nt = hbf->GetNumData() - 2; it < nt; ++it) {
+            auto iKeep = tdcidxs[is];
+            // nt ignores HBD
+            auto& it = tdcidxs[is], nt = hbf->GetNumData() - 2;            
+            while ( it < nt) {
                int tdc4n = 0;
                int ch = 0;
                // decode data
@@ -235,13 +247,25 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                   ch = tdc64l.ch;
                }
                // validate hits
-               if (tdc4n < trigBegin) continue;
+               if (tdc4n < trigBegin) {
+                  iKeep++;
+                  it++;
+                  continue;
+               }
                if (tdc4n > trigEnd) {
-                  it--; // use same tdc again since it would be a member of next slice
                   break;
                }
                hbf->CopyDataTo<copyUnit>(outdata,it);
+               it++;
             }
+#if 0            
+            if (hasOverlapWithNextTrigger) {
+               // if the search window is overlap with next trigger,
+               // the index should be rewineded to indicate the first hit in this trigger window.
+               LOG(info) << "is = " << is << "Overlap at iTrig = " << iTrig << " " << tdcidxs[is] << " -> " << iKeep;
+               tdcidxs[is] = iKeep;
+            }
+#endif            
             auto hbfh = (SubTimeFrame::Header*) &((*outdata)[hbfhidx]);
             hbfh->length = (outdata->size() - hbfhidx) * sizeof(copyUnit);
             auto stfh = (SubTimeFrame::Header*) &((*outdata)[stfhidx]);
