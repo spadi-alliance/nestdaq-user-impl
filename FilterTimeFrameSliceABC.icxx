@@ -2,7 +2,7 @@
  * @file FilterTimeFrameSliceABC
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-23 07:09:50 JST
+ *       Last Modified : 2024-06-01 23:21:56 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -46,6 +46,9 @@ void FilterTimeFrameSliceABC::PreRun()
 bool FilterTimeFrameSliceABC::ConditionalRun()
 {
    fDoCheck = fKTimer[0].Check();
+   for (auto& tf : fTFs) {
+      tf.Clear();
+   }                
    fTFs.clear();
    
    FairMQParts inParts;
@@ -63,7 +66,7 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
    auto outdataptr = std::make_unique<std::vector<copyUnit>>();
    auto outdata = outdataptr.get();
    //if (fDoCheck) {
-      LOG(info) << "num tf = " << fTFs.size();
+   // LOG(info) << "num tf = " << fTFs.size();
 //   }
    for (uint64_t ifrm = 0, nfrm = fTFs.size(); ifrm < nfrm; ++ifrm) {
       auto& tf = fTFs[ifrm];
@@ -78,7 +81,7 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
       tf.GetHeader()->length = tf.GetRealLength();
       tf.CopyAllTo<copyUnit>(outdata);
    }
-   LOG(info) << outdata->size() ;
+   // LOG(info) << outdata->size() ;
    
    FairMQMessagePtr msgall(MessageUtil::NewMessage(*this,std::move(outdataptr)));
    outParts.AddPart(std::move(msgall));

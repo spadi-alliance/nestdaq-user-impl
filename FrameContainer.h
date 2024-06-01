@@ -2,7 +2,7 @@
  * @file FrameContainer.h
  * @brief Frame Structure Container
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-24 20:26:58 JST
+ *       Last Modified : 2024-06-01 23:21:40 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -76,6 +76,9 @@ namespace nestdaq {
          return sizeof(frametype) + fNumData * sizeof(datatype);
       }
 
+      void Clear() {
+         ;
+      }
                                                
    protected:
       datatype* fData;
@@ -100,7 +103,18 @@ namespace nestdaq {
             this->at(i)->template CopyAllTo<unit>(output);
          }
       }
-      
+
+      void Clear() {
+         std::for_each(this->begin(),this->end(),
+                       [] (child* c) {
+                          c->Clear();
+                          delete c;
+                       });
+         this->std::vector<child*>::clear();
+      }
+
+   protected:
+      void clear();
    };
 
 
