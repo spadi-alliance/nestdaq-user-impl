@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-05-24 21:14:47 JST
+ *       Last Modified : 2024-06-08 18:58:14 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -27,28 +27,29 @@ TimeFrameSlicerByLogicTiming::TimeFrameSlicerByLogicTiming()
 
 void TimeFrameSlicerByLogicTiming::InitTask()
 {
-    using opt = OptionKey;
+   using opt = OptionKey;
 
-    fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
-    fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
-    //fOffset[0] = fConfig->GetValue<int>(opt::TimeOffsetBegin.data());
-    //fOffset[1] = fConfig->GetValue<int>(opt::TimeOffsetEnd.data());
-    fOffset[0] = std::stoi(fConfig->GetValue<std::string>(opt::TimeOffsetBegin.data()));
-    fOffset[1] = std::stoi(fConfig->GetValue<std::string>(opt::TimeOffsetEnd.data()));
-    LOG(info)
-            << "InitTask : Input Channel  = " << fInputChannelName
-            << "InitTask : Output Channel = " << fOutputChannelName;
-    LOG(info) << "Time Window [" << fOffset[0] << " : " << fOffset[1] << "]";
-
-
-    // identity
-    fName = fConfig->GetProperty<std::string>("id");
-    std::istringstream ss(fName.substr(fName.rfind("-") + 1));
-    ss >> fId;
+   fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
+   fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
+   fDQMChannelName    = fConfig->GetValue<std::string>(opt::DQMChannelName.data());
+   //fOffset[0] = fConfig->GetValue<int>(opt::TimeOffsetBegin.data());
+   //fOffset[1] = fConfig->GetValue<int>(opt::TimeOffsetEnd.data());
+   fOffset[0] = std::stoi(fConfig->GetValue<std::string>(opt::TimeOffsetBegin.data()));
+   fOffset[1] = std::stoi(fConfig->GetValue<std::string>(opt::TimeOffsetEnd.data()));
+   LOG(info) << "InitTask : Input Channel  = " << fInputChannelName ;
+   LOG(info) << "InitTask : Output Channel = " << fOutputChannelName;
+   LOG(info) << "InitTask : DQM Channel = " << fDQMChannelName;
+   LOG(info) << "Time Window [" << fOffset[0] << " : " << fOffset[1] << "]";
 
 
-    fNumDestination = GetNumSubChannels(fOutputChannelName);
-    fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
+   // identity
+   fName = fConfig->GetProperty<std::string>("id");
+   std::istringstream ss(fName.substr(fName.rfind("-") + 1));
+   ss >> fId;
+
+
+   fNumDestination = GetNumSubChannels(fOutputChannelName);
+   fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
     
 }
 
@@ -283,7 +284,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                   break;
                }
 //               if (trigBegin <= tdc4n  && tdc4n <= trigEnd) {
-                  hbf->CopyDataTo<copyUnit>(outdata,it);
+               hbf->CopyDataTo<copyUnit>(outdata,it);
 //               }
                it++;
             }
@@ -314,26 +315,54 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
       fIdxHBF++;
    } // while 
 
-
-    ////////////////////////////////////////////////////
-    // Transfer the data to all of output channel
-    ////////////////////////////////////////////////////
-    auto poller = NewPoller(fOutputChannelName);
-    while (!NewStatePending()) {
-        auto direction = (fDirection++) % fNumDestination;
-        poller->Poll(fPollTimeoutMS);
-        if (poller->CheckOutput(fOutputChannelName, direction)) {
-            if (Send(outParts, fOutputChannelName, direction) > 0) {
-                // successfully sent
-                break;
-            } else {
-                LOG(error) << "Failed to queue output-channel";
-            }
-        }
-        if (fNumDestination==1) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-    }
+   ////////////////////////////////////////////////////
+   // Transfer the data to dqm port
+   ////////////////////////////////////////////////////
+   if (fDoCheck) {
+      LOG(info) << "numCount(" << fDQMChannelName << ") = "  << fChannels.at(fDQMChannelName).size();
+      LOG(info) << "numCount(" << fOutputChannelName << ") = "  << fChannels.at(fOutputChannelName).size();
+   }
+   FairMQParts dqmParts;
+   if (int nSubChan = fChannels.at(fDQMChannelName).size()) {
+      for (auto& m: outParts) {
+         FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+         msgCopy->Copy(*m);
+         dqmParts.AddPart(std::move(msgCopy));
+      }
+      if (fDoCheck) {
+         LOG(info) << "Seinding " << dqmParts.Size() << " parts";
+         for (int i = 0, n = dqmParts.Size(); i < n; ++i) {
+            LOG(info) << "Part[ " << i << "] :"  << dqmParts[i].GetSize() << " bytes";
+         }
+      }
+      if (Send(dqmParts,fDQMChannelName) < 0) {
+         if (NewStatePending()) {
+                    LOG(info) << "Device is not RUNNING";
+         } else {
+            LOG(error) << "Failed to enqueue time frame slice (DQM) " << std::endl;
+         }
+      }
+   }
+   
+   ////////////////////////////////////////////////////
+   // Transfer the data to all of output channel
+   ////////////////////////////////////////////////////
+   auto poller = NewPoller(fOutputChannelName);
+   while (!NewStatePending()) {
+      auto direction = (fDirection++) % fNumDestination;
+      poller->Poll(fPollTimeoutMS);
+      if (poller->CheckOutput(fOutputChannelName, direction)) {
+         if (Send(outParts, fOutputChannelName, direction) > 0) {
+            // successfully sent
+            break;
+         } else {
+            LOG(error) << "Failed to queue output-channel";
+         }
+      }
+      if (fNumDestination==1) {
+         std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+   }
    
 //   for (uint32_t ipt = 0, npt = inParts.Size(); ipt < npt; ++ipt) {
 //      auto& part = inParts[ipt];
@@ -360,6 +389,21 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
 
 void TimeFrameSlicerByLogicTiming::PostRun()
 {
+   int nrecv = 0;
+   while(true) {
+      FairMQMessagePtr msg(NewMessage());
+      if (Receive(msg, fInputChannelName) <= 0) {
+         //            LOG(debug) << __func__ << " no data received " << nrecv;
+         ++nrecv;
+         if (nrecv>10) {
+            break;
+         }
+         std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      } else {
+         //            LOG(debug) << __func__ << " print data";
+         //      HandleData(msg, 0);
+      }
+   }
 }
 
 
@@ -520,12 +564,12 @@ void addCustomOptions(bpo::options_description& options)
        //bpo::value<int>()->default_value(100),
        bpo::value<std::string>()->default_value("100"),
        "offset where window ends")
-    (opt::PollTimeout.data(),
-     bpo::value<std::string>()->default_value("1"),
-     "Timeout of polling (in msec)")
-    (opt::SplitMethod.data(),
-     bpo::value<std::string>()->default_value("1"),
-     "STF split method")
+      (opt::PollTimeout.data(),
+       bpo::value<std::string>()->default_value("1"),
+       "Timeout of polling (in msec)")
+      (opt::SplitMethod.data(),
+       bpo::value<std::string>()->default_value("1"),
+       "STF split method")
       ;
    
 }
@@ -533,6 +577,6 @@ void addCustomOptions(bpo::options_description& options)
 
 std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
 {
-    return std::make_unique<TimeFrameSlicerByLogicTiming>();
+   return std::make_unique<TimeFrameSlicerByLogicTiming>();
 }
 

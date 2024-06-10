@@ -2,7 +2,7 @@
  * @file EventBuilder.h 
  * @brief EventBuilder for NestDAQ
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-16 18:18:41 JST
+ *       Last Modified : 2024-06-08 18:58:01 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -39,7 +39,7 @@ public:
    struct OptionKey {
       static constexpr std::string_view InputChannelName {"in-chan-name"};
       static constexpr std::string_view OutputChannelName {"out-chan-name"};
-      static constexpr std::string_view DQMChannelName {"out-chan-name"};
+      static constexpr std::string_view DQMChannelName {"dqm-chan-name"};
       static constexpr std::string_view TimeOffsetBegin {"time-offset-begin"};
       static constexpr std::string_view TimeOffsetEnd {"time-offset-end"};
       static constexpr std::string_view PollTimeout        {"poll-timeout"};
@@ -52,6 +52,7 @@ protected:
    
    std::string fInputChannelName;
    std::string fOutputChannelName;
+   std::string fDQMChannelName;
 
    std::string fName;
    uint32_t fID;
