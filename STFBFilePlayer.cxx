@@ -190,16 +190,7 @@ bool STFBFilePlayer::ConditionalRun()
                   reinterpret_cast<uint64_t*>(bufBegin)+buf.size()/sizeof(uint64_t),
                   HexDump(4));
 #endif
-
-
-#if 0
-    LOG(debug4) << fmt::format(
-                    "STF header: magic = {:016x}, tf-id = {:d}, rsv = {:08x}, FEM-type = {:08x}, FEM-id = {:08x}, bytes = {:d}, n-msg = {:d}, sec = {:d}, usec = {:d}",
-                    stfHeader->magic, stfHeader->timeFrameId, stfHeader->reserved, stfHeader->FEMType,
-                    stfHeader->FEMId, stfHeader->length, stfHeader->numMessages, stfHeader->time_sec,
-                    stfHeader->time_usec);
-#endif
-
+    
     //auto header = reinterpret_cast<char*>(msgSTFHeader.GetData());
     auto headerNBytes = msgSTFHeader.GetSize();
     auto wordBegin = reinterpret_cast<uint64_t*>(bufBegin);
@@ -214,6 +205,7 @@ bool STFBFilePlayer::ConditionalRun()
     auto wBegin = wordBegin;
     auto wEnd   = wordBegin + nWords;
     AmQStrTdc::Data::Bits *prev;
+    prev = 0;
     for (auto ptr = wBegin ; ptr != wEnd ; ++ptr) {
         auto d = reinterpret_cast<AmQStrTdc::Data::Bits*>(ptr);
 
@@ -227,13 +219,18 @@ bool STFBFilePlayer::ConditionalRun()
             //-----------------------------
 	      //	    case AmQStrTdc::Data::SpillEnd:
             //-----------------------------
-            case AmQStrTdc::Data::Heartbeat: {
+            case AmQStrTdc::Data::Heartbeat2nd: {
+
+	        if (prev->head != AmQStrTdc::Data::Heartbeat) {
+		  LOG(error) << "Just one delimiter: "<< std::hex << prev->head; 
+	        }
+		
                 outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                 auto & msg = outParts[outParts.Size()-1];
                 LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
                 std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
 
-#if 1
+#if 0
                 std::cout << "mode 0: Msg: " << std::dec << outParts.Size();
                 std::for_each(
                     reinterpret_cast<uint64_t*>(msg.GetData()),
@@ -381,7 +378,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),
      "Timeout of send-socket polling (in msec)")
 
-    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("1"),
+    (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),
      "STF split method")
     (opt::IterationWait.data(),     bpo::value<std::string>()->default_value("0"),
      "Iteration wait time (ms)")

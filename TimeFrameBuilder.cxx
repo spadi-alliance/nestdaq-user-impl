@@ -58,7 +58,7 @@ bool TimeFrameBuilder::ConditionalRun()
     if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
         assert(inParts.Size() >= 2);
 
-	//        LOG(debug) << " received message parts size = " << inParts.Size() << std::endl;
+	//LOG(debug) << " received message parts size = " << inParts.Size() << std::endl;
 
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
@@ -74,7 +74,7 @@ bool TimeFrameBuilder::ConditionalRun()
 	auto msgBegin = reinterpret_cast<uint64_t *>(msg->GetData());
 
 	auto firstHBF  = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 2));
-	//	auto secondHBF = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 1));
+	//auto secondHBF = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 1));
 	
 	//LOG(debug) << "HBFmagic: " << std::hex << *msgBegin;
 	//LOG(debug) << "firstHBF: " << std::hex << *firstHBF;
