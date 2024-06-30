@@ -13,6 +13,6 @@ struct Header {
     uint16_t type       {0};
 };
 #pragma pack()
-};
+}
 
 #endif
