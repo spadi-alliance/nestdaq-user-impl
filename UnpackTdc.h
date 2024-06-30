@@ -417,8 +417,8 @@ int Unpack(uint64_t data, struct tdc64 *tdc)
 	if (  (tdc->type == T_TDC_L)     || (tdc->type == T_TDC_T)
 	   || (tdc->type == T_THR1_START) || (tdc->type == T_THR1_END)
 	   || (tdc->type == T_THR2_START) || (tdc->type == T_THR2_END)  ) {
-		tdc->ch	      = (data & 0x03fc'0000'0000'0000) >> 51;
-		tdc->tot      = (data & 0x0003'fffc'0000'0000) >> 35;
+		tdc->ch	      = (data & 0x03fc'0000'0000'0000) >> 50;
+		tdc->tot      = (data & 0x0003'fffc'0000'0000) >> 34;
 		tdc->tdc      = (data & 0x0000'0003'ffff'8000) >> 15;
 		tdc->tdc4n    = (data & 0x0000'0003'fffe'0000) >> 17;
 		tdc->flag     = -1;

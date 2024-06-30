@@ -319,11 +319,12 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
    // Transfer the data to dqm port
    ////////////////////////////////////////////////////
    if (fDoCheck) {
-      LOG(info) << "numCount(" << fDQMChannelName << ") = "  << fChannels.at(fDQMChannelName).size();
-      LOG(info) << "numCount(" << fOutputChannelName << ") = "  << fChannels.at(fOutputChannelName).size();
+      LOG(info) << "numCount(" << fDQMChannelName << ") = "  << fChannels.count(fDQMChannelName);
+      LOG(info) << "numCount(" << fOutputChannelName << ") = "  << fChannels.count(fOutputChannelName);
    }
+
    FairMQParts dqmParts;
-   if (int nSubChan = fChannels.at(fDQMChannelName).size()) {
+   if (int nSubChan = fChannels.count(fDQMChannelName)) {
       for (auto& m: outParts) {
          FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
          msgCopy->Copy(*m);
@@ -343,7 +344,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          }
       }
    }
-   
+
    ////////////////////////////////////////////////////
    // Transfer the data to all of output channel
    ////////////////////////////////////////////////////
@@ -382,7 +383,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
 //         }
 //      }
 //   }
-   
+
 
    return true;
 }
