@@ -176,7 +176,8 @@ foreach(lvar IN ITEMS
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
   fltcoin; LogicFilter;
-  tfdump; onlinedisplay;
+  tfdump;
+# onlinedisplay;
   FilterTimeFrameSliceABC;
   FilterTimeFrameSliceBySomething;
 #  AmQStrTdcDqm;
@@ -190,7 +191,7 @@ foreach(lvar IN ITEMS
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
     ${FairMQ_INCDIR};
-    ${ROOT_INCLUDE_DIRS};
+#    ${ROOT_INCLUDE_DIRS};
     ${HIREDIS_HEADER};
     ${REDIS_PLUS_PLUS_HEADER};
     ${UHBOOK_HEADER};
@@ -208,7 +209,7 @@ foreach(lvar IN ITEMS
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
 #    ${fmt_LIB};
-    ${ROOT_LIBRARIES};
+#    ${ROOT_LIBRARIES};
     ${HIREDIS_LIB};
     ${REDIS_PLUS_PLUS_LIB};
     ${UHBOOK_LIB};
@@ -260,6 +261,56 @@ install(TARGETS
     AmQStrTdcSampler
     RUNTIME DESTINATION ${PROJECT_INSTALL_BINDIR}
 )
+
+
+#
+#
+#
+
+foreach(lvar IN ITEMS
+    TriggerView;
+)
+
+set(EXEC ${lvar})
+  add_executable(${EXEC} 
+  ${EXEC}.cxx;
+)
+
+target_include_directories(${EXEC} PUBLIC 
+    ${Boost_INCLUDE_DIRS};  
+    ${FairMQ_INCDIR};
+    ${FairMQ_INCDIR}/fairmq;
+    ${FairMQ_INCDIR}/fairlogger/bundled;
+    ${CMAKE_SOURCE_DIR};
+    ${ROOT_INCLUDE_DIRS};
+    ${HIREDIS_HEADER};
+    ${REDIS_PLUS_PLUS_HEADER};
+)
+
+target_link_directories(${EXEC} PUBLIC
+    ${Boost_LIBRARY_DIRS}; 
+    ${FairMQ_LIBDIR};
+    ${ROOT_LIBRARIES};
+)
+
+target_link_libraries(${EXEC} PUBLIC 
+    ${Boost_LIBRARIES};  
+    FairMQ;
+    FairMQStateMachine;
+    FairLogger;
+    ${ROOT_LIBRARIES};
+    ${HIREDIS_LIB};
+    ${REDIS_PLUS_PLUS_LIB};
+)
+
+install(TARGETS ${EXEC};
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    #RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RUNTIME DESTINATION ${INSTALL_BINDIR}
+)
+
+endforeach()
+
 
 #================================================================================
 add_subdirectory(utility)
