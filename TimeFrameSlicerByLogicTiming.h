@@ -1,8 +1,8 @@
 /**
- * @file EventBuilder.h 
- * @brief EventBuilder for NestDAQ
+ * @file TimeFrameSlicerByLogicTiming.h
+ * @brief TimeFrameSlicerByLogicTiming
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-06-08 18:58:01 JST
+ *       Last Modified : 2024-06-29 13:09:15 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *

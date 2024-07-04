@@ -50,10 +50,12 @@ constexpr uint32_t TDC64L_V2 {3};
 //constexpr uint32_t TDC64L_V3 {5};
 constexpr uint32_t TDC64H_V3 {5};
 constexpr uint32_t TDC64L_V3 {6};
+constexpr uint32_t INPUT_REG {21};
 constexpr uint32_t FLT_TDC   {0x0000'1000};
 
 constexpr uint32_t NULDEV    {0};
 
+constexpr uint16_t META {1};
 
 struct Header {
     uint64_t magic        {MAGIC};

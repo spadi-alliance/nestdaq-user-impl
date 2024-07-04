@@ -110,10 +110,10 @@ void STFBFilePlayer::PreRun()
         fInputFile.clear();
         LOG(debug) << "No FS header";
     } else if (buf == FileSinkHeader::MAGIC) { /* For new FileSinkHeader after 2023.06.15 */
-        uint64_t hsize{0};
+        uint32_t hsize{0};
         fInputFile.read(reinterpret_cast<char*>(&hsize), sizeof(hsize));
-	LOG(debug) << "New FS header (Order: MAGIC + FS header size)";
-	fInputFile.seekg(hsize - 2*sizeof(uint64_t), std::ios_base::cur);
+	LOG(debug) << "New FS header (Order: MAGIC + FS header size)" << hsize;
+	fInputFile.seekg(hsize - (sizeof(uint64_t)+sizeof(uint32_t)), std::ios_base::cur);
     } else { /* For old FileSinkHeader before 2023.06.15 */
         uint64_t magic{0};
         fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(magic));

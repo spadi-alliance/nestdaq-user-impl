@@ -2,7 +2,7 @@
  * @file TimeFrameSlicerByLogicTiming
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-06-08 18:58:14 JST
+ *       Last Modified : 2024-07-04 19:38:05 JST
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
  *
@@ -140,12 +140,17 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          fTF[is]->at(fIdxHBF)->CopyHeaderTo<copyUnit>(outdata);
          // store hbds
          auto hbf = fTF[is]->at(fIdxHBF);
-         hbf->CopyDataTo<copyUnit>(outdata,hbf->GetNumData()-2);
-         hbf->CopyDataTo<copyUnit>(outdata,hbf->GetNumData()-1);
+         if (fTF[is]->GetHeader()->type == SubTimeFrame::META) {
+            hbf->CopyDataTo<copyUnit>(outdata);
+         } else {
+            hbf->CopyDataTo<copyUnit>(outdata,hbf->GetNumData()-2);
+            hbf->CopyDataTo<copyUnit>(outdata,hbf->GetNumData()-1);
+         }
          // modify size of subtime frame
          auto stfh = (SubTimeFrame::Header*) &((*outdata)[stfhidx]);
          stfh->length = (outdata->size() - stfhidx) * sizeof(copyUnit);
          stfh->hLength = sizeof(struct SubTimeFrame::Header);
+         stfh->type = SubTimeFrame::META;
          // modify size of heartbeat frame
          auto hbfh = (HeartbeatFrame::Header*) &((*outdata)[hbfhidx]);
          hbfh->length = (outdata->size() - hbfhidx) * sizeof(copyUnit);
@@ -183,6 +188,9 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
       struct TDC64H_V3::tdc64 tdc64h;
       
       for (int is = 0, ns = fTF.size(); is < ns; ++is) {
+         // skip meta frame
+         if (fTF[is]->GetHeader()->type == SubTimeFrame::META) continue;
+            
          hbfs[is] = fTF[is]->at(fIdxHBF);
          femtype[is] = fTF[is]->GetHeader()->femType;
 #if 1 // sort data
@@ -236,8 +244,12 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          //----------------------------------------------------------------------
          auto tfidx = outdata->size();
          fTF.CopyHeaderTo<copyUnit>(outdata);
-
+         uint32_t numSource = 0;
          for (int is = 0, ns = fTF.size(); is < ns; ++is) {
+            // skip meta subtime frame
+            if (fTF[is]->GetHeader()->type == SubTimeFrame::META) continue;
+            // otherwise increment numSources
+            numSource++;
             //----------------------------------------------------------------------
             // make subtime frame header
             //----------------------------------------------------------------------
@@ -303,6 +315,7 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
          
          auto tfsh = (TimeFrame::Header*) &((*outdata)[tfidx]);
          tfsh->type = TimeFrame::SLICE;
+         tfsh->numSource = numSource;
          tfsh->length = (outdata->size() - tfidx) * sizeof(copyUnit);
       }
 

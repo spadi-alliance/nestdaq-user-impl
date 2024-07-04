@@ -180,6 +180,7 @@ foreach(lvar IN ITEMS
 # onlinedisplay;
   FilterTimeFrameSliceABC;
   FilterTimeFrameSliceBySomething;
+  InputRegister;
 #  AmQStrTdcDqm;
   Scaler)
 

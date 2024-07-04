@@ -63,7 +63,7 @@ bool TimeFrameBuilder::ConditionalRun()
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
 
-        LOG(debug4) << "stfId: "<< stfId;
+        LOG(debug4) << "stfId: "<< stfId << " fem " << stfHeader->femId << " type " << stfHeader->type;
         LOG(debug4) << "msg size: " << inParts.Size();
 	
 	auto nmsg = inParts.Size();
@@ -97,7 +97,9 @@ bool TimeFrameBuilder::ConditionalRun()
             fTFBuffer[stfId].reserve(fNumSource);
         }
         fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
+        LOG(info) << fTFBuffer[stfId].size() << " vs " << fNumSource;
     }
+
 
     // send
     if (!fTFBuffer.empty()) {
