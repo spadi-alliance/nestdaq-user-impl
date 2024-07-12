@@ -68,7 +68,7 @@ private:
 
     bool fMergeMessage{false};
     int64_t fRunNumber{0};
-    std::string run_comment;
+    std::string run_comment {""};
 
     int fInProcMQLength;
     std::unique_ptr<nestdaq::TaskProcessorMT> fWorker;
