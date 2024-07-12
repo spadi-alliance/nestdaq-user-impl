@@ -8,7 +8,7 @@
 #include <thread>
 
 #include <fairmq/Device.h>
-
+#include <sw/redis++/redis++.h>
 #include "utility/RingBuffer.h"
 #include "utility/FileUtil.h"
 #include "FileSinkHeader.h"
@@ -57,6 +57,7 @@ private:
 
     std::string fInputDataChannelName;
     std::unique_ptr<nestdaq::FileUtil> fFile;
+    std::shared_ptr<sw::redis::Redis> fClient;
     nestdaq::FileUtil::CompressFunc fCompress;
     std::atomic<std::size_t> fSize{0};
     std::atomic<std::size_t> fCompressedSize{0};
@@ -67,6 +68,7 @@ private:
 
     bool fMergeMessage{false};
     int64_t fRunNumber{0};
+    std::string run_comment;
 
     int fInProcMQLength;
     std::unique_ptr<nestdaq::TaskProcessorMT> fWorker;

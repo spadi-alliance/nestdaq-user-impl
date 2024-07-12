@@ -313,7 +313,7 @@ void FileSink::PostRun()
     fFileSinkTrailer.runNumber        = fFileSinkHeader.runNumber;
     fFileSinkTrailer.startUnixtime    = fFileSinkHeader.startUnixtime;
     fFileSinkTrailer.stopUnixtime     = time(0);
-    strcpy(fFileSinkTrailer.comments, "FileSinkTrailer.h test");
+    strcpy(fFileSinkTrailer.comments, run_comment.c_str());
     LOG(debug) << "FileSink::Trailer.magic            : " << fFileSinkTrailer.magic;
     LOG(debug) << "FileSink::Trailer.size             : " << fFileSinkTrailer.size;
     LOG(debug) << "FileSink::Trailer.fairMQDeviceType : " << fFileSinkTrailer.fairMQDeviceType;
@@ -376,8 +376,22 @@ void FileSink::PreRun()
 
     if (fConfig->Count(opt::RunNumber.data())) {
         fRunNumber = std::stoll(fConfig->GetProperty<std::string>(opt::RunNumber.data()));
-        LOG(debug) << " RUN number = " << fRunNumber;
+        LOG(debug) << " Run number: " << fRunNumber;
     }
+    if (fConfig->Count("registry-uri")) {
+        std::string registryUri = fConfig->GetProperty<std::string>("registry-uri");
+        LOG(debug) << "registryUri: " << registryUri;
+        if (!registryUri.empty()) {
+            fClient = std::make_shared<sw::redis::Redis>(registryUri);
+            const auto run_comment_ptr = fClient->get("run_info:run_comment");
+            run_comment = *run_comment_ptr;
+        }
+    }
+    LOG(debug) << "run comment: " << run_comment;
+    if (run_comment.length() > 255) {
+      run_comment.resize(255); // The max bytes of the comment are 256 bytes including a null charactor of 1 bytes.
+    }
+    
     fFile->SetRunNumber(fRunNumber);
     fFile->ClearBranch();
     fFile->Open();
@@ -428,7 +442,7 @@ void FileSink::PreRun()
     fFileSinkHeader.runNumber        = fRunNumber;
     fFileSinkHeader.startUnixtime    = time(0);
     fFileSinkHeader.stopUnixtime     = 0;
-    strcpy(fFileSinkHeader.comments, "FileSinkHeader.h test");
+    strcpy(fFileSinkHeader.comments, run_comment.c_str());
     LOG(debug) << "FileSink::Header.magic            : " << fFileSinkHeader.magic;
     //LOG(debug) << "FileSink::Header.size             : " << fFileSinkHeader.size;
     LOG(debug) << "FileSink::Header.hLength          : " << fFileSinkHeader.hLength;
