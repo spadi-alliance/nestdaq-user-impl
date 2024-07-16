@@ -67,7 +67,7 @@ namespace nestdaq {
 
       template <typename unit>
       void CopyAllTo(std::vector<unit>* output) {
-         std::cout << std::hex << this->GetHeader()->magic << " n data = " << this->GetNumData() <<  std::endl;
+         //std::cout << std::hex << this->GetHeader()->magic << " n data = " << this->GetNumData() <<  std::endl;
          this->template CopyHeaderTo<unit>(output);
          this->template CopyDataTo<unit>(output);
       }
@@ -98,7 +98,7 @@ namespace nestdaq {
       }
       template <typename unit> void CopyAllTo(std::vector<unit>* output) {
          this->template CopyHeaderTo<unit>(output);
-         std::cout << std::hex << this->GetHeader()->magic << std::endl;
+         //std::cout << std::hex << this->GetHeader()->magic << std::endl;
          for (int i = 0,n = this->size(); i < n; ++i) {
             this->at(i)->template CopyAllTo<unit>(output);
          }

@@ -1,5 +1,5 @@
 /*
- * @file FilterTimeFrameSliceABC
+ * @file FilterTimeFrameSliceABC.icxx
  * @brief Slice Timeframe by Logic timing for NestDAQ
  * @date Created : 2024-05-04 12:31:55 JST
  *       Last Modified : 2024-06-01 23:21:56 JST
@@ -11,17 +11,26 @@
 #include "utility/MessageUtil.h"
 #include "UnpackTdc.h"
 
+#define Max_Wiremap 850
+
 #define DEBUG 0
 
 using nestdaq::FilterTimeFrameSliceABC;
 namespace bpo = boost::program_options;
-
 
 FilterTimeFrameSliceABC::FilterTimeFrameSliceABC()
    : fKTimer(1,KTimer(1000))
 {
 }
 
+int FilterTimeFrameSliceABC::geoToIndex(uint64_t geo) {
+    if (geo >= 0xc0a802a1 && geo <= 0xc0a802a7) {
+        return geo - 0xc0a802a1;
+    } else if (geo == 0xc0a802aa) {
+        return 7;
+    }
+    return -1;
+}
 
 void FilterTimeFrameSliceABC::InitTask()
 {
@@ -33,10 +42,36 @@ void FilterTimeFrameSliceABC::InitTask()
     std::istringstream ss(fName.substr(fName.rfind("-") + 1));
     ss >> fId;
 
-
     fNumDestination = GetNumSubChannels(fOutputChannelName);
     fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
-    
+
+    // Loading wire_map-----------------
+    std::ifstream file("vdc_amaneq_gr.map"); // Loading VDC_Wire_map
+    if (!file) {
+        std::cerr << "Cannot open file " << std::endl;
+        return;
+    }
+
+    std::string line;
+    std::getline(file, line); // Skip the first line (header).
+
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        Wire_map record;
+        if (!(iss >> record.catid >> record.id >> record.sh >> record.fp >> record.det >> std::hex >> record.geo >> std::dec >> record.ch)) {
+            std::cerr << "Data read error: " << line << std::endl;
+            continue;
+        }
+
+        int geoIndex = geoToIndex(record.geo);
+        //std::cout << "Debug for loading Vdc Channnel - geoindex: " << geoIndex << std::endl;
+        //std::cout << "Debug for record.geo outside of function: " << record.geo << std::endl;
+        if (geoIndex != -1 && record.ch <= maxCh) {
+            wireMapArray[geoIndex][record.ch] = record;
+        } else {
+            std::cerr << "Invalid geo or ch value: " << line << std::endl;
+        }
+    }
 }
 
 void FilterTimeFrameSliceABC::PreRun()
@@ -45,162 +80,169 @@ void FilterTimeFrameSliceABC::PreRun()
 
 bool FilterTimeFrameSliceABC::ConditionalRun()
 {
-   fDoCheck = fKTimer[0].Check();
-   for (auto& tf : fTFs) {
-      tf.Clear();
-   }                
-   fTFs.clear();
+    fDoCheck = fKTimer[0].Check();
+    for (auto& tf : fTFs) {
+        tf.Clear();
+    }                
+    fTFs.clear();
    
-   FairMQParts inParts;
-   FairMQParts outParts;
-   if (Receive(inParts, fInputChannelName,0,1) <= 0) return true;
+    FairMQParts inParts;
+    FairMQParts outParts;
+    if (Receive(inParts, fInputChannelName,0,1) <= 0) return true;
 
-   if (fDoCheck) {
-      LOG(info) << "ConditionalRun";
-   }
+//row data dump
+/*    { 
+        for (int i = 0; i < inParts.Size(); ++i) {
+            const auto& msg = inParts.At(i);
+            auto data = reinterpret_cast<const uint64_t*>(msg->GetData());
+            auto size = msg->GetSize() / sizeof(uint64_t); 
+            std::cout << "Message " << i << ": ";
+            std::for_each(data, data + size, [](uint64_t value) {
+                std::cout << std::hex << value << " ";
+            });
+            std::cout << std::dec << std::endl; 
+        }
+    }*/
 
-   ParseMessages(inParts);
+    if (fDoCheck) {
+        LOG(info) << "ConditionalRun";
+    }
 
-   using copyUnit = uint32_t;
+    ParseMessages(inParts);
 
-   auto outdataptr = std::make_unique<std::vector<copyUnit>>();
-   auto outdata = outdataptr.get();
-   //if (fDoCheck) {
-   // LOG(info) << "num tf = " << fTFs.size();
-//   }
-   for (uint64_t ifrm = 0, nfrm = fTFs.size(); ifrm < nfrm; ++ifrm) {
-      auto& tf = fTFs[ifrm];
-      bool doKeep = false;
-      if (tf.GetHeader()->type == TimeFrame::META) {
-         LOG(info) << " META information";
-         doKeep = true;
-      } else {
-         doKeep = ProcessSlice(tf);
-      }
-      if (!doKeep) continue;
-      tf.GetHeader()->length = tf.GetRealLength();
-      tf.CopyAllTo<copyUnit>(outdata);
-   }
-   // LOG(info) << outdata->size() ;
+    using copyUnit = uint32_t;
+
+    auto outdataptr = std::make_unique<std::vector<copyUnit>>();
+    auto outdata = outdataptr.get();
+    //LOG(info) << "num tf = " << fTFs.size();
+    //LOG(info) << "num tf = " << fTFs.size();
+    for (uint64_t ifrm = 0, nfrm = fTFs.size(); ifrm < nfrm; ++ifrm) {
+        auto& tf = fTFs[ifrm];
+        bool doKeep = false;
+        if (tf.GetHeader()->type == TimeFrame::META) {
+            //LOG(info) << " META information";
+            doKeep = true;
+        } else {
+            doKeep = ProcessSlice(tf);
+        }
+        if (!doKeep) continue;
+        tf.GetHeader()->length = tf.GetRealLength();
+        tf.CopyAllTo<copyUnit>(outdata);
+    }
+    //LOG(info) << outdata->size();
    
-   FairMQMessagePtr msgall(MessageUtil::NewMessage(*this,std::move(outdataptr)));
-   outParts.AddPart(std::move(msgall));
-   
+    FairMQMessagePtr msgall(MessageUtil::NewMessage(*this, std::move(outdataptr)));
+    outParts.AddPart(std::move(msgall));
 
-   if (fDoCheck) {
-      LOG(info) << "num timeframes (including meta) : " << fTFs.size();
-   }
+    if (fDoCheck) {
+        //LOG(info) << "num timeframes (including meta) : " << fTFs.size();
+    }
+    //LOG(info) << "num timeframes (including meta) : " << fTFs.size();
 
-   ////////////////////////////////////////////////////
-   // Transfer the data to all of output channel
-   ////////////////////////////////////////////////////
-   auto poller = NewPoller(fOutputChannelName);
-   while (!NewStatePending()) {
-      auto direction = (fDirection++) % fNumDestination;
-      poller->Poll(fPollTimeoutMS);
-      if (poller->CheckOutput(fOutputChannelName, direction)) {
-         if (Send(outParts, fOutputChannelName, direction) > 0) {
-            // successfully sent
-            break;
-         } else {
-            LOG(error) << "Failed to queue output-channel";
-         }
-      }
-      if (fNumDestination==1) {
-         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-      }
-   }
-   
-   
-
-   return true;
+    ////////////////////////////////////////////////////
+    // Transfer the data to all of output channel
+    ////////////////////////////////////////////////////
+    auto poller = NewPoller(fOutputChannelName);
+    while (!NewStatePending()) {
+        auto direction = (fDirection++) % fNumDestination;
+        poller->Poll(fPollTimeoutMS);
+        if (poller->CheckOutput(fOutputChannelName, direction)) {
+            if (Send(outParts, fOutputChannelName, direction) > 0) {
+                // successfully sent
+                //std::cout << "success sent" << std::endl;
+                break;
+            } else {
+                LOG(error) << "Failed to queue output-channel";
+            }
+        }
+        if (fNumDestination == 1) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    return true;
 }
 
 void FilterTimeFrameSliceABC::PostRun()
 {
 }
 
-
 bool FilterTimeFrameSliceABC::ParseMessages(FairMQParts& inParts)
 {
-
-   // parse all the messages 
-   int stfIdx = 0; // array index for stf
-   int hbfIdx = 0; // array index for hbf
-   int fltIdx = 0; // array index for flt
-   TTF *timeFrame = nullptr;
-   Header<struct TimeFrame::Header> tfh;
-   Header<struct Filter::Header> lfh;
-   Header<struct Filter::TrgTimeHeader> tth;
-   for (uint32_t i = 0, n = inParts.Size(); i < n; ++i) {
-      auto& part = inParts[i];
-      char* dataptr = reinterpret_cast<char*>(part.GetData());
-      uint64_t nw = part.GetSize();
-      char* dataend = dataptr + nw;
+    // parse all the messages 
+    int stfIdx = 0; // array index for stf
+    int hbfIdx = 0; // array index for hbf
+    int fltIdx = 0; // array index for flt
+    TTF *timeFrame = nullptr;
+    Header<struct TimeFrame::Header> tfh;
+    Header<struct Filter::Header> lfh;
+    Header<struct Filter::TrgTimeHeader> tth;
+    for (uint32_t i = 0, n = inParts.Size(); i < n; ++i) {
+        auto& part = inParts[i];
+        char* dataptr = reinterpret_cast<char*>(part.GetData());
+        uint64_t nw = part.GetSize();
+        char* dataend = dataptr + nw;
       
-      while (dataptr < dataend) {
-         auto magic = *reinterpret_cast<uint64_t*>(dataptr);
-         if (magic == TimeFrame::MAGIC) {
-            // add new timeframe
-            fTFs.resize(fTFs.size()+1);
-            timeFrame = &(fTFs[fTFs.size() -1]);
-            timeFrame->SetHeader(dataptr);
-            stfIdx = -1; // reset stf index
-            auto ns = timeFrame->GetHeader()->numSource;
-            if (timeFrame->size() < ns) {
-               timeFrame->resize(ns);
-               for (decltype(ns) is = 0; is < ns; ++is) {
-                  if ((*timeFrame)[is] == nullptr) {
-                     (*timeFrame)[is] = new TSTF;
-                  }
-               }
-            }
-            dataptr += timeFrame->GetHeader()->hLength;
-         } else if (magic == Filter::MAGIC) {
-            // do nothing
-            lfh.SetHeader(dataptr);
-            dataptr += lfh.GetHeader()->hLength;
+        while (dataptr < dataend) {
+            auto magic = *reinterpret_cast<uint64_t*>(dataptr);
+            if (magic == TimeFrame::MAGIC) {
+                // add new timeframe
+                fTFs.resize(fTFs.size() + 1);
+                timeFrame = &(fTFs[fTFs.size() - 1]);
+                timeFrame->SetHeader(dataptr);
+                stfIdx = -1; // reset stf index
+                auto ns = timeFrame->GetHeader()->numSource;
+                if (timeFrame->size() < ns) {
+                    timeFrame->resize(ns);
+                    for (decltype(ns) is = 0; is < ns; ++is) {
+                        if ((*timeFrame)[is] == nullptr) {
+                            (*timeFrame)[is] = new TSTF;
+                        }
+                    }
+                }
+                dataptr += timeFrame->GetHeader()->hLength;
+            } else if (magic == Filter::MAGIC) {
+                // do nothing
+                lfh.SetHeader(dataptr);
+                dataptr += lfh.GetHeader()->hLength;
 #if 0         
-            fLF.SetHeader(part.GetData());
-            auto nm = fLF.GetHeader()->numMessages - 1;
-            if (fLF.size() < nm) {
-               fLF.resize(nm);
-               for (decltype(nm) im = 0; im < nm; ++im) {
-                  if (fLF[im] == nullptr) fLF[im] = new TTT;
-               }
-            }
+                fLF.SetHeader(part.GetData());
+                auto nm = fLF.GetHeader()->numMessages - 1;
+                if (fLF.size() < nm) {
+                    fLF.resize(nm);
+                    for (decltype(nm) im = 0; im < nm; ++im) {
+                        if (fLF[im] == nullptr) fLF[im] = new TTT;
+                    }
+                }
 #endif            
-         } else if (magic == Filter::TDC_MAGIC) {
-            // to nothing
-            tth.SetHeader(dataptr);
-            dataptr += tth.GetHeader()->length;
+            } else if (magic == Filter::TDC_MAGIC) {
+                // do nothing
+                tth.SetHeader(dataptr);
+                dataptr += tth.GetHeader()->length;
 #if 0               
-            auto& tdcf = *(fLF[fltIdx]);
-            tdcf.Set(part.GetData());
-            fltIdx++;
+                auto& tdcf = *(fLF[fltIdx]);
+                tdcf.Set(part.GetData());
+                fltIdx++;
 #endif         
-         } else if (magic == SubTimeFrame::MAGIC) {
-            hbfIdx = 0; // reset hbf index
-            stfIdx ++;
-            auto& stf = *((*timeFrame)[stfIdx]);
-            stf.SetHeader(dataptr);
-            dataptr += stf.GetHeader()->hLength;
-         } else if (magic == HeartbeatFrame::MAGIC) {
-            auto& stf = *((*timeFrame)[stfIdx]);
-            if (stf.size() < hbfIdx+1) {
-               stf.push_back(new THBF);
+            } else if (magic == SubTimeFrame::MAGIC) {
+                hbfIdx = 0; // reset hbf index
+                stfIdx++;
+                auto& stf = *((*timeFrame)[stfIdx]);
+                stf.SetHeader(dataptr);
+                dataptr += stf.GetHeader()->hLength;
+            } else if (magic == HeartbeatFrame::MAGIC) {
+                auto& stf = *((*timeFrame)[stfIdx]);
+                if (stf.size() < hbfIdx + 1) {
+                    stf.push_back(new THBF);
+                }
+                auto& hbf = *((*timeFrame)[stfIdx]->at(hbfIdx));
+                hbf.Set(dataptr);
+                hbfIdx++;
+                dataptr += hbf.GetHeader()->length;
+            } else {
+                //LOG(info) << "Error with magic" << std::hex << magic;
+                return false;
             }
-            auto& hbf = *((*timeFrame)[stfIdx]->at(hbfIdx));
-            hbf.Set(dataptr);
-            hbfIdx++;
-            dataptr += hbf.GetHeader()->length;
-         } else {
-            //LOG(info) << "Error with magic" << std::hex << magic;
-            return false;
-         }
-      }
-   }
-   return true;
+        }
+    }
+    return true;
 }
-   
-

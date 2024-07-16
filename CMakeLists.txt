@@ -179,7 +179,10 @@ foreach(lvar IN ITEMS
   tfdump;
 # onlinedisplay;
   FilterTimeFrameSliceABC;
-  FilterTimeFrameSliceBySomething;
+#  FilterTimeFrameSliceBySomething;
+  FilterTimeFrameSliceByTOT;  # Add this line           2024/7/15
+  FilterTimeFrameSliceByTOF;  # Add this line           2024/7/15
+  FilterTimeFrameSliceByMultiplicity;  # Add this line  2024/7/15
   InputRegister;
 #  AmQStrTdcDqm;
   Scaler)

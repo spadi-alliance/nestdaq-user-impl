@@ -360,29 +360,25 @@ int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L) {
+	} else if (type == SubTimeFrame::TDC64L) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::Unpack(val, &tdc) == TDC64L::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L_V1) {
+	} else if (type == SubTimeFrame::TDC64L_V1) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::v1::Unpack(val, &tdc) == TDC64L::v1::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64H_V3) {
+	} else if (type == SubTimeFrame::TDC64H_V3) {
 		struct TDC64H_V3::tdc64 tdc;
 		if (TDC64H_V3::Unpack(val, &tdc) == TDC64H_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L_V3) {
+	} else if (type == SubTimeFrame::TDC64L_V3) {
 		struct TDC64L_V3::tdc64 tdc;
 		if (TDC64L_V3::Unpack(val, &tdc) == TDC64L_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
