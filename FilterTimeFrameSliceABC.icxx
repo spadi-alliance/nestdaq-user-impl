@@ -1,19 +1,10 @@
-/*
- * @file FilterTimeFrameSliceABC.icxx
- * @brief Slice Timeframe by Logic timing for NestDAQ
- * @date Created : 2024-05-04 12:31:55 JST
- *       Last Modified : 2024-06-01 23:21:56 JST
- *
- * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
- *
- */
 #include "FilterTimeFrameSliceABC.h"
 #include "utility/MessageUtil.h"
 #include "UnpackTdc.h"
 
 #define Max_Wiremap 850
 
-#define DEBUG 0
+#define DEBUG 1
 
 using nestdaq::FilterTimeFrameSliceABC;
 namespace bpo = boost::program_options;
@@ -24,10 +15,15 @@ FilterTimeFrameSliceABC::FilterTimeFrameSliceABC()
 }
 
 int FilterTimeFrameSliceABC::geoToIndex(uint64_t geo) {
-    if (geo >= 0xc0a802a1 && geo <= 0xc0a802a7) {
-        return geo - 0xc0a802a1;
-    } else if (geo == 0xc0a802aa) {
-        return 7;
+    // change here ! Detector geometry
+    std::vector<uint64_t> geoValues = {
+        0xc0a802a1, 0xc0a802a2, 0xc0a802a3, 0xc0a802a4,
+        0xc0a802a5, 0xc0a802a6, 0xc0a802a7, 0xc0a802a8
+    };
+
+    auto it = std::find(geoValues.begin(), geoValues.end(), geo);
+    if (it != geoValues.end()) {
+        return std::distance(geoValues.begin(), it);
     }
     return -1;
 }
@@ -45,8 +41,10 @@ void FilterTimeFrameSliceABC::InitTask()
     fNumDestination = GetNumSubChannels(fOutputChannelName);
     fPollTimeoutMS  = std::stoi(fConfig->GetProperty<std::string>(opt::PollTimeout.data()));
 
-    // Loading wire_map-----------------
-    std::ifstream file("vdc_amaneq_gr.map"); // Loading VDC_Wire_map
+    // Initialize Wire_map array 
+    wireMapArray.fill(std::array<Wire_map, maxCh + 1>{});
+
+    std::ifstream file("vdc_amaneq_gr.map");// Loading VDC_Wire_map
     if (!file) {
         std::cerr << "Cannot open file " << std::endl;
         return;
@@ -64,14 +62,34 @@ void FilterTimeFrameSliceABC::InitTask()
         }
 
         int geoIndex = geoToIndex(record.geo);
-        //std::cout << "Debug for loading Vdc Channnel - geoindex: " << geoIndex << std::endl;
-        //std::cout << "Debug for record.geo outside of function: " << record.geo << std::endl;
+        #if DEBUG
+            std::cout << "Debug for loading Vdc Channnel - geoindex: " << geoIndex << std::endl;
+            std::cout << "Debug for record.geo outside of function: " << record.geo << std::endl;
+        #endif
         if (geoIndex != -1 && record.ch <= maxCh) {
             wireMapArray[geoIndex][record.ch] = record;
         } else {
             std::cerr << "Invalid geo or ch value: " << line << std::endl;
         }
     }
+    #if DEBUG
+        std::cout << "Printing wireMapArray contents after loading the file:" << std::endl;
+        for (size_t i = 0; i < wireMapArray.size(); ++i) {
+            for (size_t j = 0; j < wireMapArray[i].size(); ++j) {
+                const Wire_map& wire = wireMapArray[i][j];
+                if (wire.catid != -1) {
+                    std::cout << "geoIndex: " << i << ", ch: " << j 
+                            << " - catid: " << wire.catid 
+                            << ", id: " << wire.id 
+                            << ", sh: " << wire.sh 
+                            << ", fp: " << wire.fp 
+                            << ", det: " << wire.det 
+                            << ", geo: " << std::hex << wire.geo << std::dec 
+                            << ", ch: " << wire.ch << std::endl;
+                }
+            }
+        }
+    #endif
 }
 
 void FilterTimeFrameSliceABC::PreRun()
@@ -80,6 +98,18 @@ void FilterTimeFrameSliceABC::PreRun()
 
 bool FilterTimeFrameSliceABC::ConditionalRun()
 {
+    #if DEBUG
+    //debug for loading wire-map
+        for (size_t i = 0; i < wireMapArray.size(); ++i) {
+            for (size_t j = 0; j < wireMapArray[i].size(); ++j) {
+                const Wire_map& wire = wireMapArray[i][j];
+                if (wire.catid != -1) {
+                    std::cout << "geoIndex: " << i << ", ch: " << j << " - catid: " << wire.catid << ", id: " << wire.id << ", geo: " << std::hex << wire.geo << std::dec << std::endl;
+                }
+            }
+        }
+    #endif
+
     fDoCheck = fKTimer[0].Check();
     for (auto& tf : fTFs) {
         tf.Clear();
@@ -89,20 +119,6 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
     FairMQParts inParts;
     FairMQParts outParts;
     if (Receive(inParts, fInputChannelName,0,1) <= 0) return true;
-
-//row data dump
-/*    { 
-        for (int i = 0; i < inParts.Size(); ++i) {
-            const auto& msg = inParts.At(i);
-            auto data = reinterpret_cast<const uint64_t*>(msg->GetData());
-            auto size = msg->GetSize() / sizeof(uint64_t); 
-            std::cout << "Message " << i << ": ";
-            std::for_each(data, data + size, [](uint64_t value) {
-                std::cout << std::hex << value << " ";
-            });
-            std::cout << std::dec << std::endl; 
-        }
-    }*/
 
     if (fDoCheck) {
         LOG(info) << "ConditionalRun";
@@ -114,13 +130,10 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
 
     auto outdataptr = std::make_unique<std::vector<copyUnit>>();
     auto outdata = outdataptr.get();
-    //LOG(info) << "num tf = " << fTFs.size();
-    //LOG(info) << "num tf = " << fTFs.size();
     for (uint64_t ifrm = 0, nfrm = fTFs.size(); ifrm < nfrm; ++ifrm) {
         auto& tf = fTFs[ifrm];
         bool doKeep = false;
         if (tf.GetHeader()->type == TimeFrame::META) {
-            //LOG(info) << " META information";
             doKeep = true;
         } else {
             doKeep = ProcessSlice(tf);

@@ -88,7 +88,7 @@ int FilterTimeFrameSliceByTOT::DeterminePlane(uint64_t fem, int ch) {
         return 2; // plane2
     } else if ((fem == 0xc0a802a5) || (fem == 0xc0a802a6)) {
         return 3; // plane3
-    } else if ((fem == 0xc0a802a7) || (fem == 0xc0a802aa)) {
+    } else if ((fem == 0xc0a802a7) || (fem == 0xc0a802a8)) {
         return 4; // plane4
     }
     return -1; 
@@ -96,11 +96,33 @@ int FilterTimeFrameSliceByTOT::DeterminePlane(uint64_t fem, int ch) {
 
 // gate condition
 bool FilterTimeFrameSliceByTOT::Chargelogic(const std::map<int, std::tuple<int, int>>& chargeSums) {
+    // Write TOT distribution
+    #if DEBUG
+        std::ofstream outFile("normalized_charges.txt", std::ios::app); // Append mode
+        if (!outFile.is_open()) {
+            std::cerr << "Failed to open file for writing." << std::endl;
+        }
+    #endif
+
     try {
         auto [chargeSum1, n1] = chargeSums.at(1); // plane1
         auto [chargeSum2, n2] = chargeSums.at(2); // plane2
         auto [chargeSum3, n3] = chargeSums.at(3); // plane3
         auto [chargeSum4, n4] = chargeSums.at(4); // plane4
+
+    #if DEBUG
+        double normCharge1 = (double)chargeSum1 / n1;
+        double normCharge2 = (double)chargeSum2 / n2;
+        double normCharge3 = (double)chargeSum3 / n3;
+        double normCharge4 = (double)chargeSum4 / n4;
+
+        outFile << std::fixed << std::setprecision(4) << std::setw(10) << normCharge1 
+                << std::setw(10) << normCharge2 
+                << std::setw(10) << normCharge3 
+                << std::setw(10) << normCharge4 
+                << "\n";
+        outFile.close();
+    #endif
 
         //Change here !
         if ((((double)chargeSum1 / n1) > 35) &&

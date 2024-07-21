@@ -1,11 +1,11 @@
 /**
  * @file FilterTimeFrameSliceByMultiplicity.cxx
- * @brief Slice TimeFrame by Time of Flight for NestDAQ
+ * @brief Slice TimeFrame by Multiplicity for NestDAQ
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-07-15 01:13:54 JST
+ *       Last Modified : 2024-07-21 02:08:24 JST
  * 
  * author Fumiya Furukawa <fumiya@rcnp.osaka-u.ac.jp>
- * @comment Modify FilterTimeFrameSliceBySomething.cxx for MultiHit 
+ * @comment Modify FilterTimeFrameSliceBySomething.cxx for Multiplicity
  * 
  */
 #include <fstream>
@@ -26,10 +26,9 @@ using nestdaq::FilterTimeFrameSliceByMultiplicity;
 namespace bpo = boost::program_options;
 
 FilterTimeFrameSliceByMultiplicity::FilterTimeFrameSliceByMultiplicity()
-: minClusterSize(3),                        // Number of elements in clustere      
-minClusterCountPerPlane(1),                 // Minimum number of clusters in each plan
-wireMapSize(113),                           // Maximum number of wires on each plane                  
-wireMapArray(8, std::vector<Wire_map>(113)) // 8 amaneq  
+// change here !
+: minClusterSize(3),           // Number of elements in clustere      
+minClusterCountPerPlane(1)     // Minimum number of clusters in each plan
 {
 }
 
@@ -64,6 +63,7 @@ bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
                 TDC64L_V3::Unpack(hbf->UncheckedAt(i), &tdc);
                 // Multiplicity preprocessing step 1 (search for wire IDs)
                 if (findWirenumber(wireMapArray, header->femId, tdc.ch, &foundID, &foundGeo, Geofield)) {
+                    //std::cout << "after searching wire ID" << std::endl;
                     GeoIDs[Geofield].push_back(foundID);
                 }
             }            
@@ -75,7 +75,19 @@ bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
     for (auto& pair : GeoIDs) {
         std::sort(pair.second.begin(), pair.second.end());
     }
-    
+
+    // Display of sorted results
+    #if DEBUG
+        for (const auto& pair : GeoIDs) {
+            std::cout << "Geofield: " << pair.first << " - GeoIDs: ";
+            for (int geoID : pair.second) {
+                std::cout << geoID << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "completely sorted" << std::endl;
+        }
+    #endif  
+
     auto geofieldClusterMap = analyzeGeofieldClusters(GeoIDs);
 
     if(allKeysHaveAtLeastOneCluster(geofieldClusterMap)){
@@ -83,39 +95,65 @@ bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
     }
 
     return false;
-} // End of main
-
-int FilterTimeFrameSliceByMultiplicity::geoToIndex(uint64_t geo) {
-    if (geo >= 0xc0a802a1 && geo <= 0xc0a802a7) {
-        return geo - 0xc0a802a1;
-    } else if (geo == 0xc0a802aa) {
-        return 7;
-    }
-    return -1; 
 }
 
-int FilterTimeFrameSliceByMultiplicity::findWirenumber(const std::vector<std::vector<Wire_map>>& wireMapArray, uint64_t geo, int ch, int *foundid, int *foundGeo, int &Geofield) {
+int FilterTimeFrameSliceByMultiplicity::findWirenumber(const std::array<std::array<Wire_map, maxCh + 1>, 8>& wireMapArray, uint64_t geo, int ch, int *foundid, int *foundGeo, int &Geofield) {
     int geoIndex = geoToIndex(geo);
-    if (geoIndex != -1 && ch < wireMapArray[geoIndex].size()) {
-        const Wire_map& wire = wireMapArray[geoIndex][ch];
-        if (wire.catid != -1) { 
-            *foundid = wire.id;
-            *foundGeo = wire.geo;
+    #if DEBUG
+        std::cout << "[findWirenumber] geoToIndex: geo=" << std::hex << geo << " index=" << geoIndex << std::dec << std::endl;
+    #endif
 
-            if ((geo == 0xc0a802a1) || (geo == 0xc0a802a2)) {
-                Geofield = 1; // plane1
-            } else if ((geo == 0xc0a802a3) || (geo == 0xc0a802a4)) {
-                Geofield = 2; // plane2
-            } else if ((geo == 0xc0a802a5) || (geo == 0xc0a802a6)) {
-                Geofield = 3; // plane3
-            } else if ((geo == 0xc0a802a7) || (geo == 0xc0a802aa)) {
-                Geofield = 4; // plane4
-            }
+    if (geoIndex == -1) {
+        #if DEBUG
+            std::cout << "[findWirenumber] Invalid geo value: " << std::hex << geo << std::dec << std::endl;
+        #endif
 
-            return 1; 
-        }
+        *foundGeo = -1;
+        return 0;
     }
-    return 0; 
+
+    if (ch >= wireMapArray[geoIndex].size()) {
+        #if DEBUG
+            std::cout << "[findWirenumber] Invalid channel: " << ch << " for geoIndex: " << geoIndex << std::endl;
+        #endif
+
+        *foundGeo = -1;
+        return 0;
+    }
+
+    const Wire_map& wire = wireMapArray[geoIndex][ch];
+    #if DEBUG
+        std::cout << "[findWirenumber] Checking Wire_map for geoIndex: " << geoIndex << ", channel: " << ch << std::endl;
+        std::cout << "[findWirenumber] Wire_map details - catid: " << wire.catid << ", id: " << wire.id << ", geo: " << std::hex << wire.geo << std::dec << std::endl;
+    #endif
+
+    if (wire.catid != -1) {
+        *foundid = wire.id;
+        *foundGeo = wire.geo;
+
+        if ((geo == 0xc0a802a1) || (geo == 0xc0a802a2)) {
+            Geofield = 1; // plane1
+        } else if ((geo == 0xc0a802a3) || (geo == 0xc0a802a4)) {
+            Geofield = 2; // plane2
+        } else if ((geo == 0xc0a802a5) || (geo == 0xc0a802a6)) {
+            Geofield = 3; // plane3
+        } else if ((geo == 0xc0a802a7) || (geo == 0xc0a802a8)) {
+            Geofield = 4; // plane4
+        }
+        #if DEBUG
+        std::cout << "[findWirenumber] Found wire ID: " << *foundid << ", foundGeo: " << std::hex << *foundGeo << ", Geofield: " << Geofield << std::dec << std::endl;
+        #endif
+
+        return 1;
+    } else {
+        #if DEBUG
+            std::cout << "[findWirenumber] Wire_map catid is -1 for geoIndex: " << geoIndex << ", channel: " << ch << std::endl;
+        #endif
+
+        *foundGeo = -1;
+    }
+    
+    return 0;
 }
 
 std::vector<std::vector<int>> FilterTimeFrameSliceByMultiplicity::clusterNumbers(const std::vector<int>& numbers) {
@@ -159,7 +197,15 @@ std::map<int, FilterTimeFrameSliceByMultiplicity::GeofieldClusterInfo> FilterTim
             info.clusterSizes.push_back(cluster.size());
         }
     }
-
+    #if DEBUG
+        for (const auto& pair : geofieldClusterMap) {
+            std::cout << "GeoID: " << pair.first << " には " << pair.second.clusterCount << " 個のクラスターがあります。" << std::endl;
+            std::cout << "各クラスターの要素数は以下の通りです：" << std::endl;
+            for (int size : pair.second.clusterSizes) {
+                std::cout << " - クラスターの要素数: " << size << std::endl;
+            }
+        } 
+    #endif
     return geofieldClusterMap;
 }
 

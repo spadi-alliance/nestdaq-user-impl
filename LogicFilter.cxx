@@ -386,8 +386,11 @@ int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 		}
 	} else {
 		std::cout << "Unknown device : " << std::hex << type << std::endl;
+		const uint64_t* data = reinterpret_cast<const uint64_t*>(&val);
+		for (size_t i = 0; i < sizeof(val) / sizeof(uint64_t); ++i) {
+			std::cout << "Data[" << i << "]: " << std::hex << data[i] << std::endl;
+		}
 	}
-
 
 	if (hbflag > 0) fHBflag |= hbflag;
 	if (fKt4->Check()) {

@@ -2,7 +2,7 @@
  * @file FilterTimeFrameSliceByTOF.cxx
  * @brief Slice TimeFrame by Time of Flight for NestDAQ
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-07-15 00:34:28 JST
+ *       Last Modified : 2024-07-21 11:06:28 JST
  * 
  * @author Fumiya Furukawa <fumiya@rcnp.osaka-u.ac.jp>
  * @comment Modify FilterTimeFrameSliceBySomething.cxx for MultiHit 
@@ -69,8 +69,10 @@ bool FilterTimeFrameSliceByTOF::ProcessSlice(TTF& tf)
 
     CalculateAndPrintTOF(tof_end_averages, tof_start_averages);
 
+
     for (const auto& tof_start_avg : tof_start_averages) {
         for (const auto& tof_end_avg : tof_end_averages) {
+            // The last two arguments are the minimum and maximum gate conditions
             if (CheckAllTOFConditions(*tof_start_avg, *tof_end_avg, tof_start_r_hits, tof_start_l_hits, tof_end_r_hits, tof_end_l_hits, -130000, -125000)) {
                 
                 tofCondition = true;
@@ -120,13 +122,13 @@ std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
 // TOF detector settings 
 // Define IP addresses and channels for Start and End detectors
 void FilterTimeFrameSliceByTOF::AddTOFHit(uint64_t femId, int ch, int tdc) {
-    if (femId == 0xc0a802aa) {
-        if (ch == 12) {
+    if (femId == 0xc0a802a9) {
+        if (ch == 9) {
             tof_start_r_hits.push_back(std::make_unique<int>(tdc));
         } else if (ch == 10) {
             tof_start_l_hits.push_back(std::make_unique<int>(tdc));
         }
-    } else if (femId == 0xc0a802a9) {
+    } else if (femId == 0xc0a802aa) {
         if (ch == 10) {
             tof_end_r_hits.push_back(std::make_unique<int>(tdc));
         } else if (ch == 8) {
@@ -151,8 +153,10 @@ void FilterTimeFrameSliceByTOF::CalculateAndPrintTOF(const std::vector<std::uniq
     for (const auto& tof_end_ave : tof_end_averages) {
         for (const auto& tof_start_ave : tof_start_averages) {
             int tof = *tof_end_ave - *tof_start_ave;
-            //std::cout << "TOF End Average: " << *tof_end_ave << ", TOF Start Average: " << *tof_start_ave << ", TOF: " << tof << std::endl;
-        }
+            #if DEBUG
+                std::cout << "TOF End Average: " << *tof_end_ave << ", TOF Start Average: " << *tof_start_ave << ", TOF: " << tof << std::endl;
+            #endif
+        } 
     }
 }
 

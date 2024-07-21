@@ -1,13 +1,12 @@
-/**
- * @file FilterTimeFrameSliceABC.h
- * @brief Abstract base class for filtering time frame slice
- * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-05-23 07:19:25 JST
+/*
+ * @file FilterTimeFrameSliceABC.icxx
+ * @brief Slice Timeframe by Logic timing for NestDAQ
+ * @date Created : 2024-05-04 12:31:55 JST
+ *       Last Modified : 2024-07-21 02:23:44 JST (furukawa)
  *
  * @author Shinsuke OTA <ota@rcnp.osaka-u.ac.jp>
- *
+ * @comment Added geoToIndex function for VDC channel map loading
  */
-
 #ifndef NESTDAQ_FILTERTIMEFRAMESLICEABC_H
 #define NESTDAQ_FILTERTIMEFRAMESLICEABC_H
 
@@ -66,17 +65,22 @@ protected:
    std::vector<KTimer> fKTimer;
    bool fDoCheck;
 
-   std::vector<TTF> fTFs; // time frame
+   // time frame
+   std::vector<TTF> fTFs; 
 
-   static const int maxCh = 112;
+   // Maximum number of wires on each plane 
+   static const int maxCh = 112; 
+
+   // Number of amaneq units = 8
    std::array<std::array<Wire_map, maxCh + 1>, 8> wireMapArray;
+
 
    int geoToIndex(uint64_t geo);
 
    // output
-   int fNumDestination {0};
-   uint32_t fDirection {0};
-   int fPollTimeoutMS  {0};
+   int fNumDestination {0};  
+   uint32_t fDirection {0};  
+   int fPollTimeoutMS  {0}; 
    int fSplitMethod    {0};
 };
 
