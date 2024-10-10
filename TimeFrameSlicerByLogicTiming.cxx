@@ -437,7 +437,9 @@ bool TimeFrameSlicerByLogicTiming::ParseMessages(FairMQParts& inParts)
    int stfIdx = 0; // array index for stf
    int hbfIdx = 0; // array index for hbf
    int fltIdx = 0; // array index for flt
-   for (auto& i = fNextIdx, n = inParts.Size(); i < n; ++i) {
+   //for (auto& i = fNextIdx, n = inParts.Size(); i < n; ++i) {
+   auto n = inParts.Size();
+   for (auto& i = fNextIdx; i < n; ++i) {
       auto& part = inParts[i];
       auto magic = *reinterpret_cast<uint64_t*>(part.GetData());
       if (magic == TimeFrame::MAGIC) {

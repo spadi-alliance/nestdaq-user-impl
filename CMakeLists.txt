@@ -162,7 +162,7 @@ message(STATUS "REDIS_PLUS_PLUS_HEADER: ${REDIS_PLUS_PLUS_HEADER}")
 message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
 
 # ---------- add uhbook dependency ---------
-find_path(UHBOOK_HEADER uhbook.cxx ./)
+find_path(UHBOOK_HEADER uhbook.cxx ../uhbook/)
 #find_library(UHBOOK_LIB uhbook)
 
 message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
@@ -192,7 +192,6 @@ foreach(lvar IN ITEMS
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
     ${FairMQ_INCDIR};
-#    ${ROOT_INCLUDE_DIRS};
     ${HIREDIS_HEADER};
     ${REDIS_PLUS_PLUS_HEADER};
     ${UHBOOK_HEADER};
@@ -207,20 +206,36 @@ foreach(lvar IN ITEMS
 #    ${FairLogger_LIBDIR};
   )
 
-  target_link_libraries(${EXEC} PUBLIC 
-    ${Boost_LIBRARIES};  
-#    ${fmt_LIB};
-#    ${ROOT_LIBRARIES};
-    ${HIREDIS_LIB};
-    ${REDIS_PLUS_PLUS_LIB};
-    ${UHBOOK_LIB};
-    FairMQ;
-    FairMQStateMachine;
-    FairLogger;
-    Utility;
-    stdc++fs;
-    AmQTdcModule;
-  )
+  if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+    AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+    target_link_libraries(${EXEC} PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      fairmq
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+    )
+  elseif ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+    AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+    target_link_libraries(${EXEC} PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      FairMQ;
+      FairMQStateMachine;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+    )
+  else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+  endif()
 
   install(TARGETS
     ${EXEC};
@@ -249,14 +264,27 @@ target_link_directories(AmQStrTdcSampler PUBLIC
     ${FairMQ_LIBDIR};
 )
 
-target_link_libraries(AmQStrTdcSampler  PUBLIC
-#                        ${fmt_LIB};
-    FairMQ;
+if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+  target_link_libraries(AmQStrTdcSampler  PUBLIC
+    fairmq;
     FairLogger;
-    FairMQStateMachine;
     ${Boost_LIBRARIES};
     Utility;
-)
+  )
+elseif ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+  target_link_libraries(AmQStrTdcSampler  PUBLIC
+    FairMQ;
+    FairMQStateMachine;
+    FairLogger;
+    ${Boost_LIBRARIES};
+    Utility;
+  )
+else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+endif()
+
 
 install(TARGETS
     AmQStrTdcSampler
@@ -294,7 +322,19 @@ target_link_directories(${EXEC} PUBLIC
     ${ROOT_LIBRARIES};
 )
 
-target_link_libraries(${EXEC} PUBLIC 
+if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+  target_link_libraries(${EXEC} PUBLIC 
+    ${Boost_LIBRARIES};  
+    fairmq
+    FairLogger;
+    ${ROOT_LIBRARIES};
+    ${HIREDIS_LIB};
+    ${REDIS_PLUS_PLUS_LIB};
+  )
+elseif ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+  target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     FairMQ;
     FairMQStateMachine;
@@ -302,7 +342,10 @@ target_link_libraries(${EXEC} PUBLIC
     ${ROOT_LIBRARIES};
     ${HIREDIS_LIB};
     ${REDIS_PLUS_PLUS_LIB};
-)
+  )
+else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+endif()
 
 install(TARGETS ${EXEC};
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
