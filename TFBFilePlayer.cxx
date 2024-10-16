@@ -92,7 +92,14 @@ bool TFBFilePlayer::ConditionalRun()
     } else
     if (magic != TF::MAGIC) {
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
+        for (int i = 0 ; i < 8 ; i++) {
+            char c = *(reinterpret_cast<char *>(&magic) + i);
+            if  ((c >= 0x20) && (c < 0x7f)) {
+                hmagic[i] = c;
+            } else {
+                hmagic[i] = '.';
+	    }
+	}
         LOG(error) << "Unkown magic = " << std::hex << magic << "(" << hmagic << ")";
         return true;
     }
@@ -249,9 +256,11 @@ bool TFBFilePlayer::ConditionalRun()
 			uint64_t *checkHeader = reinterpret_cast<uint64_t *>(wBegin);
 			uint64_t *checkHB1    = reinterpret_cast<uint64_t *>(ptr - 1);
 			uint64_t *checkHB2    = reinterpret_cast<uint64_t *>(ptr);
+			#if 0
 			std::cout << "#D " << cheader << " " << std::hex << *checkHeader << " "
 				<< " size: " << msg.GetSize() << " : " 
 				<< *checkHB1 << " " << *checkHB2 << std::dec << std::endl;
+			#endif
 
                     wBegin = ptr + 1;
                 } else {
