@@ -1,8 +1,8 @@
 /********************************************************************************
- *    Copyright (C) 2014 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH    *
+ *Copyright (C) 2014 GSI Helmholtzzentrum fuer Schwerionenforschung GmbH    *
  *										*
- *	      This software is distributed under the terms of the		*
- *	      GNU Lesser General Public Licence (LGPL) version 3,		*
+ *	  This software is distributed under the terms of the		*
+ *	  GNU Lesser General Public Licence (LGPL) version 3,		*
  *		  copied verbatim in the file "LICENSE"				*
  ********************************************************************************/
 
@@ -37,11 +37,11 @@ struct FltCoin : fair::mq::Device
 	struct OptionKey {
 		static constexpr std::string_view InputChannelName   {"in-chan-name"};
 		static constexpr std::string_view OutputChannelName  {"out-chan-name"};
-		static constexpr std::string_view DQMChannelName     {"dqm-chan-name"};
-		static constexpr std::string_view DataSuppress       {"data-suppress"};
-		static constexpr std::string_view RemoveHB           {"remove-hb"};
-		static constexpr std::string_view PollTimeout        {"poll-timeout"};
-		static constexpr std::string_view SplitMethod        {"split"};
+		static constexpr std::string_view DQMChannelName {"dqm-chan-name"};
+		static constexpr std::string_view DataSuppress   {"data-suppress"};
+		static constexpr std::string_view RemoveHB       {"remove-hb"};
+		static constexpr std::string_view PollTimeout    {"poll-timeout"};
+		static constexpr std::string_view SplitMethod    {"split"};
 	};
 
 	FltCoin()
@@ -109,7 +109,7 @@ private:
 	int fNumDestination {0};
 	uint32_t fDirection {0};
 	int fPollTimeoutMS  {0};
-	int fSplitMethod    {0};
+	int fSplitMethod{0};
 
 	uint32_t fId {0};
 	Trigger *fTrig;
@@ -131,7 +131,7 @@ void FltCoin::InitTask()
 
 	fInputChannelName  = fConfig->GetValue<std::string>(opt::InputChannelName.data());
 	fOutputChannelName = fConfig->GetValue<std::string>(opt::OutputChannelName.data());
-	fDQMChannelName    = fConfig->GetValue<std::string>(opt::DQMChannelName.data());
+	fDQMChannelName= fConfig->GetValue<std::string>(opt::DQMChannelName.data());
 
 	LOG(info) << "InitTask: Input Channel : " << fInputChannelName
 		<< " Output Channel : " << fOutputChannelName;
@@ -143,7 +143,7 @@ void FltCoin::InitTask()
 	std::istringstream ss(fName.substr(fName.rfind("-") + 1));
 	ss >> fId;
 
-	fSplitMethod    = std::stoi(
+	fSplitMethod= std::stoi(
 		fConfig->GetProperty<std::string>(opt::SplitMethod.data()));
 	LOG(info) << "InitTask: SplitMethod : " << fSplitMethod;
 
@@ -185,7 +185,7 @@ void FltCoin::InitTask()
 		"0 1 & 2 3 & | 4 5 & | 6 7 & | 8 9 & | 10 11 & |");
 #endif
 
-#if 1
+#if 0
 	fTrig->Entry(0xc0a802a9,  0, 0); //DL
 	fTrig->Entry(0xc0a802a9,  1, 0); //DR
 	fTrig->Entry(0xc0a802a9,  2, 0); //DL
@@ -202,10 +202,11 @@ void FltCoin::InitTask()
 	fTrig->MakeTable(form);
 #endif
 
-#if 0
-	fTrig->Entry(0xc0a802a8, 0, 0);
-	fTrig->Entry(0xc0a802a8, 1, 0);
-	fTrig->MakeTable(2, "0 1 &");
+#if 1
+	fTrig->Entry(0xc0a802a8,  8, 0);
+	fTrig->Entry(0xc0a802a8, 10, 0);
+	std::string form("RPN 0 1 &");
+	fTrig->MakeTable(form);
 #endif
 
 }
@@ -268,7 +269,7 @@ bool FltCoin::CheckData(fair::mq::MessagePtr &msg)
 		////
 
 	} else {
-	       #if 1
+	   #if 1
 		for (unsigned int j = 0 ; j < msize ; j += 8) {
 			std::cout << "# " << std::setw(8) << j << " : "
 				<< std::hex << std::setw(2) << std::setfill('0')
@@ -320,10 +321,6 @@ bool FltCoin::CheckData(fair::mq::MessagePtr &msg)
 	return true;
 }
 
-//int FltCoin::Trigger(FairMQParts &inParts, FairMQPatts &outParts)
-//{
-//	return 0;
-//}
 
 int FltCoin::IsHartBeat(uint64_t val, uint32_t type)
 {
@@ -346,6 +343,20 @@ int FltCoin::IsHartBeat(uint64_t val, uint32_t type)
 	if (type == SubTimeFrame::TDC64L_V1) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::v1::Unpack(val, &tdc) == TDC64L::v1::T_HB) {
+			hbframe = tdc.hartbeat;
+			hbflag = tdc.flag;
+		}
+	} else
+	if (type == SubTimeFrame::TDC64H_V3) {
+		struct TDC64H_V3::tdc64 tdc;
+		if (TDC64H_V3::Unpack(val, &tdc) == TDC64H_V3::T_HB1) {
+			hbframe = tdc.hartbeat;
+			hbflag = tdc.flag;
+		}
+	} else
+	if (type == SubTimeFrame::TDC64L_V3) {
+		struct TDC64L_V3::tdc64 tdc;
+		if (TDC64L_V3::Unpack(val, &tdc) == TDC64L_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
@@ -730,7 +741,7 @@ bool FltCoin::ConditionalRun()
 		#if 0
 		auto tfHeader = reinterpret_cast<TimeFrame::Header*>(inParts.At(0)->GetData());
 		auto stfHeader = reinterpret_cast<SubTimeFrame::Header*>(inParts.At(0)->GetData());
-		auto stfId     = stfHeader->timeFrameId;
+		auto stfId = stfHeader->timeFrameId;
 		#endif
 
 		FairMQParts outParts;
@@ -1009,7 +1020,7 @@ void addCustomOptions(bpo::options_description& options)
 		(opt::SplitMethod.data(),
 			bpo::value<std::string>()->default_value("1"),
 			"STF split method")
-    		;
+		;
 
 }
 

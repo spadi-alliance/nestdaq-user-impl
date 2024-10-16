@@ -64,6 +64,7 @@ bool TFBFilePlayer::ConditionalRun()
     uint64_t magic;
     char tempbuf[sizeof(struct Filter::Header)];
     fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(uint64_t));
+    if (fInputFile.eof()) return false;
 
     if (magic == Filter::MAGIC) {
         fInputFile.read(tempbuf, sizeof(struct Filter::Header) - sizeof(uint64_t));
@@ -75,6 +76,7 @@ bool TFBFilePlayer::ConditionalRun()
         for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         fInputFile.read(reinterpret_cast<char *>(&fsh) + sizeof(uint64_t),
             sizeof(FSH::Header) - sizeof(uint64_t));
+        if (fInputFile.eof()) return false;
         LOG(info) << "FileSink Header magic : " << std::hex << fsh.magic
             << "(" << hmagic << ")" << " size : " << std::dec << fsh.size << std::endl;
         return true;
@@ -86,6 +88,7 @@ bool TFBFilePlayer::ConditionalRun()
         for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         fInputFile.read(reinterpret_cast<char *>(&fst) + sizeof(uint64_t),
             sizeof(FST::Trailer) - sizeof(uint64_t));
+        if (fInputFile.eof()) return false;
         LOG(info) << "FileSink Trailer magic : " << std::hex << fst.magic
             << "(" << hmagic << ")" << " size : " << std::dec << fst.size << std::endl;
         return true;
@@ -115,10 +118,12 @@ bool TFBFilePlayer::ConditionalRun()
         *(reinterpret_cast<uint64_t *>(msgTFHeader.GetData())) = magic;
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()) + sizeof(uint64_t),
             msgTFHeader.GetSize() - sizeof(uint64_t));
+        if (fInputFile.eof()) return false;
         LOG(debug4) << "TF Header : " << std::hex << magic << std::dec;
     } else {
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()),
             msgTFHeader.GetSize());
+        if (fInputFile.eof()) return false;
     }
 
     if (static_cast<size_t>(fInputFile.gcount()) < (msgTFHeader.GetSize() - sizeof(uint64_t))) {
@@ -135,6 +140,7 @@ bool TFBFilePlayer::ConditionalRun()
 
     std::vector<char> buf(tfHeader->length - sizeof(TF::Header));
     fInputFile.read(buf.data(), buf.size());
+    if (fInputFile.eof()) return false;
     if (static_cast<size_t>(fInputFile.gcount()) < msgTFHeader.GetSize()) {
         LOG(warn) << "No data read. request = " << msgTFHeader.GetSize()
             << " bytes. gcount = " << fInputFile.gcount();
@@ -159,11 +165,13 @@ bool TFBFilePlayer::ConditionalRun()
         LOG(debug4)
             << "STF header: magic = 0x" << std::hex <<  stfHeader->magic
             << ", tf-id = " << std::dec << stfHeader->timeFrameId
+#if 0
             << std::endl
             //<< ", rsv = " << stfHeader->reserve
             << "  FEM-type = 0x" << std::hex << stfHeader->femType
             << ", FEM-id = 0x" << stfHeader->femId
             << std::endl
+#endif
             << "  bytes = " << std::dec <<stfHeader->length
             << ", n-msg = " << stfHeader->numMessages
             << ", sec = " << stfHeader->timeSec
