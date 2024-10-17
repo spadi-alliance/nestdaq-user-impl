@@ -23,17 +23,17 @@ void addCustomOptions(bpo::options_description& options)
     using opt = TFBFilePlayer::OptionKey;
     options.add_options()
     (opt::InputFileName.data(),     bpo::value<std::string>(),
-        "path to input data file")
+     "path to input data file")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"),
-        "Name of the data output channel")
+     "Name of the data output channel")
     (opt::MaxIterations.data(),     bpo::value<std::string>()->default_value("0"),
-        "maximum number of iterations")
+     "maximum number of iterations")
     (opt::PollTimeout.data(),       bpo::value<std::string>()->default_value("0"),
-        "Timeout of send-socket polling (in msec)")
+     "Timeout of send-socket polling (in msec)")
     (opt::IterationWait.data(),     bpo::value<std::string>()->default_value("0"),
-        "Iteration wait time (ms)")
+     "Iteration wait time (ms)")
     (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("2"),
-        "STF split method")
+     "STF split method")
     ;
 }
 
@@ -68,17 +68,17 @@ bool TFBFilePlayer::ConditionalRun()
 
     if (magic == Filter::MAGIC) {
         fInputFile.read(tempbuf, sizeof(struct Filter::Header) - sizeof(uint64_t));
-    } else 
+    } else
     if (magic == FSH::MAGIC) {
         FSH::Header fsh;
         fsh.magic = magic;
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         fInputFile.read(reinterpret_cast<char *>(&fsh) + sizeof(uint64_t),
-            sizeof(FSH::Header) - sizeof(uint64_t));
+                        sizeof(FSH::Header) - sizeof(uint64_t));
         if (fInputFile.eof()) return false;
         LOG(info) << "FileSink Header magic : " << std::hex << fsh.magic
-            << "(" << hmagic << ")" << " size : " << std::dec << fsh.size << std::endl;
+                  << "(" << hmagic << ")" << " size : " << std::dec << fsh.size << std::endl;
         return true;
     } else
     if (magic == FST::MAGIC) {
@@ -87,10 +87,10 @@ bool TFBFilePlayer::ConditionalRun()
         char hmagic[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         for (int i = 0 ; i < 8 ; i++) hmagic[i] = *(reinterpret_cast<char *>(&magic) + i);
         fInputFile.read(reinterpret_cast<char *>(&fst) + sizeof(uint64_t),
-            sizeof(FST::Trailer) - sizeof(uint64_t));
+                        sizeof(FST::Trailer) - sizeof(uint64_t));
         if (fInputFile.eof()) return false;
         LOG(info) << "FileSink Trailer magic : " << std::hex << fst.magic
-            << "(" << hmagic << ")" << " size : " << std::dec << fst.size << std::endl;
+                  << "(" << hmagic << ")" << " size : " << std::dec << fst.size << std::endl;
         return true;
     } else
     if (magic != TF::MAGIC) {
@@ -101,8 +101,8 @@ bool TFBFilePlayer::ConditionalRun()
                 hmagic[i] = c;
             } else {
                 hmagic[i] = '.';
-	    }
-	}
+            }
+        }
         LOG(error) << "Unkown magic = " << std::hex << magic << "(" << hmagic << ")";
         return true;
     }
@@ -117,33 +117,33 @@ bool TFBFilePlayer::ConditionalRun()
     if (magic == TF::MAGIC) {
         *(reinterpret_cast<uint64_t *>(msgTFHeader.GetData())) = magic;
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()) + sizeof(uint64_t),
-            msgTFHeader.GetSize() - sizeof(uint64_t));
+                        msgTFHeader.GetSize() - sizeof(uint64_t));
         if (fInputFile.eof()) return false;
         LOG(debug4) << "TF Header : " << std::hex << magic << std::dec;
     } else {
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()),
-            msgTFHeader.GetSize());
+                        msgTFHeader.GetSize());
         if (fInputFile.eof()) return false;
     }
 
     if (static_cast<size_t>(fInputFile.gcount()) < (msgTFHeader.GetSize() - sizeof(uint64_t))) {
         LOG(warn) << "No data read. request = " << msgTFHeader.GetSize()
-            << " bytes. gcount = " << fInputFile.gcount();
+                  << " bytes. gcount = " << fInputFile.gcount();
         return false;
     }
     auto tfHeader = reinterpret_cast<TF::Header*>(msgTFHeader.GetData());
-    
-    #if 0
+
+#if 0
     LOG(debug4) << fmt::format("TF header: magic = {:016x}, tf-id = {:d}, n-src = {:d}, bytes = {:d}",
-        tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
-    #endif
+                               tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
+#endif
 
     std::vector<char> buf(tfHeader->length - sizeof(TF::Header));
     fInputFile.read(buf.data(), buf.size());
     if (fInputFile.eof()) return false;
     if (static_cast<size_t>(fInputFile.gcount()) < msgTFHeader.GetSize()) {
         LOG(warn) << "No data read. request = " << msgTFHeader.GetSize()
-            << " bytes. gcount = " << fInputFile.gcount();
+                  << " bytes. gcount = " << fInputFile.gcount();
         return false;
     }
     LOG(debug4) << " buf size = " << buf.size();
@@ -163,19 +163,18 @@ bool TFBFilePlayer::ConditionalRun()
         auto stfHeader = reinterpret_cast<STF::Header*>(header);
 
         LOG(debug4)
-            << "STF header: magic = 0x" << std::hex <<  stfHeader->magic
-            << ", tf-id = " << std::dec << stfHeader->timeFrameId
+                << "STF header: magic = 0x" << std::hex <<  stfHeader->magic
+                << ", tf-id = " << std::dec << stfHeader->timeFrameId
 #if 0
-            << std::endl
-            //<< ", rsv = " << stfHeader->reserve
-            << "  FEM-type = 0x" << std::hex << stfHeader->femType
-            << ", FEM-id = 0x" << stfHeader->femId
-            << std::endl
+                << std::endl
+                << "  FEM-type = 0x" << std::hex << stfHeader->femType
+                << ", FEM-id = 0x" << stfHeader->femId
+                << std::endl
 #endif
-            << "  bytes = " << std::dec <<stfHeader->length
-            << ", n-msg = " << stfHeader->numMessages
-            << ", sec = " << stfHeader->timeSec
-            << ", usec = " << stfHeader->timeUSec;
+                << "  bytes = " << std::dec <<stfHeader->length
+                << ", n-msg = " << stfHeader->numMessages
+                << ", sec = " << stfHeader->timeSec
+                << ", usec = " << stfHeader->timeUSec;
 
         auto wordBegin = reinterpret_cast<uint64_t*>(bufBegin + headerNBytes);
         auto bodyNBytes = stfHeader->length - headerNBytes;
@@ -206,15 +205,14 @@ bool TFBFilePlayer::ConditionalRun()
                     //    << std::hex << (d-1)->head << " " << d->head << std::endl;
                     if ((ptr - wBegin) == 0) {
                         continue;
-                    } else
-                    if ( ((ptr - wBegin) > 1)
-                        || (((ptr - wBegin) == 1)
-                        && ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat))) ) {
-                    //if ((ptr - wBegin) > 1) {
-                    //if ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat) 
-                    //    || ( (((d - 1)->head) == AmQStrTdc::Data::Heartbeat)
-                    //        && (((d - 2)->head) == AmQStrTdc::Data::Heartbeat) )
-                    //         ) {
+                    } else if ( ((ptr - wBegin) > 1)
+                                || (((ptr - wBegin) == 1)
+                                    && ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat))) ) {
+                        //if ((ptr - wBegin) > 1) {
+                        //if ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat)
+                        //    || ( (((d - 1)->head) == AmQStrTdc::Data::Heartbeat)
+                        //        && (((d - 2)->head) == AmQStrTdc::Data::Heartbeat) )
+                        //         ) {
                         outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin)));
                         auto & msg = outParts[outParts.Size() - 1];
                         std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
@@ -235,7 +233,7 @@ bool TFBFilePlayer::ConditionalRun()
                         ptr++;
                     } else {
                         LOG(warn) << "Single Heartbeat) :"
-                            << std::hex << (*ptr) << " " << (*(ptr + 1));
+                                  << std::hex << (*ptr) << " " << (*(ptr + 1));
                     }
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                     auto & msg = outParts[outParts.Size() - 1];
@@ -244,12 +242,12 @@ bool TFBFilePlayer::ConditionalRun()
                     wBegin = ptr + 1;
                 }
 
-                #if 0
+#if 0
                 LOG(debug4) << " found Heartbeat data. " << pmsg->GetSize() << " bytes";
                 std::for_each(reinterpret_cast<uint64_t*>(pmsg->GetData()),
-                    reinterpret_cast<uint64_t*>(pmsg->GetData())+pmsg->GetSize()/sizeof(uint64_t),
-                    HexDump(2));
-                #endif
+                              reinterpret_cast<uint64_t*>(pmsg->GetData())+pmsg->GetSize()/sizeof(uint64_t),
+                              HexDump(2));
+#endif
 
                 break;
             }
@@ -260,15 +258,15 @@ bool TFBFilePlayer::ConditionalRun()
                     auto & msg = outParts[outParts.Size() - 1];
                     std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
 
-			char     *cheader     = reinterpret_cast<char *>(wBegin);
-			uint64_t *checkHeader = reinterpret_cast<uint64_t *>(wBegin);
-			uint64_t *checkHB1    = reinterpret_cast<uint64_t *>(ptr - 1);
-			uint64_t *checkHB2    = reinterpret_cast<uint64_t *>(ptr);
-			#if 0
-			std::cout << "#D " << cheader << " " << std::hex << *checkHeader << " "
-				<< " size: " << msg.GetSize() << " : " 
-				<< *checkHB1 << " " << *checkHB2 << std::dec << std::endl;
-			#endif
+                    char     *cheader     = reinterpret_cast<char *>(wBegin);
+                    uint64_t *checkHeader = reinterpret_cast<uint64_t *>(wBegin);
+                    uint64_t *checkHB1    = reinterpret_cast<uint64_t *>(ptr - 1);
+                    uint64_t *checkHB2    = reinterpret_cast<uint64_t *>(ptr);
+#if 0
+                    std::cout << "#D " << cheader << " " << std::hex << *checkHeader << " "
+                              << " size: " << msg.GetSize() << " : "
+                              << *checkHB1 << " " << *checkHB2 << std::dec << std::endl;
+#endif
 
                     wBegin = ptr + 1;
                 } else {
@@ -324,7 +322,7 @@ void TFBFilePlayer::InitTask()
     fWait              = std::stoi(
                              fConfig->GetProperty<std::string>(opt::IterationWait.data()));
     fSplitMethod       = std::stoi(
-                         fConfig->GetProperty<std::string>(opt::SplitMethod.data()));
+                             fConfig->GetProperty<std::string>(opt::SplitMethod.data()));
 
     LOG(info) << "InitTask: Iteration   : " << fMaxIterations;
     LOG(info) << "InitTask: Wait        : " << fWait;
