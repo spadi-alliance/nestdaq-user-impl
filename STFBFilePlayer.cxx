@@ -66,7 +66,7 @@ void STFBFilePlayer::InitTask()
 
     LOG(debug) << "DQM channels: name = " << fDQMChannelName;
 
-    //	       << " num = " << fChannels.count(fDQMChannelName);
+    //        << " num = " << fChannels.count(fDQMChannelName);
     //    if (fChannels.count(fDQMChannelName)) {
     //        LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName
     //                   << " num = " << fChannels.at(fDQMChannelName).size();
@@ -112,8 +112,8 @@ void STFBFilePlayer::PreRun()
     } else if (buf == FileSinkHeader::MAGIC) { /* For new FileSinkHeader after 2023.06.15 */
         uint32_t hsize{0};
         fInputFile.read(reinterpret_cast<char*>(&hsize), sizeof(hsize));
-	LOG(debug) << "New FS header (Order: MAGIC + FS header size)" << hsize;
-	fInputFile.seekg(hsize - (sizeof(uint64_t)+sizeof(uint32_t)), std::ios_base::cur);
+        LOG(debug) << "New FS header (Order: MAGIC + FS header size)" << hsize;
+        fInputFile.seekg(hsize - (sizeof(uint64_t)+sizeof(uint32_t)), std::ios_base::cur);
     } else { /* For old FileSinkHeader before 2023.06.15 */
         uint64_t magic{0};
         fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(magic));
@@ -137,8 +137,8 @@ bool STFBFilePlayer::ConditionalRun()
     }
 
     FairMQParts outParts;
-    FairMQParts dqmParts;        
-    
+    FairMQParts dqmParts;
+
     outParts.AddPart(NewMessage(sizeof(STF::Header)));
     auto &msgSTFHeader = outParts[0];
     fInputFile.read(reinterpret_cast<char*>(msgSTFHeader.GetData()), msgSTFHeader.GetSize());
@@ -153,15 +153,15 @@ bool STFBFilePlayer::ConditionalRun()
     if (stfHeader->magic != STF::MAGIC) {
         if (stfHeader->magic == FST::MAGIC) {
             auto fsTrailer = reinterpret_cast<FST::Trailer*>(stfHeader);
-	    LOG(info) << "maigic : " << std::hex << fsTrailer->magic
-	              << " size : " << std::dec << fsTrailer->size;
-	    return false;
-	}else{
-	    LOG(error) << "Unkown magic = " << stfHeader->magic;
-	    return false;
-	}
+            LOG(info) << "maigic : " << std::hex << fsTrailer->magic
+                      << " size : " << std::dec << fsTrailer->size;
+            return false;
+        } else {
+            LOG(error) << "Unkown magic = " << stfHeader->magic;
+            return false;
+        }
     }
-    
+
     std::cout << "#D Header size :" << msgSTFHeader.GetSize() << std::endl;
     std::cout << "#D maigic : " << std::hex << stfHeader->magic
               << " length : " << std::dec << stfHeader->length << std::endl;
@@ -190,7 +190,7 @@ bool STFBFilePlayer::ConditionalRun()
                   reinterpret_cast<uint64_t*>(bufBegin)+buf.size()/sizeof(uint64_t),
                   HexDump(4));
 #endif
-    
+
     //auto header = reinterpret_cast<char*>(msgSTFHeader.GetData());
     auto headerNBytes = msgSTFHeader.GetSize();
     auto wordBegin = reinterpret_cast<uint64_t*>(bufBegin);
@@ -217,14 +217,14 @@ bool STFBFilePlayer::ConditionalRun()
         if (fSplitMethod == 0) {
             switch (d->head) {
             //-----------------------------
-	      //	    case AmQStrTdc::Data::SpillEnd:
+            //  case AmQStrTdc::Data::SpillEnd:
             //-----------------------------
             case AmQStrTdc::Data::Heartbeat2nd: {
 
-	        if (prev->head != AmQStrTdc::Data::Heartbeat) {
-		  LOG(error) << "Just one delimiter: "<< std::hex << prev->head; 
-	        }
-		
+                if (prev->head != AmQStrTdc::Data::Heartbeat) {
+                    LOG(error) << "Just one delimiter: "<< std::hex << prev->head;
+                }
+
                 outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                 auto & msg = outParts[outParts.Size()-1];
                 LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
@@ -248,42 +248,42 @@ bool STFBFilePlayer::ConditionalRun()
         } else {
             switch (d->head) {
             //-----------------------------
-	      //            case AmQStrTdc::Data::SpillEnd:
+            //  case AmQStrTdc::Data::SpillEnd:
             //-----------------------------
             case AmQStrTdc::Data::Heartbeat: {
 
-		if ((ptr - wBegin) > 0) {
+                if ((ptr - wBegin) > 0) {
 
-                //fair::mq::Message & msg;
-                fair::mq::Message * pmsg;
-                if (prev->head == AmQStrTdc::Data::Heartbeat) {
-                    outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
-                    //auto & msg = outParts[outParts.Size() - 1];
-                    pmsg = &outParts[outParts.Size() - 1];
-                    auto & msg = *pmsg;
-                    LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
-                    std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
-                    wBegin = ptr + 1;
-                } else {
-                    outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin)));
-                    //auto & msg = outParts[outParts.Size() - 1];
-                    pmsg = &outParts[outParts.Size() - 1];
-                    auto & msg = *pmsg;
-                    LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
-                    std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
-                    wBegin = ptr;
-                }
+                    //fair::mq::Message & msg;
+                    fair::mq::Message * pmsg;
+                    if (prev->head == AmQStrTdc::Data::Heartbeat) {
+                        outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
+                        //auto & msg = outParts[outParts.Size() - 1];
+                        pmsg = &outParts[outParts.Size() - 1];
+                        auto & msg = *pmsg;
+                        LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
+                        std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
+                        wBegin = ptr + 1;
+                    } else {
+                        outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin)));
+                        //auto & msg = outParts[outParts.Size() - 1];
+                        pmsg = &outParts[outParts.Size() - 1];
+                        auto & msg = *pmsg;
+                        LOG(debug4) << " found Heartbeat data. " << msg.GetSize() << " bytes";
+                        std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
+                        wBegin = ptr;
+                    }
 
 #if 1
-                auto & msg = *pmsg;
-                std::cout << "mode 1: Msg: " << std::dec << outParts.Size()
-                          << " size: " << outParts[outParts.Size() - 1].GetSize();
-                std::for_each(
-                    reinterpret_cast<uint64_t*>(msg.GetData()),
-                    reinterpret_cast<uint64_t*>(msg.GetData())+msg.GetSize()/sizeof(uint64_t),
-                    HexDump(4));
+                    auto & msg = *pmsg;
+                    std::cout << "mode 1: Msg: " << std::dec << outParts.Size()
+                              << " size: " << outParts[outParts.Size() - 1].GetSize();
+                    std::for_each(
+                        reinterpret_cast<uint64_t*>(msg.GetData()),
+                        reinterpret_cast<uint64_t*>(msg.GetData())+msg.GetSize()/sizeof(uint64_t),
+                        HexDump(4));
 #endif
-		}
+                }
 
                 break;
             }
@@ -300,22 +300,22 @@ bool STFBFilePlayer::ConditionalRun()
                 << ": out parts.size() = " << outParts.Size();
 
     bool dqmSocketExists = fChannels.count(fDQMChannelName);
-    if(dqmSocketExists){
-      for(auto& tmsg : outParts){
-	FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
-	msgCopy->Copy(*tmsg);
-	dqmParts.AddPart(std::move(msgCopy));		  
-      }
+    if(dqmSocketExists) {
+        for(auto& tmsg : outParts) {
+            FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+            msgCopy->Copy(*tmsg);
+            dqmParts.AddPart(std::move(msgCopy));
+        }
 
-      if (Send(dqmParts, fDQMChannelName) < 0) {
-	// timeout
-	if (NewStatePending()) {
-	  LOG(info) << "Device is not RUNNING";
-	  return false;
-	}
-      }      
+        if (Send(dqmParts, fDQMChannelName) < 0) {
+            // timeout
+            if (NewStatePending()) {
+                LOG(info) << "Device is not RUNNING";
+                return false;
+            }
+        }
     }
-    
+
     auto poller = NewPoller(fOutputChannelName);
     while (!NewStatePending()) {
         poller->Poll(fPollTimeoutMS);
@@ -337,7 +337,7 @@ bool STFBFilePlayer::ConditionalRun()
         return false;
     }
 
-    if (fWait != 0) std::this_thread::sleep_for(std::chrono::milliseconds(fWait));
+    if (fWait != 1) std::this_thread::sleep_for(std::chrono::milliseconds(fWait));
 
     return true;
 }
@@ -418,6 +418,6 @@ auto hoge = [&]() -> decltype(auto) {
     }
 }
 
-auto& msg = hoge();  
+auto& msg = hoge();
 std::cout << "mode 1: Msg: " << std::dec << outParts.Size();
 #endif
