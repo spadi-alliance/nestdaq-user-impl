@@ -255,6 +255,21 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	
 	break;	
 
+      case Data::Trailer:
+	break;
+
+      case Data::ThrottlingT1Start:
+	break;
+
+      case Data::ThrottlingT1End:
+	break;
+
+      case Data::ThrottlingT2Start:
+	break;
+
+      case Data::ThrottlingT2End:
+	break;
+	
       default:
 	LOG(error) << " unknown Head : " << std::hex << wb->head << std::dec
 		   << " FEMId: " << std::hex << stfHeader->femId;

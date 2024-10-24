@@ -182,7 +182,8 @@ foreach(lvar IN ITEMS
   FilterTimeFrameSliceBySomething;
   InputRegister;
 #  AmQStrTdcDqm;
-  Scaler)
+  Scaler;
+  ScalerSQ)
 
   set(EXEC ${lvar})
   add_executable(${EXEC} 
@@ -213,14 +214,16 @@ foreach(lvar IN ITEMS
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};
-      fairmq
+      fairmq;
       FairLogger;
       Utility;
       stdc++fs;
       AmQTdcModule;
+      sqlite3;
     )
-  elseif ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+  elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
     AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+    OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
     target_link_libraries(${EXEC} PUBLIC 
       ${Boost_LIBRARIES};  
       ${HIREDIS_LIB};
@@ -232,6 +235,7 @@ foreach(lvar IN ITEMS
       Utility;
       stdc++fs;
       AmQTdcModule;
+      sqlite3;
     )
   else()
     message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
@@ -271,15 +275,18 @@ if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
     FairLogger;
     ${Boost_LIBRARIES};
     Utility;
+    sqlite3;
   )
-elseif ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
   AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))  
   target_link_libraries(AmQStrTdcSampler  PUBLIC
     FairMQ;
     FairMQStateMachine;
     FairLogger;
     ${Boost_LIBRARIES};
     Utility;
+    sqlite3;
   )
 else()
     message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
@@ -332,8 +339,9 @@ if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
     ${HIREDIS_LIB};
     ${REDIS_PLUS_PLUS_LIB};
   )
-elseif ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
   AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))  
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     FairMQ;
@@ -359,3 +367,4 @@ endforeach()
 #================================================================================
 add_subdirectory(utility)
 add_subdirectory(emulator)
+add_subdirectory(sqlite)
