@@ -1,5 +1,5 @@
 /**
- * @file FilterTimeFrameSliceByTOT.h 
+ * @file FilterTimeFrameSliceByTOF.h 
  * @brief Abstract base class for filtering time frame slice
  * @date Created : 2024-05-04 12:27:57 JST
  *       Last Modified : 2024-07-15 00:34:28 JST
@@ -8,7 +8,6 @@
  * @comment Modify FilterTimeFrameSliceBySomething.h for MultiHit 
  * 
  */
-
 
 #ifndef NESTDAQ_TIMEFRAMESLICERBYLOGICTIMING_H
 #define NESTDAQ_TIMEFRAMESLICERBYLOGICTIMING_H
@@ -35,7 +34,6 @@ public:
 
    virtual bool ProcessSlice(TTF& ) override;
 
-
    void AddTOFHit(uint64_t femId, int ch, int tdc);
    std::vector<std::unique_ptr<int>> CalculateAveragePairs(const std::vector<std::unique_ptr<int>>& r_hits, const std::vector<std::unique_ptr<int>>& l_hits);
    void CalculateAndPrintTOF(const std::vector<std::unique_ptr<int>>& tof_end_averages, const std::vector<std::unique_ptr<int>>& tof_start_averages);
@@ -48,7 +46,10 @@ private:
    std::vector<std::unique_ptr<int>> tof_start_l_hits;
    std::vector<std::unique_ptr<int>> tof_end_r_hits;
    std::vector<std::unique_ptr<int>> tof_end_l_hits;
-};
 
+   // For performance and reduction rate
+   int totalCalls;
+   int totalAccepted;
+};
 
 #endif  // NESTDAQ_TIMEFRAMESLICERBYLOGICTIMING_H

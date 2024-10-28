@@ -2,10 +2,10 @@
  * @file FilterTimeFrameSliceByTOT.h 
  * @brief Class for filtering time frame slice by Time Over Threshold (TOT)
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-07-15 00:47:34 JST
+ *       Last Modified : 2024-07-23 11:09:34 JST
  *
  * author Fumiya Furukawa <fumiya@rcnp.osaka-u.ac.jp>
- *
+ * @comment Add Reduction-rate, Throughput per unit time
  */
 
 #ifndef NESTDAQ_TIMEFRAMESLICERBYTOT_H
@@ -35,6 +35,8 @@ public:
    virtual bool ProcessSlice(TTF& ) override;
 
 private:
+   int totalCalls;
+   int totalAccepted;
    int DeterminePlane(uint64_t fem, int ch);
    bool Chargelogic(const std::map<int, std::tuple<int, int>>& chargeSums);
 };

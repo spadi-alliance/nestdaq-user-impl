@@ -22,8 +22,7 @@
 #include "SubTimeFrameHeader.h"
 #include "TimeFrameHeader.h"
 
-#define DEBUG 1
-#define OUTPUT 1
+#define DEBUG 0
 
 using nestdaq::FilterTimeFrameSliceByTOT;
 namespace bpo = boost::program_options;
@@ -34,8 +33,6 @@ FilterTimeFrameSliceByTOT::FilterTimeFrameSliceByTOT()
 
 bool FilterTimeFrameSliceByTOT::ProcessSlice(TTF& tf)
 {
-    auto start_time = std::chrono::high_resolution_clock::now();
-    size_t total_size = 0;
     bool tofCondition = false;
 
     std::map<int, std::tuple<int, int>> chargeSums;
@@ -100,7 +97,7 @@ int FilterTimeFrameSliceByTOT::DeterminePlane(uint64_t fem, int ch) {
 // gate condition
 bool FilterTimeFrameSliceByTOT::Chargelogic(const std::map<int, std::tuple<int, int>>& chargeSums) {
     // Write TOT distribution
-    #if OUTPUT
+    #if DEBUG
         std::ofstream outFile("normalized_charges.txt", std::ios::app); // Append mode
         if (!outFile.is_open()) {
             std::cerr << "Failed to open file for writing." << std::endl;
@@ -113,7 +110,7 @@ bool FilterTimeFrameSliceByTOT::Chargelogic(const std::map<int, std::tuple<int, 
         auto [chargeSum3, n3] = chargeSums.at(3); // plane3
         auto [chargeSum4, n4] = chargeSums.at(4); // plane4
 
-    #if OUTPUT
+    #if DEBUG
         double normCharge1 = (double)chargeSum1 / n1;
         double normCharge2 = (double)chargeSum2 / n2;
         double normCharge3 = (double)chargeSum3 / n3;
@@ -137,21 +134,6 @@ bool FilterTimeFrameSliceByTOT::Chargelogic(const std::map<int, std::tuple<int, 
     } catch (const std::out_of_range& e) {
         return false; 
     }
-
-    #if OUTPUT
-    // Calculate and output reduction rate every 100 calls
-        if (totalCalls % 100 == 0) {
-            double reductionRate = 100.0 * (1.0 - static_cast<double>(totalAccepted) / static_cast<double>(totalCalls));
-
-            std::ofstream reduction_file("data_reduction_rate_tot.txt", std::ios_base::app);
-            if (reduction_file.is_open()) {
-                reduction_file << "Data reduction rate: " << reductionRate << "% (Accepted: " << totalAccepted << ", Total: " << totalCalls << ")" << std::endl;
-                reduction_file.close();
-            }
-        }
-    #endif
-    auto end_time = std::chrono::high_resolution_clock::now();
-
     return false;
 }
 

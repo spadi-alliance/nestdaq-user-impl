@@ -183,6 +183,8 @@ foreach(lvar IN ITEMS
   FilterTimeFrameSliceByTOT;  # Add this line           2024/7/15
   FilterTimeFrameSliceByTOF;  # Add this line           2024/7/15
   FilterTimeFrameSliceByMultiplicity;  # Add this line  2024/7/15
+  
+  FilterTimeFrameSliceByTracking;  # Add this line           2024/7/18
   InputRegister;
 #  AmQStrTdcDqm;
   Scaler)

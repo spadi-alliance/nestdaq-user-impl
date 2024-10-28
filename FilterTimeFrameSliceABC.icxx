@@ -1,10 +1,11 @@
 #include "FilterTimeFrameSliceABC.h"
 #include "utility/MessageUtil.h"
 #include "UnpackTdc.h"
+#include <chrono>
 
 #define Max_Wiremap 850
-
 #define DEBUG 1
+#define OUTPUT 1
 
 using nestdaq::FilterTimeFrameSliceABC;
 namespace bpo = boost::program_options;
@@ -98,6 +99,11 @@ void FilterTimeFrameSliceABC::PreRun()
 
 bool FilterTimeFrameSliceABC::ConditionalRun()
 {
+    using namespace std::chrono;
+    std::cout << "count Number " << std::endl;
+    //Timer start
+    auto start = high_resolution_clock::now();
+
     #if DEBUG
     //debug for loading wire-map
         for (size_t i = 0; i < wireMapArray.size(); ++i) {
@@ -119,6 +125,13 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
     FairMQParts inParts;
     FairMQParts outParts;
     if (Receive(inParts, fInputChannelName,0,1) <= 0) return true;
+
+    // Calculate the input data size
+    size_t inputDataSize = 0;
+    for (uint32_t i = 0; i < inParts.Size(); i++) {
+        inputDataSize += inParts[i].GetSize();
+        std::cout << "inputDataSize: " << inputDataSize << ", inParts: " << inParts[i].GetSize() << std::endl;
+    }
 
     if (fDoCheck) {
         LOG(info) << "ConditionalRun";
@@ -142,27 +155,19 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
         tf.GetHeader()->length = tf.GetRealLength();
         tf.CopyAllTo<copyUnit>(outdata);
     }
-    //LOG(info) << outdata->size();
    
     FairMQMessagePtr msgall(MessageUtil::NewMessage(*this, std::move(outdataptr)));
     outParts.AddPart(std::move(msgall));
 
     if (fDoCheck) {
-        //LOG(info) << "num timeframes (including meta) : " << fTFs.size();
     }
-    //LOG(info) << "num timeframes (including meta) : " << fTFs.size();
 
-    ////////////////////////////////////////////////////
-    // Transfer the data to all of output channel
-    ////////////////////////////////////////////////////
     auto poller = NewPoller(fOutputChannelName);
     while (!NewStatePending()) {
         auto direction = (fDirection++) % fNumDestination;
         poller->Poll(fPollTimeoutMS);
         if (poller->CheckOutput(fOutputChannelName, direction)) {
             if (Send(outParts, fOutputChannelName, direction) > 0) {
-                // successfully sent
-                //std::cout << "success sent" << std::endl;
                 break;
             } else {
                 LOG(error) << "Failed to queue output-channel";
@@ -172,6 +177,28 @@ bool FilterTimeFrameSliceABC::ConditionalRun()
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
+    
+    #if OUTPUT
+    // Obtains processing end time and calculates processing time and data volume
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(end - start).count(); // processing time (μs)
+
+    // Get the amount of data processed (e.g., size of outdata) and calculate the amount of data processed per unit time
+    double throughput = (inputDataSize / 1024.0) / (duration / 1000.0); // KB/s 
+
+    std::cout << "Duration: " << duration << " μs, DataSize: " << inputDataSize << " bytes, Throughput: " << throughput << " KB/s" << std::endl;
+
+    // Open the TXT File
+    std::ofstream outFile("FilterPerformance.txt", std::ios::app); // 追記モード
+    if (outFile.is_open()) {
+        outFile << "Duration: " << duration << " μs, DataSize: " << inputDataSize 
+                << " bytes, Throughput: " << throughput << " KB/s" << std::endl;
+        outFile.close();
+    } else {
+        std::cerr << "Error opening file for writing" << std::endl;
+    }
+    #endif
+
     return true;
 }
 

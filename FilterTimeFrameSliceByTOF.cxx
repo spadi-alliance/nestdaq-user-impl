@@ -13,6 +13,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <chrono>
 #include "FilterTimeFrameSliceByTOF.h"
 #include "FilterTimeFrameSliceABC.icxx"
 #include "fairmq/runDevice.h"
@@ -21,16 +22,21 @@
 #include "SubTimeFrameHeader.h"
 
 #define DEBUG 0
+#define OUTPUT 1
 
 using nestdaq::FilterTimeFrameSliceByTOF;
 namespace bpo = boost::program_options;
 
 FilterTimeFrameSliceByTOF::FilterTimeFrameSliceByTOF()
+: totalCalls(0), totalAccepted(0)  // Initialize counters
 {
 }
 
 bool FilterTimeFrameSliceByTOF::ProcessSlice(TTF& tf)
 {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    size_t total_size = 0;
+
     bool tofCondition = false;
 
     auto tfHeader = tf.GetHeader();
@@ -39,8 +45,8 @@ bool FilterTimeFrameSliceByTOF::ProcessSlice(TTF& tf)
         std::cout << "SubTimeFrame" << std::endl;
         auto header = SubTimeFrame->GetHeader();
         auto& hbf = SubTimeFrame->at(0);                
-
         uint64_t nData = hbf->GetNumData();
+        total_size += nData * sizeof(hbf->UncheckedAt(0));
 
         for (int i = 0; i < nData; ++i) {
             if (header->femType == SubTimeFrame::TDC64H) {
@@ -69,12 +75,10 @@ bool FilterTimeFrameSliceByTOF::ProcessSlice(TTF& tf)
 
     CalculateAndPrintTOF(tof_end_averages, tof_start_averages);
 
-
     for (const auto& tof_start_avg : tof_start_averages) {
         for (const auto& tof_end_avg : tof_end_averages) {
             // The last two arguments are the minimum and maximum gate conditions
             if (CheckAllTOFConditions(*tof_start_avg, *tof_end_avg, tof_start_r_hits, tof_start_l_hits, tof_end_r_hits, tof_end_l_hits, -130000, -125000)) {
-                
                 tofCondition = true;
                 break;
             }
@@ -82,7 +86,35 @@ bool FilterTimeFrameSliceByTOF::ProcessSlice(TTF& tf)
         if (tofCondition) break;
     }
 
+    totalCalls++; // Increment total calls
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto processing_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+#if OUTPUT
+    // Output processing performance to file
+    std::ofstream performance_file("filter_performance_tot.txt", std::ios_base::app);
+    if (performance_file.is_open()) {
+        performance_file << "ProcessSlice processed " << total_size << " bytes in " << processing_time.count() << " µs" << std::endl;
+        performance_file << "ratio: " << static_cast<double>(total_size) / processing_time.count() << std::endl;
+        performance_file.close();
+    }
+#endif
+
     if (tofCondition) {
+        totalAccepted++; // Increment total accepted
+#if OUTPUT
+        // Calculate and output reduction rate every 100 calls
+        if (totalCalls % 100 == 0) {
+            double reductionRate = 100.0 * (1.0 - static_cast<double>(totalAccepted) / static_cast<double>(totalCalls));
+
+            std::ofstream reduction_file("data_reduction_rate_tot.txt", std::ios_base::app);
+            if (reduction_file.is_open()) {
+                reduction_file << "Data reduction rate: " << reductionRate << "% (Accepted: " << totalAccepted << ", Total: " << totalCalls << ")" << std::endl;
+                reduction_file.close();
+            }
+        }
+#endif
         std::cout << "end of function true" << std::endl;
         return true;
     }
@@ -153,9 +185,9 @@ void FilterTimeFrameSliceByTOF::CalculateAndPrintTOF(const std::vector<std::uniq
     for (const auto& tof_end_ave : tof_end_averages) {
         for (const auto& tof_start_ave : tof_start_averages) {
             int tof = *tof_end_ave - *tof_start_ave;
-            #if DEBUG
-                std::cout << "TOF End Average: " << *tof_end_ave << ", TOF Start Average: " << *tof_start_ave << ", TOF: " << tof << std::endl;
-            #endif
+#if DEBUG
+            std::cout << "TOF End Average: " << *tof_end_ave << ", TOF Start Average: " << *tof_start_ave << ", TOF: " << tof << std::endl;
+#endif
         } 
     }
 }

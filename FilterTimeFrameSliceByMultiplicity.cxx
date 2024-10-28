@@ -2,16 +2,17 @@
  * @file FilterTimeFrameSliceByMultiplicity.cxx
  * @brief Slice TimeFrame by Multiplicity for NestDAQ
  * @date Created : 2024-05-04 12:27:57 JST
- *       Last Modified : 2024-07-21 02:08:24 JST
+ *       Last Modified : 2024-07-23 11:07:12 JST
  * 
  * author Fumiya Furukawa <fumiya@rcnp.osaka-u.ac.jp>
- * @comment Modify FilterTimeFrameSliceBySomething.cxx for Multiplicity
+ * @comment Add Reduction-rate, Throughput per unit time
  * 
  */
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <chrono>
 #include "FilterTimeFrameSliceByMultiplicity.h"
 #include "FilterTimeFrameSliceABC.icxx"
 #include "fairmq/runDevice.h"
@@ -21,6 +22,7 @@
 #include "TimeFrameHeader.h"
 
 #define DEBUG 0
+#define OUTPUT 1
 
 using nestdaq::FilterTimeFrameSliceByMultiplicity;
 namespace bpo = boost::program_options;
@@ -28,12 +30,17 @@ namespace bpo = boost::program_options;
 FilterTimeFrameSliceByMultiplicity::FilterTimeFrameSliceByMultiplicity()
 // change here !
 : minClusterSize(3),           // Number of elements in clustere      
-minClusterCountPerPlane(1)     // Minimum number of clusters in each plan
+minClusterCountPerPlane(1),    // Minimum number of clusters in each plan
+totalCalls(0),                 // Initialize total calls
+totalAccepted(0)               // Initialize total accepted
 {
 }
 
 bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
 {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    size_t total_size = 0;
+
     // Initializing Multiplicity 
     GeoIDs.clear();
     int foundID, foundGeo, Geofield;
@@ -44,6 +51,7 @@ bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
         auto header = SubTimeFrame->GetHeader();
         auto& hbf = SubTimeFrame->at(0);          
         uint64_t nData = hbf->GetNumData();
+        total_size += nData * sizeof(hbf->UncheckedAt(0));
 
         for (int i = 0; i < nData; ++i) {
             if (header->femType == SubTimeFrame::TDC64H) {
@@ -63,7 +71,6 @@ bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
                 TDC64L_V3::Unpack(hbf->UncheckedAt(i), &tdc);
                 // Multiplicity preprocessing step 1 (search for wire IDs)
                 if (findWirenumber(wireMapArray, header->femId, tdc.ch, &foundID, &foundGeo, Geofield)) {
-                    //std::cout << "after searching wire ID" << std::endl;
                     GeoIDs[Geofield].push_back(foundID);
                 }
             }            
@@ -76,23 +83,41 @@ bool FilterTimeFrameSliceByMultiplicity::ProcessSlice(TTF& tf)
         std::sort(pair.second.begin(), pair.second.end());
     }
 
-    // Display of sorted results
-    #if DEBUG
-        for (const auto& pair : GeoIDs) {
-            std::cout << "Geofield: " << pair.first << " - GeoIDs: ";
-            for (int geoID : pair.second) {
-                std::cout << geoID << " ";
-            }
-            std::cout << std::endl;
-            std::cout << "completely sorted" << std::endl;
-        }
-    #endif  
-
     auto geofieldClusterMap = analyzeGeofieldClusters(GeoIDs);
 
-    if(allKeysHaveAtLeastOneCluster(geofieldClusterMap)){
-        return true;        
+    totalCalls++; // Increment total calls
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto processing_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+
+#if OUTPUT
+    // Output processing performance to file
+    std::ofstream performance_file("filter_performance_multiplicity.txt", std::ios_base::app);
+    if (performance_file.is_open()) {
+        performance_file << "ProcessSlice processed " << total_size << " bytes in " << processing_time.count() << " µs" << std::endl;
+        performance_file << "ratio: " << static_cast<double>(total_size) / processing_time.count() << std::endl;
+        performance_file.close();
     }
+#endif
+
+    bool result = allKeysHaveAtLeastOneCluster(geofieldClusterMap);
+    if (result) {
+        totalAccepted++; // Increment total accepted
+        return true;
+    }
+
+#if OUTPUT
+    // Calculate and output reduction rate every 100 calls
+    if (totalCalls % 100 == 0) {
+        double reductionRate = 100.0 * (1.0 - static_cast<double>(totalAccepted) / static_cast<double>(totalCalls));
+
+        std::ofstream reduction_file("data_reduction_rate_multiplicity.txt", std::ios_base::app);
+        if (reduction_file.is_open()) {
+            reduction_file << "Data reduction rate: " << reductionRate << "% (Accepted: " << totalAccepted << ", Total: " << totalCalls << ")" << std::endl;
+            reduction_file.close();
+        }
+    }
+#endif
 
     return false;
 }

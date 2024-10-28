@@ -52,6 +52,8 @@ private:
 
    int minClusterSize;
    int minClusterCountPerPlane;
+   int totalCalls;
+   int totalAccepted;
 };
 
 #endif  // NESTDAQ_TIMEFRAMESLICERBYMULTIPLICITY_H
