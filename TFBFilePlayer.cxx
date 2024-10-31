@@ -65,6 +65,10 @@ bool TFBFilePlayer::ConditionalRun()
     char tempbuf[sizeof(struct Filter::Header)];
     fInputFile.read(reinterpret_cast<char*>(&magic), sizeof(uint64_t));
     if (fInputFile.eof()) return false;
+    if (! static_cast<bool>(fInputFile)) {
+        LOG(error) << "Fail to read " << fInputFileName;
+	return false;
+    }
 
     if (magic == Filter::MAGIC) {
         fInputFile.read(tempbuf, sizeof(struct Filter::Header) - sizeof(uint64_t));
@@ -103,7 +107,7 @@ bool TFBFilePlayer::ConditionalRun()
                 hmagic[i] = '.';
             }
         }
-        LOG(error) << "Unkown magic = " << std::hex << magic << "(" << hmagic << ")";
+        LOG(error) << "Unknown magic = " << std::hex << magic << "(" << hmagic << ")";
         return true;
     }
 
@@ -327,6 +331,7 @@ void TFBFilePlayer::InitTask()
     LOG(info) << "InitTask: Iteration   : " << fMaxIterations;
     LOG(info) << "InitTask: Wait        : " << fWait;
     LOG(info) << "InitTask: SplitMethod : " << fSplitMethod;
+    LOG(info) << "InitTask: File name   : " << fInputFileName;
 }
 
 // ----------------------------------------------------------------------------
