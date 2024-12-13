@@ -383,13 +383,19 @@ void FileSink::PreRun()
         LOG(debug) << "registryUri: " << registryUri;
         if (!registryUri.empty()) {
             fClient = std::make_shared<sw::redis::Redis>(registryUri);
-            const auto run_comment_ptr = fClient->get("run_info:run_comment");
-            run_comment = *run_comment_ptr;
+            std::string key;
+            fClient->keys("run_info:run_comment", &key);
+            if (key.length()>0) {
+                auto run_comment_ptr = fClient->get("run_info:run_comment");
+                run_comment = *run_comment_ptr;
+	        LOG(debug) << "run comment: " << run_comment;
+            }else{
+                LOG(debug) << "There is no key run_info:run_comment";
+            }
         }
     }
-    LOG(debug) << "run comment: " << run_comment;
     if (run_comment.length() > 255) {
-      run_comment.resize(255); // The max bytes of the comment are 256 bytes including a null charactor of 1 bytes.
+        run_comment.resize(255); // The max bytes of the comment are 256 bytes including a null charactor of 1 bytes.
     }
     
     fFile->SetRunNumber(fRunNumber);
@@ -414,7 +420,6 @@ void FileSink::PreRun()
         if (!fWorker->fHandleInputMultipart) {
             LOG(debug) << " set multipart message handler for input data";
             fWorker->fHandleInputMultipart = [this](auto &msgParts, auto index) {
-                // LOG(debug) << fClassName << ": handle input multipart" << __LINE__ << " worker input index = " << index;
                 return CompressMultipartData(msgParts, index);
             };
         }

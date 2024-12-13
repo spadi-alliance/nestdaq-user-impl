@@ -19,7 +19,6 @@ class TaskProcessorMT;
 
 class FileSink : public fair::mq::Device {
 public:
-    const std::string fClassName;
     struct OptionKey {
         static constexpr std::string_view InputDataChannelName{"in-chan-name"};
         static constexpr std::string_view Multipart{"multipart"};
@@ -32,7 +31,7 @@ public:
         static constexpr std::string_view MaxIteration{"max-iteration"};
     };
 
-    FileSink() : FairMQDevice(), fFile(), fClassName(__func__) {}
+    FileSink() : FairMQDevice() {}
     FileSink(const FileSink &) = delete;
     FileSink &operator=(const FileSink &) = delete;
     ~FileSink() override = default;
@@ -68,7 +67,7 @@ private:
 
     bool fMergeMessage{false};
     int64_t fRunNumber{0};
-    std::string run_comment {""};
+    std::string run_comment;
 
     int fInProcMQLength;
     std::unique_ptr<nestdaq::TaskProcessorMT> fWorker;
