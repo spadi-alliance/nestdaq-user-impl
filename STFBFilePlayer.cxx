@@ -337,7 +337,7 @@ bool STFBFilePlayer::ConditionalRun()
         return false;
     }
 
-    if (fWait != 1) std::this_thread::sleep_for(std::chrono::milliseconds(fWait));
+    if (fWait != 0) std::this_thread::sleep_for(std::chrono::milliseconds(fWait));
 
     return true;
 }

@@ -112,7 +112,8 @@ bool TFBFilePlayer::ConditionalRun()
     }
 
 
-    FairMQParts outParts;
+    //FairMQParts outParts;
+    fair::mq::Parts outParts;
 
     // TF header
     outParts.AddPart(NewMessage(sizeof(TF::Header)));
@@ -123,7 +124,7 @@ bool TFBFilePlayer::ConditionalRun()
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()) + sizeof(uint64_t),
                         msgTFHeader.GetSize() - sizeof(uint64_t));
         if (fInputFile.eof()) return false;
-        LOG(debug4) << "TF Header : " << std::hex << magic << std::dec;
+        //LOG(debug4) << "TF Header : " << std::hex << magic << std::dec;
     } else {
         fInputFile.read(reinterpret_cast<char*>(msgTFHeader.GetData()),
                         msgTFHeader.GetSize());
@@ -137,9 +138,13 @@ bool TFBFilePlayer::ConditionalRun()
     }
     auto tfHeader = reinterpret_cast<TF::Header*>(msgTFHeader.GetData());
 
-#if 0
-    LOG(debug4) << fmt::format("TF header: magic = {:016x}, tf-id = {:d}, n-src = {:d}, bytes = {:d}",
-                               tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
+#if 1
+    //LOG(debug4) << fmt::format("TF header: magic = {:016x}, tf-id = {:d}, n-src = {:d}, bytes = {:d}",
+    //    tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
+    LOG(debug4) << "TF header: magic = 0x" << std::hex << tfHeader->magic
+        << ", tf-id = " << std::dec << tfHeader->timeFrameId
+	    << ", n-src = " << tfHeader->numSource
+	    << ", bytes = " << tfHeader->length;
 #endif
 
     std::vector<char> buf(tfHeader->length - sizeof(TF::Header));
@@ -152,9 +157,13 @@ bool TFBFilePlayer::ConditionalRun()
     }
     LOG(debug4) << " buf size = " << buf.size();
     auto bufBegin = buf.data();
-    //std::for_each(reinterpret_cast<uint64_t*>(bufBegin),
-    //    reinterpret_cast<uint64_t*>(bufBegin)+buf.size()/sizeof(uint64_t),
-    //    HexDump());
+
+    LOG(debug4) << "Pack TFH : out parts.size() = " << outParts.Size();
+#if 0
+    std::for_each(reinterpret_cast<uint64_t*>(bufBegin),
+        reinterpret_cast<uint64_t*>(bufBegin)+buf.size()/sizeof(uint64_t),
+        HexDump());
+#endif
 
     for (auto i=0u; i<tfHeader->numSource; ++i) {
         outParts.AddPart(NewMessage(sizeof(STF::Header)));
@@ -168,36 +177,57 @@ bool TFBFilePlayer::ConditionalRun()
 
         LOG(debug4)
                 << "STF header: magic = 0x" << std::hex <<  stfHeader->magic
-                << ", tf-id = " << std::dec << stfHeader->timeFrameId
-#if 0
-                << std::endl
-                << "  FEM-type = 0x" << std::hex << stfHeader->femType
-                << ", FEM-id = 0x" << stfHeader->femId
-                << std::endl
+                << ", TF-id = " << std::dec << stfHeader->timeFrameId
+#if 1
+                << "  type = 0x" << std::hex << stfHeader->femType
+                << ", id = 0x" << std::setw(2) << stfHeader->femId
 #endif
-                << "  bytes = " << std::dec <<stfHeader->length
+                << "  bytes = " << std::dec << stfHeader->length
                 << ", n-msg = " << stfHeader->numMessages
+#if 0
                 << ", sec = " << stfHeader->timeSec
-                << ", usec = " << stfHeader->timeUSec;
+                << ", usec = " << stfHeader->timeUSec
+#endif
+		;
 
         auto wordBegin = reinterpret_cast<uint64_t*>(bufBegin + headerNBytes);
         auto bodyNBytes = stfHeader->length - headerNBytes;
         auto nWords = bodyNBytes/sizeof(uint64_t);
-        LOG(debug4) << " nWords = " << nWords;
 
+#if 0
+        LOG(debug4) << " nWords = " << nWords << " : " << std::hex << *wordBegin;
+        std::for_each(wordBegin, wordBegin+16, HexDump());
         //std::for_each(wordBegin, wordBegin+nWords, HexDump());
+#endif
+
         auto wBegin = wordBegin;
         auto wEnd   = wordBegin + nWords;
         for (auto ptr = wBegin; ptr!=wEnd; ++ptr) {
             auto d = reinterpret_cast<AmQStrTdc::Data::Bits*>(ptr);
-//            uint16_t type = d->head;
-//            LOG(debug4) << fmt::format(" data type = {:x}", type);
+#if 0
+            uint16_t type = d->head;
+            LOG(debug4) << " data type = 0x" << std::hex << type;
+#endif
+            //---------------------------------
+            //  case Recbe
+            //---------------------------------
+            //LOG(debug4) << "HEAD: " << std::hex << *ptr;
+            if ((*ptr & 0x0000'0000'0000'0022) == 0x22) {
+                //std::cout << "RECBE: " << std::hex << *ptr << " " << d->head << std::endl;
+                outParts.AddPart(NewMessage(bodyNBytes));
+                auto & msg = outParts[outParts.Size() - 1];
+                std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
+
+                break;
+            }
+
             switch (d->head) {
             //---------------------------------
             //  case AmQStrTdc::Data::SpillEnd:
             //---------------------------------
             case AmQStrTdc::Data::Heartbeat: {
-                FairMQMessage *pmsg;
+                //FairMQMessage [[maybe_unused]] *pmsg;
+                fair::mq::Message [[maybe_unused]] *pmsg;
                 if (fSplitMethod == 0) {
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                     auto & msg = outParts[outParts.Size() - 1];
@@ -256,17 +286,18 @@ bool TFBFilePlayer::ConditionalRun()
                 break;
             }
             case AmQStrTdc::Data::Heartbeat2nd: {
-                FairMQMessage *pmsg;
+                //FairMQMessage [[maybe_unused]] *pmsg;
+                fair::mq::Message [[maybe_unused]] *pmsg;
                 if (fSplitMethod == 2) {
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                     auto & msg = outParts[outParts.Size() - 1];
                     std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
 
+#if 0
                     char     *cheader     = reinterpret_cast<char *>(wBegin);
                     uint64_t *checkHeader = reinterpret_cast<uint64_t *>(wBegin);
                     uint64_t *checkHB1    = reinterpret_cast<uint64_t *>(ptr - 1);
                     uint64_t *checkHB2    = reinterpret_cast<uint64_t *>(ptr);
-#if 0
                     std::cout << "#D " << cheader << " " << std::hex << *checkHeader << " "
                               << " size: " << msg.GetSize() << " : "
                               << *checkHB1 << " " << *checkHB2 << std::dec << std::endl;
@@ -284,6 +315,9 @@ bool TFBFilePlayer::ConditionalRun()
             }
         }
         bufBegin += stfHeader->length;
+
+        LOG(debug4) << "Pack STF : out parts.size() = " << outParts.Size();
+
     }
     LOG(debug4) << " n-iteration = " << fNumIteration << ": out parts.size() = " << outParts.Size();
 
