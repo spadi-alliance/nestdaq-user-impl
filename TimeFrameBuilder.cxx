@@ -25,6 +25,7 @@ void addCustomOptions(bpo::options_description& options)
     using opt = TimeFrameBuilder::OptionKey;
     options.add_options()
     (opt::BufferTimeoutInMs.data(),    bpo::value<std::string>()->default_value("10000"),     "Buffer timeout in milliseconds")
+    (opt::BufferDepthLimit.data(),     bpo::value<std::string>()->default_value("10000"),     "Buffer depth limit")
     (opt::InputChannelName.data(),     bpo::value<std::string>()->default_value("in"),        "Name of the input channel")
     (opt::OutputChannelName.data(),    bpo::value<std::string>()->default_value("out"),       "Name of the output channel")
     (opt::DQMChannelName.data(),       bpo::value<std::string>()->default_value("dqm"),       "Name of the data quality monitoring channel")
@@ -83,7 +84,7 @@ bool TimeFrameBuilder::ConditionalRun()
 #if 1
         auto fem     = stfHeader->femId;
         auto lastmsg = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
-        //	LOG(debug) << "firstHBF[0]: " << std::hex << firstHBF[0];
+        // LOG(debug) << "firstHBF[0]: " << std::hex << firstHBF[0];
         unsigned int type = (firstHBF[0] & 0xfc00'0000'0000'0000) >> 58;
         //if ((type == 0x1c) || (type == 0x18) || (type == 0x14) || (type == 0x1e)) {
         if ((type == 0x1c) || (type == 0x1e)) {
@@ -97,7 +98,9 @@ bool TimeFrameBuilder::ConditionalRun()
             fTFBuffer[stfId].reserve(fNumSource);
         }
         fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
-        LOG(info) << fTFBuffer[stfId].size() << " vs " << fNumSource;
+#if 0
+        LOG(debug) << fTFBuffer[stfId].size() << " vs " << fNumSource;
+#endif
     }
 
 
@@ -113,14 +116,13 @@ bool TimeFrameBuilder::ConditionalRun()
 
 
         // find time frame in ready
-        for (auto itr = fTFBuffer.begin(); itr!=fTFBuffer.end();) {
+        for (auto itr = fTFBuffer.begin(); itr != fTFBuffer.end();) {
             auto stfId  = itr->first;
             auto& tfBuf = itr->second;
 
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
 
                 LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
-
 
                 // move ownership to complete time frame
                 FairMQParts outParts;
@@ -265,24 +267,20 @@ bool TimeFrameBuilder::ConditionalRun()
                     std::cout << "#D FEM TFN: " << stfId << ", N: " << femid.size() << ", id:";
                     for (auto & i : femid) std::cout << " " << (i & 0xff);
                     std::cout << std::endl;
-#if 0
+                    #if 0
                     std::cout << "#D HB :" << stfId << ":";
                     for (auto & i : hb) std::cout << " " << std::hex <<i;
                     std::cout << std::dec << std::endl;
+                    #endif
 #endif
-#endif
-
 
                     /*
                     {// for debug-begin
-
                       for (auto& stfBuf: tfBuf) {
                         for (auto& m: stfBuf.parts) {
-
                           std::for_each(reinterpret_cast<uint64_t*>(m->GetData()),
                                         reinterpret_cast<uint64_t*>(m->GetData() + m->GetSize()),
                                         ::HexDump{4});
-
                         }
                       }
                     }// for debug-end
@@ -296,13 +294,35 @@ bool TimeFrameBuilder::ConditionalRun()
             // remove empty buffer
             if (tfBuf.empty()) {
                 itr = fTFBuffer.erase(itr);
-            }
-            else {
+            } else {
                 ++itr;
             }
         }
+    } // send
 
+    // erase a depth limint exceeded TF.
+    if (fBufferDepthLimit > 0) {
+        if (fTFBuffer.size() > fBufferDepthLimit) {
+
+            std::cout << "#D Buffer Size: " << fTFBuffer.size()
+                << ": Top TFN: " << fTFBuffer.begin()->first
+                << " Size: " << fTFBuffer.begin()->second.size();
+            auto& tfBuf = fTFBuffer.begin()->second;
+
+            for (auto & stfBuf : tfBuf) {
+                auto & msg = stfBuf.parts[0];
+                SubTimeFrame::Header *stfheader
+                    = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+                std::cout << " " << std::dec << (stfheader->femId & 0xff);
+            }
+            std::cout << std::endl;
+
+
+            fTFBuffer.begin()->second.clear();
+            fTFBuffer.erase(fTFBuffer.begin());
+        }
     }
+
     return true;
 }
 
@@ -317,6 +337,10 @@ void TimeFrameBuilder::InitTask()
     using opt = OptionKey;
     auto sBufferTimeoutInMs = fConfig->GetProperty<std::string>(opt::BufferTimeoutInMs.data());
     fBufferTimeoutInMs = std::stoi(sBufferTimeoutInMs);
+
+    auto sBufferDepthLimit = fConfig->GetProperty<std::string>(opt::BufferDepthLimit.data());
+    fBufferDepthLimit = std::stoi(sBufferDepthLimit);
+
     fInputChannelName  = fConfig->GetProperty<std::string>(opt::InputChannelName.data());
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
     fDecimatorChannelName = fConfig->GetProperty<std::string>(opt::DecimatorChannelName.data());

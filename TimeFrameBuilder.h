@@ -19,6 +19,7 @@ public:
     struct OptionKey {
         static constexpr std::string_view NumSource            {"num-source"};
         static constexpr std::string_view BufferTimeoutInMs    {"buffer-timeout"};
+        static constexpr std::string_view BufferDepthLimit     {"buffer-depth-limit"};
         static constexpr std::string_view InputChannelName     {"in-chan-name"};
         static constexpr std::string_view OutputChannelName    {"out-chan-name"};
         static constexpr std::string_view DQMChannelName       {"dqm-chan-name"};      
@@ -48,6 +49,7 @@ protected:
 private:
     int fNumSource {0};
     int fBufferTimeoutInMs {10000};
+    int fBufferDepthLimit {1000};
     std::string fInputChannelName;
     std::string fOutputChannelName;
     std::string fDQMChannelName;  

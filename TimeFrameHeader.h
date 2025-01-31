@@ -22,9 +22,13 @@ namespace TimeFrame {
    namespace v1 {
       // " MRFEMIT" : little endian of "TIMEFRM "
       constexpr uint64_t MAGIC {0x004d5246454d4954};
-      constexpr uint16_t META {1};
-      constexpr uint16_t SLICE {2};
+      // TYPE 
+      constexpr uint16_t META          {1};
+      constexpr uint16_t SLICE         {2};
+      constexpr uint16_t COMPLETE_TF   {0x00};
+      constexpr uint16_t INCOMPLETE_TF {0x10};
       
+      #pragma pack(2)
       struct Header {
          uint64_t magic       {MAGIC};
          uint32_t length      {0};
@@ -33,8 +37,7 @@ namespace TimeFrame {
          uint32_t timeFrameId {0};
          uint32_t numSource   {0};
          
-         
-         
+
          void Print() {
             printf("TimeFrameHeader\n");
             printf("Length        = %d\n",length);
