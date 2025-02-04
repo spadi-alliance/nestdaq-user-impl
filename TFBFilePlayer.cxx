@@ -388,6 +388,7 @@ void TFBFilePlayer::PreRun()
         LOG(error) << " failed to open file = " << fInputFileName;
         return;
     }
+    LOG(info) << "Successfully opened file: " << fInputFileName;
 
     // check FileSinkHeader
     uint64_t buf{0};

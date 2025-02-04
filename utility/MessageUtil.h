@@ -30,9 +30,9 @@ template <typename T>
 constexpr bool is_vector_v = is_vector<T>::value;
 
 //______________________________________________________________________________
-inline FairMQParts Copy(FairMQDevice &dev, FairMQParts &parts)
+inline fair::mq::Parts Copy(FairMQDevice &dev, fair::mq::Parts &parts)
 {
-    FairMQParts cpy;
+    fair::mq::Parts cpy;
     for (auto &m : parts) {
         FairMQMessagePtr msgCopy(dev.NewMessage());
         msgCopy->Copy(*m);
@@ -43,7 +43,7 @@ inline FairMQParts Copy(FairMQDevice &dev, FairMQParts &parts)
 
 //______________________________________________________________________________
 template <typename T>
-inline void HexDump(const FairMQMessagePtr &msg)
+inline void MsgHexDump(const FairMQMessagePtr &msg)
 {
     auto first = reinterpret_cast<const T *>(msg->GetData());
     auto last = first + msg->GetSize();
@@ -120,7 +120,7 @@ FairMQMessagePtr NewMessage(Device &dev, std::unique_ptr<T> arg)
 inline int
 SendParts(FairMQSocket &socket, std::shared_ptr<FairMQTransportFactory> factory, const std::vector<std::string> &v)
 {
-    FairMQParts msg;
+    fair::mq::Parts msg;
     std::for_each(v.begin(), v.end(), [&factory, &msg](const auto &m) {
         msg.AddPart(factory->NewSimpleMessage(m));
     });
@@ -128,7 +128,7 @@ SendParts(FairMQSocket &socket, std::shared_ptr<FairMQTransportFactory> factory,
 }
 
 //______________________________________________________________________________
-inline std::vector<std::string> ToString(FairMQParts &parts)
+inline std::vector<std::string> ToString(fair::mq::Parts &parts)
 {
     std::vector<std::string> ret;
     ret.reserve(parts.Size());
@@ -140,9 +140,9 @@ inline std::vector<std::string> ToString(FairMQParts &parts)
 }
 
 //______________________________________________________________________________
-inline uint64_t TotalLength(const FairMQParts &parts)
+inline uint64_t TotalLength(const fair::mq::Parts &parts)
 {
-    auto &c = const_cast<FairMQParts &>(parts);
+    auto &c = const_cast<fair::mq::Parts &>(parts);
     return std::accumulate(c.begin(), c.end(), static_cast<uint64_t>(0),
                            [](uint64_t init, auto &m) -> uint64_t { return (!m) ? init : init + m->GetSize(); });
 }
