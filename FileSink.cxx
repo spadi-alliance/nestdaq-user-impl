@@ -50,7 +50,10 @@ void addCustomOptions(bpo::options_description &options)
         (opt::InProcMQLength.data(), bpo::value<std::string>()->default_value("1"), "in-process message queue length.")
         //
         (opt::MaxIteration.data(), bpo::value<std::string>()->default_value("0"),
-         "Number of iterations (if zero, no limitation is set)");
+         "Number of iterations (if zero, no limitation is set)")
+        (opt::WriteSleepInMilliSec.data(), bpo::value<std::string>()->default_value("0"),
+         "Write Sleep in msec")
+	;
     }
 
     {   // FileUtil's options ------------------------------
@@ -229,6 +232,8 @@ void FileSink::InitTask()
     LOG(debug) << __func__ << " n threads = " << fNThreads;
     fInProcMQLength = std::stoi(get(opt::InProcMQLength));
     fMultipart = checkFlag(opt::Multipart);
+    fWriteSleepInMilliSec = std::stoi(get(opt::WriteSleepInMilliSec));
+    LOG(info) << __func__ << " fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
 
     fFile = std::make_unique<FileUtil>();
     fFile->Init(fConfig->GetVarMap());
@@ -472,6 +477,8 @@ bool FileSink::WriteData(FairMQMessagePtr &msg, int index)
     fFile->Write(reinterpret_cast<char *>(msg->GetData()), msg->GetSize());
     ++fNWrite;
     // LOG(info) << __LINE__ << ":" << __func__ << " : done : n-received = " << fNReceived << ", n-write = " << fNWrite;
+    std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+    //LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
 
     if ((fMaxIteration > 0) && (fNWrite == fMaxIteration)) {
         LOG(info) << " number of WriteData() reached the max iteration. n-write = " << fNWrite
@@ -518,10 +525,14 @@ bool FileSink::WriteMultipartData(FairMQParts &msgParts, int index)
         }
         fFile->Write(v.data(), v.size());
         ++fNWrite;
+	std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+	//LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
     } else {
         for (auto &msg : msgParts) {
             fFile->Write(reinterpret_cast<char *>(msg->GetData()), msg->GetSize());
             ++fNWrite;
+	    std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+	    //LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
         }
     }
 

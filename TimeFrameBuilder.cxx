@@ -33,6 +33,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::PollTimeout.data(),          bpo::value<std::string>()->default_value("0"),         "Timeout (in msec) of polling")
     (opt::DecimationFactor.data(),     bpo::value<std::string>()->default_value("0"),         "Decimation factor for decimated output channel")
     (opt::DecimationOffset.data(),     bpo::value<std::string>()->default_value("0"),         "Decimation offset for decimated output channel")
+    (opt::DiscardOutput.data(),        bpo::value<std::string>()->default_value("false"),     "Discard output option to eliminate the back pressure for upstream FairMQ device. true: discard, false (default): no discard causing back pressure")
     ;
 }
 
@@ -197,6 +198,7 @@ bool TimeFrameBuilder::ConditionalRun()
                 }
 
                 auto poller = NewPoller(fOutputChannelName);
+                int attempts = 0;
                 while (!NewStatePending()) {
                     poller->Poll(fPollTimeoutMS);
                     auto direction = fDirection % fNumDestination;
@@ -213,6 +215,13 @@ bool TimeFrameBuilder::ConditionalRun()
                             LOG(warn) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
                         }
                     }
+		    if (fDiscardOutput) {
+		      attempts++;
+		      if (attempts >= fNumDestination) {
+                        LOG(error) << "Failed to send time frame after checking all destinations. Discarding data. Direction = " << direction;
+                        break; // outParts will be discarded because the parts is declared within the "if" scope.
+		      }
+		    }
                     if (fNumDestination==1) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     }
@@ -377,6 +386,10 @@ void TimeFrameBuilder::InitTask()
             fDecimatorNumberOfConnectedPeers += GetNumberOfConnectedPeers(fDecimatorChannelName,i);
         }
     }
+
+    auto sDiscardOutput = fConfig->GetProperty<std::string>(opt::DiscardOutput.data());
+    fDiscardOutput = ((sDiscardOutput == "1") || (sDiscardOutput == "true") || (sDiscardOutput == "yes"));
+    LOG(debug) << " Discard output option: fDiscardOutput = " << fDiscardOutput;
 }
 
 //______________________________________________________________________________

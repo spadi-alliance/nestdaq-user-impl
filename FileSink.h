@@ -29,6 +29,7 @@ public:
         static constexpr std::string_view NThreads{"n-threads"};
         static constexpr std::string_view InProcMQLength{"inproc-mq-length"};
         static constexpr std::string_view MaxIteration{"max-iteration"};
+        static constexpr std::string_view WriteSleepInMilliSec{"write-sleep-in-msec"};
     };
 
     FileSink() : FairMQDevice() {}
@@ -64,6 +65,7 @@ private:
     int fMQTimeoutMS;
     bool fDiscard;
     bool fMultipart;
+    int  fWriteSleepInMilliSec;
 
     bool fMergeMessage{false};
     int64_t fRunNumber{0};

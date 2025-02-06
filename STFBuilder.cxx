@@ -420,9 +420,16 @@ bool AmQStrTdcSTFBuilder::HandleData(FairMQMessagePtr& msg, int index)
                 LOG(info) << "Device is not RUNNING";
                 return false;
             }
-            if( err_count < 10 )
-                LOG(error) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->femId << std::dec << "  STF = " << h->timeFrameId << std::endl;
-
+	    if (err_count < 10)
+                LOG(warn) << "Failed to enqueue sub time frame (data) : FEM = " << std::hex << h->femId << std::dec
+			   << "  STF = " << h->timeFrameId
+			   << " direction = " << direction << std::endl;
+	    else if (fDiscardOutput && (err_count == 10)) {
+	        LOG(error) << "Failed to enqueue sub time frame after 10 attempts. Discarding data : FEM = "
+			   << std::hex << h->femId << std::dec << "  STF = " << h->timeFrameId
+			   << " direction = " << direction << std::endl;
+		break; // parts will be discarded because the parts is declared within the while loop scope.
+	    }
             err_count++;
         }
     }
@@ -521,6 +528,10 @@ void AmQStrTdcSTFBuilder::InitTask()
     //                   << " num = " << fChannels.at(fDQMChannelName).size();      
     //    }
 
+    auto s_DiscardOutput = fConfig->GetProperty<std::string>(opt::DiscardOutput.data());
+    fDiscardOutput = ((s_DiscardOutput == "1") || (s_DiscardOutput == "true") || (s_DiscardOutput == "yes"));
+    LOG(debug) << " Discard output option: fDiscardOutput = " << fDiscardOutput;
+    
     OnData(fInputChannelName, &AmQStrTdcSTFBuilder::HandleData);
 
     //Reporter::Reset();
@@ -598,6 +609,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::MaxHBF.data(),            bpo::value<std::string>()->default_value("1"),    "maximum number of heartbeat frame in one sub time frame")
     (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("0"),    "STF split method")
     (opt::TimeFrameIdType.data(),   bpo::value<std::string>()->default_value("0"),    "Time frame ID type: 0 = first HB delimiter, 1 = last HB delimiter, 2 = sequence number of time frames")
+    (opt::DiscardOutput.data(),     bpo::value<std::string>()->default_value("false"),"Discard Output Data during conditional run caused by back pressure. true: discard the data, false: not discard the data.")
     ;
 }
 

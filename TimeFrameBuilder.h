@@ -27,6 +27,7 @@ public:
         static constexpr std::string_view PollTimeout          {"poll-timeout"};
         static constexpr std::string_view DecimationFactor     {"decimation-factor"};
         static constexpr std::string_view DecimationOffset     {"decimation-offset"};
+        static constexpr std::string_view DiscardOutput        {"discard-output"};
     };
 
     struct STFBuffer {
@@ -61,6 +62,7 @@ private:
     int fDecimatorNumberOfConnectedPeers {0};
     int fPollTimeoutMS    {0};
     uint64_t fNumSend {0};
+    bool fDiscardOutput;
 
     std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
     //std::unordered_set<uint64_t> fDiscarded;
