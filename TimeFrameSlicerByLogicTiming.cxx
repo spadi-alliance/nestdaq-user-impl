@@ -297,6 +297,10 @@ bool TimeFrameSlicerByLogicTiming::ConditionalRun()
                }
 //               if (trigBegin <= tdc4n  && tdc4n <= trigEnd) {
                hbf->CopyDataTo<copyUnit>(outdata,it);
+	       // copy heartbeat frmae (20250205)
+	       hbf->CopyDataTo<copyUnit>(outdata,nt);
+	       hbf->CopyDataTo<copyUnit>(outdata,nt+1);
+	       
 //               }
                it++;
             }
