@@ -477,9 +477,11 @@ bool FileSink::WriteData(FairMQMessagePtr &msg, int index)
     fFile->Write(reinterpret_cast<char *>(msg->GetData()), msg->GetSize());
     ++fNWrite;
     // LOG(info) << __LINE__ << ":" << __func__ << " : done : n-received = " << fNReceived << ", n-write = " << fNWrite;
-    std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
-    //LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
-
+    if (fWriteSleepInMilliSec > 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+      LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
+    }
+    
     if ((fMaxIteration > 0) && (fNWrite == fMaxIteration)) {
         LOG(info) << " number of WriteData() reached the max iteration. n-write = " << fNWrite
                   << " max iteration = " << fMaxIteration << ". state transition : stop";
@@ -525,14 +527,18 @@ bool FileSink::WriteMultipartData(FairMQParts &msgParts, int index)
         }
         fFile->Write(v.data(), v.size());
         ++fNWrite;
-	std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
-	//LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
+        if (fWriteSleepInMilliSec > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+            LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
+        }
     } else {
         for (auto &msg : msgParts) {
             fFile->Write(reinterpret_cast<char *>(msg->GetData()), msg->GetSize());
             ++fNWrite;
-	    std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
-	    //LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec;
+            if (fWriteSleepInMilliSec > 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+                LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
+            }
         }
     }
 
