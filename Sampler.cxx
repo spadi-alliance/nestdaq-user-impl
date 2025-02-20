@@ -15,8 +15,8 @@ void addCustomOptions(bpo::options_description& options)
     (opt::Text.data(),           bpo::value<std::string>()->default_value("AMANEQ Emulator"), "Text to send out")
     (opt::IpSiTCP.data(),        bpo::value<std::string>()->default_value("0"),   "Ip Address for FEMId")
     (opt::TdcType.data(),        bpo::value<std::string>()->default_value("0"),   "TDC type: HR=2, LR=1")
-    (opt::MaxNumberHBF.data(),   bpo::value<std::string>()->default_value("50"), "# of HeartBeat Frame")
-    (opt::SendInfo.data(),       bpo::value<std::string>()->default_value("1"),   "Flag to send FEM Info")
+    (opt::MaxNumberHBF.data(),   bpo::value<std::string>()->default_value("5"), "# of HeartBeat Frame")
+    (opt::SendInfo.data(),       bpo::value<std::string>()->default_value("0"),   "Flag to send FEM Info")
     (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the data output channel")
     ("max-iterations",      bpo::value<std::string>()->default_value("0"), "Maximum number of iterations of Run/ConditionalRun/OnData (0 - infinite)");
 

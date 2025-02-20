@@ -168,28 +168,36 @@ find_path(UHBOOK_HEADER uhbook.cxx ../uhbook/)
 message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
 #message(STATUS "UHBOOK_LIB:       ${UHBOOK_LIB}")
 
+# ------------ find CAEN LIB ---------------
+
+find_library(CAENDPP_LIB       CAENDPPLib PATHS /usr/lib /usr/local/lib)
+find_library(CAENCOMM_LIB      CAENComm PATHS /usr/lib /usr/local/lib)
+find_library(CAENDIGITIZER_LIB CAENDigitizer PATHS /usr/lib /usr/local/lib)
+find_library(CAENVME_LIB       CAENVME PATHS /usr/lib /usr/local/lib)
+
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
-foreach(lvar IN ITEMS
-  Sampler; Sink; FileSink; STFBuilder;
-  TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
-  TimeFrameSlicerByLogicTiming;
-  fltcoin; LogicFilter;
-  tfdump;
+
+list(APPEND EXEC_LIST
+  Sampler Sink FileSink STFBuilder
+  TimeFrameBuilder TFBFilePlayer STFBFilePlayer
+  TimeFrameSlicerByLogicTiming
+  fltcoin LogicFilter
+  tfdump
 # onlinedisplay;
-  FilterTimeFrameSliceABC;
-  FilterTimeFrameSliceBySomething;
-  InputRegister;
+  FilterTimeFrameSliceABC
+  FilterTimeFrameSliceBySomething
+  InputRegister
 #  AmQStrTdcDqm;
-  Scaler;
-  ScalerSQ)
+  Scaler
+  ScalerSQ
+)
 
-  set(EXEC ${lvar})
-  add_executable(${EXEC} 
-    ${EXEC}.cxx;
-  )
-
+foreach(EXEC IN LISTS EXEC_LIST)
+  message(STATUS "Current item: ${EXEC}")
+  add_executable(${EXEC} ${EXEC}.cxx)
+    
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
     ${FairMQ_INCDIR};
@@ -197,6 +205,7 @@ foreach(lvar IN ITEMS
     ${REDIS_PLUS_PLUS_HEADER};
     ${UHBOOK_HEADER};
     ${CMAKE_SOURCE_DIR};
+    /usr/include;
 #    ${FairLogger_INCDIR};
     ${fmt_INCDIR};
   )
@@ -207,8 +216,9 @@ foreach(lvar IN ITEMS
 #    ${FairLogger_LIBDIR};
   )
 
+    
   if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
-    AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+      AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
     target_link_libraries(${EXEC} PUBLIC 
       ${Boost_LIBRARIES};  
       ${HIREDIS_LIB};
@@ -222,8 +232,8 @@ foreach(lvar IN ITEMS
       sqlite3;
     )
   elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
-    AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
-    OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
+	AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+      OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
     target_link_libraries(${EXEC} PUBLIC 
       ${Boost_LIBRARIES};  
       ${HIREDIS_LIB};
@@ -240,13 +250,159 @@ foreach(lvar IN ITEMS
   else()
     message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
   endif()
-
+  
   install(TARGETS
     ${EXEC};
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   )
 endforeach()
+
+
+if(CAENDPP_LIB)  
+  add_executable(V1740DSampler V1740DSampler.cxx V1740D.cxx)
+
+  target_include_directories(V1740DSampler PUBLIC 
+    ${Boost_INCLUDE_DIRS};  
+    ${FairMQ_INCDIR};
+    ${HIREDIS_HEADER};
+    ${REDIS_PLUS_PLUS_HEADER};
+    ${UHBOOK_HEADER};
+    ${CMAKE_SOURCE_DIR};
+    /usr/include;
+#    ${FairLogger_INCDIR};
+    ${fmt_INCDIR};
+  )
+
+  target_link_directories(V1740DSampler PUBLIC
+    ${Boost_LIBRARY_DIRS}; 
+    ${FairMQ_LIBDIR};
+#    ${FairLogger_LIBDIR};
+  )
+  
+  if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+      AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+    target_link_libraries(V1740DSampler PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      fairmq;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+      ${CAENDPP_LIB};
+      ${CAENVME_LIB};
+      ${CAENDIGITIZER_LIB};
+      ${CAENCOMM_LIB};	
+    )
+  elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+	AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+      OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
+    target_link_libraries(V1740DSampler PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      FairMQ;
+      FairMQStateMachine;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+      ${CAENDPP_LIB};
+      ${CAENVME_LIB};
+      ${CAENDIGITIZER_LIB};
+      ${CAENCOMM_LIB};      
+    )
+  else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+  endif()
+
+  install(TARGETS
+    V1740DSampler
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}    
+    RUNTIME DESTINATION ${PROJECT_INSTALL_BINDIR}
+  )
+endif()
+
+
+if(CAENDPP_LIB)  
+  add_executable(DigitizerSampler DigitizerSampler.cxx Digitizer.cxx DigitizerFunc.cxx
+    DigitizerConfig.cxx DigitizerStruct.cxx)
+
+  target_include_directories(DigitizerSampler PUBLIC 
+    ${Boost_INCLUDE_DIRS};  
+    ${FairMQ_INCDIR};
+    ${HIREDIS_HEADER};
+    ${REDIS_PLUS_PLUS_HEADER};
+    ${UHBOOK_HEADER};
+    ${CMAKE_SOURCE_DIR};
+    /usr/include;
+#    ${FairLogger_INCDIR};
+    ${fmt_INCDIR};
+  )
+
+  target_link_directories(DigitizerSampler PUBLIC
+    ${Boost_LIBRARY_DIRS}; 
+    ${FairMQ_LIBDIR};
+#    ${FairLogger_LIBDIR};
+  )
+  
+  if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+      AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+    target_link_libraries(DigitizerSampler PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      fairmq;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+      ${CAENDPP_LIB};
+      ${CAENVME_LIB};
+      ${CAENDIGITIZER_LIB};
+      ${CAENCOMM_LIB};
+      digitizer;
+    )
+  elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+	AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+      OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
+    target_link_libraries(DigitizerSampler PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      FairMQ;
+      FairMQStateMachine;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+      ${CAENDPP_LIB};
+      ${CAENVME_LIB};
+      ${CAENDIGITIZER_LIB};
+      ${CAENCOMM_LIB};
+      digitizer;
+    )
+  else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+  endif()
+
+  install(TARGETS
+    DigitizerSampler
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}    
+    RUNTIME DESTINATION ${PROJECT_INSTALL_BINDIR}
+  )
+endif()
+
 
 #==============================================================================
 # AmQStrSampler (for the read-out of AmQ)
@@ -368,3 +524,7 @@ endforeach()
 add_subdirectory(utility)
 add_subdirectory(emulator)
 add_subdirectory(sqlite)
+
+if(CAENDPP_LIB)
+  add_subdirectory(digitizer)
+endif()

@@ -33,6 +33,7 @@ class AmQStrTdcSampler : public fair::mq::Device
 public:
     struct OptionKey {
         static constexpr std::string_view IpSiTCP           {"sitcp-ip"};
+        static constexpr std::string_view TdcType           {"TdcType"};
         static constexpr std::string_view OutputChannelName {"out-chan-name"};
     };
 

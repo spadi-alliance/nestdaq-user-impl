@@ -21,8 +21,8 @@ addCustomOptions(bpo::options_description& options)
     using opt = AmQStrTdcSampler::OptionKey;
     options.add_options()
     (opt::IpSiTCP.data(),           bpo::value<std::string>()->default_value("0"),   "SiTCP IP (xxx.yyy.zzz.aaa)")
-    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel");
-    //      ("TdcType", bpo::value<std::string>()->default_value("2"), "TDC type: HR=2, LR=1");
+    (opt::OutputChannelName.data(), bpo::value<std::string>()->default_value("out"), "Name of the output channel")
+    (opt::TdcType.data(), bpo::value<std::string>()->default_value("2"), "TDC type: HR=2, LR=1");
 }
 
 //______________________________________________________________________________
@@ -231,12 +231,12 @@ void AmQStrTdcSampler::InitTask()
     using opt     = OptionKey;
 
     fIpSiTCP           = fConfig->GetProperty<std::string>("msiTcpIp");
-    //  fIpSiTCP           = fConfig->GetProperty<std::string>(opt::IpSiTCP.data());
+    // fIpSiTCP           = fConfig->GetProperty<std::string>(opt::IpSiTCP.data());
     LOG(info) << "TPC IP: " << fIpSiTCP;
     //  fIpSiTCP           = fConfig->GetProperty<std::string>(opt::IpSiTCP.data());
     fOutputChannelName = fConfig->GetProperty<std::string>(opt::OutputChannelName.data());
 
-    fTdcType = std::stoi(fConfig->GetProperty<std::string>("TdcType"));
+    fTdcType = std::stoi(fConfig->GetProperty<std::string>(opt::TdcType.data()));
     LOG(info) << "TDC Type: " << fTdcType << std::endl;
 
     LOG(info) << fIpSiTCP;

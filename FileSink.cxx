@@ -391,6 +391,7 @@ void FileSink::PreRun()
     if (run_comment.length() > 255) {
       run_comment.resize(255); // The max bytes of the comment are 256 bytes including a null charactor of 1 bytes.
     }
+    LOG(debug) << "2....";
     
     fFile->SetRunNumber(fRunNumber);
     fFile->ClearBranch();
