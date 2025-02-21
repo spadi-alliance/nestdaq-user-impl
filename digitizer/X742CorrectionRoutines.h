@@ -39,7 +39,7 @@ void ApplyDataCorrection(CAEN_DGTZ_DRS4Correction_t* CTable, CAEN_DGTZ_DRS4Frequ
 *   \param   Group Mask of Tables to be saved
 *   \param   Pointer to the DataCorrection group tables
 */
-int SaveCorrectionTables(char *outputFileName, uint32_t groupMask, CAEN_DGTZ_DRS4Correction_t *tables);
+int SaveCorrectionTables(const char *outputFileName, uint32_t groupMask, CAEN_DGTZ_DRS4Correction_t *tables);
 
 /*! \brief   Reads the correction table of a x742 boards from txt files
 *

@@ -459,7 +459,6 @@ int Digitizer::RunAcquisition(){
 	}
 	return ret;
     }
-    std::cout << "BufferSize: " << BufferSize << std::endl;
     
     NumEvents = 0;
 
@@ -489,7 +488,6 @@ int Digitizer::RunAcquisition(){
 	  }
 	}
     }
-    std::cout << "NumEvents: " << NumEvents << std::endl;
     
     /* Calculate throughput and trigger rate (every second) */
     fNb += BufferSize;

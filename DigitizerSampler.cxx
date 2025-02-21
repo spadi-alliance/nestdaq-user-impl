@@ -49,8 +49,6 @@ bool DigitizerSampler::ConditionalRun()
 	int nbytes = 0;
 	nbytes = gDigitizer.GetBytesRead();
 
-	LOG(debug) << "nbytes: " << nbytes ;
-
 	if( nbytes > 0 ) {
 
 	  char* buffer;	  
