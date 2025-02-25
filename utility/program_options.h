@@ -4,6 +4,7 @@
 #include <boost/program_options.hpp>
 #include <string_view>
 #include <functional>
+#include <unordered_map>
 
 #include "utility/is_vector.h"
 
