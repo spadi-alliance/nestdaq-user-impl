@@ -34,6 +34,8 @@ void addCustomOptions(bpo::options_description& options)
      "Iteration wait time (ms)")
     (opt::SplitMethod.data(),       bpo::value<std::string>()->default_value("2"),
      "STF split method")
+    (opt::EnableRecbe.data(),       bpo::value<std::string>()->default_value("false"),
+     "Enable RECBE handling")
     ;
 }
 
@@ -67,7 +69,7 @@ bool TFBFilePlayer::ConditionalRun()
     if (fInputFile.eof()) return false;
     if (! static_cast<bool>(fInputFile)) {
         LOG(error) << "Fail to read " << fInputFileName;
-	return false;
+        return false;
     }
 
     if (magic == Filter::MAGIC) {
@@ -112,7 +114,6 @@ bool TFBFilePlayer::ConditionalRun()
     }
 
 
-    //FairMQParts outParts;
     fair::mq::Parts outParts;
 
     // TF header
@@ -143,8 +144,8 @@ bool TFBFilePlayer::ConditionalRun()
     //    tfHeader->magic, tfHeader->timeFrameId, tfHeader->numSource, tfHeader->length);
     LOG(debug4) << "TF header: magic = 0x" << std::hex << tfHeader->magic
         << ", tf-id = " << std::dec << tfHeader->timeFrameId
-	    << ", n-src = " << tfHeader->numSource
-	    << ", bytes = " << tfHeader->length;
+        << ", n-src = " << tfHeader->numSource
+        << ", bytes = " << tfHeader->length;
 #endif
 
     std::vector<char> buf(tfHeader->length - sizeof(TF::Header));
@@ -176,19 +177,19 @@ bool TFBFilePlayer::ConditionalRun()
         auto stfHeader = reinterpret_cast<STF::Header*>(header);
 
         LOG(debug4)
-                << "STF header: magic = 0x" << std::hex <<  stfHeader->magic
-                << ", TF-id = " << std::dec << stfHeader->timeFrameId
+            << "STF header: magic = 0x" << std::hex <<  stfHeader->magic
+            << ", TF-id = " << std::dec << stfHeader->timeFrameId
 #if 1
-                << "  type = 0x" << std::hex << stfHeader->femType
-                << ", id = 0x" << std::setw(2) << stfHeader->femId
+            << "  type = 0x" << std::hex << stfHeader->femType
+            << ", id = 0x" << std::setw(2) << stfHeader->femId
 #endif
-                << "  bytes = " << std::dec << stfHeader->length
-                << ", n-msg = " << stfHeader->numMessages
+            << "  bytes = " << std::dec << stfHeader->length
+            << ", n-msg = " << stfHeader->numMessages
 #if 0
-                << ", sec = " << stfHeader->timeSec
-                << ", usec = " << stfHeader->timeUSec
+            << ", sec = " << stfHeader->timeSec
+            << ", usec = " << stfHeader->timeUSec
 #endif
-		;
+            ;
 
         auto wordBegin = reinterpret_cast<uint64_t*>(bufBegin + headerNBytes);
         auto bodyNBytes = stfHeader->length - headerNBytes;
@@ -212,13 +213,17 @@ bool TFBFilePlayer::ConditionalRun()
             //  case Recbe
             //---------------------------------
             //LOG(debug4) << "HEAD: " << std::hex << *ptr;
-            if ((*ptr & 0x0000'0000'0000'0022) == 0x22) {
-                //std::cout << "RECBE: " << std::hex << *ptr << " " << d->head << std::endl;
-                outParts.AddPart(NewMessage(bodyNBytes));
-                auto & msg = outParts[outParts.Size() - 1];
-                std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
+            if (fEnableRecbe) {
+                if ((*ptr & 0x0000'0000'0000'0022) == 0x22) {
 
-                break;
+                    LOG(debug4) << "RECBE: " << std::hex << *ptr << " " << d->head;
+
+                    outParts.AddPart(NewMessage(bodyNBytes));
+                    auto & msg = outParts[outParts.Size() - 1];
+                    std::memcpy(msg.GetData(), reinterpret_cast<char*>(wBegin), msg.GetSize());
+
+                    break;
+                }
             }
 
             switch (d->head) {
@@ -226,7 +231,6 @@ bool TFBFilePlayer::ConditionalRun()
             //  case AmQStrTdc::Data::SpillEnd:
             //---------------------------------
             case AmQStrTdc::Data::Heartbeat: {
-                //FairMQMessage [[maybe_unused]] *pmsg;
                 fair::mq::Message [[maybe_unused]] *pmsg;
                 if (fSplitMethod == 0) {
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
@@ -235,13 +239,11 @@ bool TFBFilePlayer::ConditionalRun()
                     pmsg = &msg;
                     wBegin = ptr + 1;
                 } else if (fSplitMethod == 1) {
-                    //std::cout << "#D " << (ptr - wBegin) << " : "
-                    //    << std::hex << (d-1)->head << " " << d->head << std::endl;
                     if ((ptr - wBegin) == 0) {
                         continue;
                     } else if ( ((ptr - wBegin) > 1)
                                 || (((ptr - wBegin) == 1)
-                                    && ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat))) ) {
+                                && ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat))) ) {
                         //if ((ptr - wBegin) > 1) {
                         //if ((((d - 1)->head) != AmQStrTdc::Data::Heartbeat)
                         //    || ( (((d - 1)->head) == AmQStrTdc::Data::Heartbeat)
@@ -286,7 +288,6 @@ bool TFBFilePlayer::ConditionalRun()
                 break;
             }
             case AmQStrTdc::Data::Heartbeat2nd: {
-                //FairMQMessage [[maybe_unused]] *pmsg;
                 fair::mq::Message [[maybe_unused]] *pmsg;
                 if (fSplitMethod == 2) {
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
@@ -362,10 +363,13 @@ void TFBFilePlayer::InitTask()
     fSplitMethod       = std::stoi(
                              fConfig->GetProperty<std::string>(opt::SplitMethod.data()));
 
+    fEnableRecbe       = (fConfig->GetProperty<std::string>(opt::EnableRecbe.data()) == "true");
+
     LOG(info) << "InitTask: Iteration   : " << fMaxIterations;
     LOG(info) << "InitTask: Wait        : " << fWait;
     LOG(info) << "InitTask: SplitMethod : " << fSplitMethod;
     LOG(info) << "InitTask: File name   : " << fInputFileName;
+    LOG(info) << "InitTask: Recbe mode  : " << fEnableRecbe;
 }
 
 // ----------------------------------------------------------------------------
