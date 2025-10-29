@@ -22,11 +22,12 @@ namespace TimeFrame {
    namespace v1 {
       // " MRFEMIT" : little endian of "TIMEFRM "
       constexpr uint64_t MAGIC {0x004d5246454d4954};
-      // TYPE 
-      constexpr uint16_t META          {1};
-      constexpr uint16_t SLICE         {2};
-      constexpr uint16_t COMPLETE_TF   {0x00};
-      constexpr uint16_t INCOMPLETE_TF {0x10};
+      // TYPE : upper 8 bits are used for the framework,
+      //        lower 8 bits are used for experimental usage.
+      constexpr uint16_t META          {0x0001};
+      constexpr uint16_t SLICE         {0x0002};
+      constexpr uint16_t COMPLETE_TF   {0x0000};
+      constexpr uint16_t INCOMPLETE_TF {0x8000};
       
       #pragma pack(2)
       struct Header {
