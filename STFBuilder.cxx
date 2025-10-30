@@ -79,21 +79,9 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
         if (!isHeadValid) {
 
-            LOG(error)   << " " << i << " " << offset << " invalid head = " << std::hex << static_cast<uint16_t>(h)
-			 << " " << word->raw << std::dec << std::endl;
-	    
-            LOG(warn) << " " << i << " " << offset << " invalid head = " << std::hex << static_cast<uint16_t>(h)
-			 << " " << word->raw << std::dec << std::endl;
-
-            if (i - offset > 0) {
-                // std::cout << " fill valid part "  << std::setw(10) << offset << " -> " << std::setw(10) << i << std::endl;
-                auto first = msgBegin + offset;
-                auto last  = msgBegin + i;
-                std::for_each(first, last, ::HexDump{4});
-                fInputPayloads.insert(fInputPayloads.end(), std::make_move_iterator(first), std::make_move_iterator(last));
-            }
-            offset = i+1;
-            continue;
+            LOG(warn)   << " " << i << " " << offset << " unknown head = " << std::hex << static_cast<uint16_t>(h)
+			<< " " << word->raw << std::dec << std::endl;
+	    continue;
         }
 
 	// in case of one delimiter...
