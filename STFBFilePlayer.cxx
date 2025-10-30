@@ -64,13 +64,16 @@ void STFBFilePlayer::InitTask()
         LOG(warn) << " number of destination is non-positive";
     }
 
-    LOG(debug) << "DQM channels: name = " << fDQMChannelName;
+    LOG(debug) << "DQM channels: name = " << fDQMChannelName
+            << " num = " << fChannels.count(fDQMChannelName);
+#if 0
+        if (fChannels.count(fDQMChannelName)) {
+            LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName
+                       << " num = " << fChannels.at(fDQMChannelName).size();
+        }
+#endif
 
-    //        << " num = " << fChannels.count(fDQMChannelName);
-    //    if (fChannels.count(fDQMChannelName)) {
-    //        LOG(debug) << " data quality monitoring channels: name = " << fDQMChannelName
-    //                   << " num = " << fChannels.at(fDQMChannelName).size();
-    //    }
+    LOG(info) << "Input file: " << fInputFileName;
 
 #if 0
     OnData(fInputChannelName, &STFBFilePlayer::HandleData);
