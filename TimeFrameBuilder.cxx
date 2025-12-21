@@ -38,11 +38,13 @@ void addCustomOptions(bpo::options_description& options)
     ;
 }
 
+
 //______________________________________________________________________________
 std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions&)
 {
     return std::make_unique<TimeFrameBuilder>();
 }
+
 
 //______________________________________________________________________________
 TimeFrameBuilder::TimeFrameBuilder()
@@ -104,6 +106,7 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
     return;
 }
 
+
 int TimeFrameBuilder::CheckHBFDelimitor(fair::mq::Parts &inParts, uint32_t stfId)
 {
     auto nmsg = inParts.Size();
@@ -131,6 +134,7 @@ int TimeFrameBuilder::CheckHBFDelimitor(fair::mq::Parts &inParts, uint32_t stfId
     return 0;
 }
 
+
 void TimeFrameBuilder::MakeOutPartsFromSTFBuffers(
     std::vector<STFBuffer>& tfBuf,
     uint32_t stfId,
@@ -139,8 +143,11 @@ void TimeFrameBuilder::MakeOutPartsFromSTFBuffers(
 {
     auto h = std::make_unique<TimeFrame::Header>();
     h->magic       = TimeFrame::MAGIC;
-    //h->timeFrameId = reinterpret_cast<SubTimeFrame::Header*>(tfBuf[0].parts.At(0)->GetData())->timeFrameId;
+#if 0
+    h->timeFrameId = reinterpret_cast<SubTimeFrame::Header*>(tfBuf[0].parts.At(0)->GetData())->timeFrameId;
+#else
     h->timeFrameId = stfId;
+#endif
     h->numSource   = fNumSource;
     h->type        = type;
     h->length      = std::accumulate(tfBuf.begin(), tfBuf.end(), sizeof(TimeFrame::Header),
@@ -158,29 +165,9 @@ void TimeFrameBuilder::MakeOutPartsFromSTFBuffers(
         }
     }
 
-#if 0
-                auto h = std::make_unique<TimeFrame::Header>();
-                h->magic       = TimeFrame::MAGIC;
-                h->timeFrameId = stfId;
-                h->numSource   = fNumSource;
-                h->length      = std::accumulate(tfBuf.begin(), tfBuf.end(), sizeof(TimeFrame::Header),
-                    [](auto init, auto& stfBuf) {
-                        return init + std::accumulate(stfBuf.parts.begin(), stfBuf.parts.end(), 0,
-                        [] (auto jinit, auto& m) {
-                            return (!m) ? jinit : jinit + m->GetSize();
-                        });
-                    });
-
-                outParts.AddPart(MessageUtil::NewMessage(*this, std::move(h)));
-                for (auto& stfBuf: tfBuf) {
-                    for (auto& m: stfBuf.parts) {
-                        outParts.AddPart(std::move(m));
-                    }
-                }
-#endif
-
     return;
 }
+
 
 void TimeFrameBuilder::SendTimeFrameForDQM(
     fair::mq::Parts& outParts)
@@ -217,6 +204,7 @@ void TimeFrameBuilder::SendTimeFrameForDQM(
     return;
 }
 
+
 void TimeFrameBuilder::SendTimeFrameForDecimator(
     fair::mq::Parts& outParts)
 {
@@ -251,55 +239,11 @@ void TimeFrameBuilder::SendTimeFrameForDecimator(
     return;
 }
 
+
 void TimeFrameBuilder::SendTimeFrame(
     fair::mq::Parts& outParts
-//    fair::mq::Parts& dqmParts,
-//    uint64_t stfId,
-//    std::unique_ptr<TimeFrame::Header>& h
 )
 {
-#if 0
-    // send for DQM
-    if (fChannels.count(fDQMChannelName)) {
-        if (Send(dqmParts, fDQMChannelName) < 0) {
-            if (NewStatePending()) {
-                LOG(info) << "Device is not RUNNING";
-                return;
-            }
-            LOG(error) << "Failed to enqueue TFB (DQM) ";
-        }
-    }
-#endif
-
-#if 0
-    // send for Decimator
-    unsigned int decimatorNumSubChannels = 0;
-    if (fDecimatorNumberOfConnectedPeers > 0) {
-        decimatorNumSubChannels = GetNumSubChannels(fDecimatorChannelName);
-        if ((fDecimatorNumberOfConnectedPeers > 0)
-            && (fDecimationFactor > 0)
-            && (fNumSend % fDecimationFactor == fDecimationOffset)) {
-
-            auto poller = NewPoller(fDecimatorChannelName);
-            poller->Poll(fPollTimeoutMS);
-            for (auto iSubChannel=0u; iSubChannel<decimatorNumSubChannels; ++iSubChannel) {
-                while (!NewStatePending()) {
-                    if (poller->CheckOutput(fDecimatorChannelName, iSubChannel)) {
-                        auto decimatorParts = MessageUtil::Copy(*this, outParts);
-                        if (Send(decimatorParts, fDecimatorChannelName, iSubChannel) > 0) {
-                            break;
-                        } else {
-                            auto h = reinterpret_cast<TimeFrame::Header*>(outParts.At(0)->GetData());
-                            LOG(warn) << "Failed to enqueue to decimator output iSubChannel = "
-                                      << iSubChannel << " : TF = " << h->timeFrameId;
-                        }
-                    }
-                }
-            }
-        }
-    }
-#endif
-
     // send for Output
     auto poller = NewPoller(fOutputChannelName);
     int attempts = 0;
@@ -333,6 +277,7 @@ void TimeFrameBuilder::SendTimeFrame(
     return;
 }
 
+
 void TimeFrameBuilder::SendTimeFrameToEvery(
     fair::mq::Parts& outParts)
 {
@@ -354,7 +299,7 @@ void TimeFrameBuilder::SendTimeFrameToEvery(
     return;
 }
 
-#if 1
+
 //______________________________________________________________________________
 bool TimeFrameBuilder::ConditionalRun()
 {
@@ -389,10 +334,6 @@ bool TimeFrameBuilder::ConditionalRun()
 
     // send
     if (!fTFBuffer.empty()) {
-        //unsigned int decimatorNumSubChannels = 0;
-        //if (fDecimatorNumberOfConnectedPeers > 0) {
-        //    decimatorNumSubChannels = GetNumSubChannels(fDecimatorChannelName);
-        //}
 
         // find time frame in ready
         for (auto itr = fTFBuffer.begin(); itr != fTFBuffer.end();) {
@@ -403,65 +344,11 @@ bool TimeFrameBuilder::ConditionalRun()
                 LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
 
                 fair::mq::Parts outParts;
-                //fair::mq::Parts dqmParts;
 
-#if 0
-                auto h = std::make_unique<TimeFrame::Header>();
-                h->magic       = TimeFrame::MAGIC;
-                h->timeFrameId = stfId;
-                h->numSource   = fNumSource;
-                h->length      = std::accumulate(tfBuf.begin(), tfBuf.end(), sizeof(TimeFrame::Header),
-                    [](auto init, auto& stfBuf) {
-                        return init + std::accumulate(stfBuf.parts.begin(), stfBuf.parts.end(), 0,
-                        [] (auto jinit, auto& m) {
-                            return (!m) ? jinit : jinit + m->GetSize();
-                        });
-                    });
-
-                outParts.AddPart(MessageUtil::NewMessage(*this, std::move(h)));
-                for (auto& stfBuf: tfBuf) {
-                    for (auto& m: stfBuf.parts) {
-                        outParts.AddPart(std::move(m));
-                    }
-                }
-#else
                 MakeOutPartsFromSTFBuffers(tfBuf, stfId, TimeFrame::TF_COMPLETE, outParts);
-#endif
                 tfBuf.clear();
 
-#if 0
-                // for DQM
-                if (dqmSocketExists) {
-                    auto hc = std::make_unique<TimeFrame::Header>(*h);
-                    dqmParts.AddPart(MessageUtil::NewMessage(*this, std::move(hc)));
-                    for (auto& stfBuf: tfBuf) {
-                        for (auto& m: stfBuf.parts) {
-                            fair::mq::MessagePtr msgCopy(fTransportFactory->CreateMessage());
-                            msgCopy->Copy(*m);
-                            dqmParts.AddPart(std::move(msgCopy));
-                        }
-                    }
-                    SendTimeFrameForDQM(dqmParts);
-                }
-#endif
-
-#if 0
-                // for DQM
-                bool dqmSocketExists = fChannels.count(fDQMChannelName);
-                if (dqmSocketExists) {
-                    SendTimeFrameForDQM(outParts);
-                }
-
-                // for Decimator
-                if (fDecimatorNumberOfConnectedPeers > 0) {
-                    SendTimeFrameForDecimator(outParts);
-                }
-
-                // 送信処理をメソッド化
-                SendTimeFrame(outParts);
-#else
                 SendTimeFrameToEvery(outParts);
-#endif
 
             } else {
                 // discard incomplete time frame
@@ -470,6 +357,7 @@ bool TimeFrameBuilder::ConditionalRun()
                     // output debug info
                     TFBFailDump(tfBuf, stfId);
 
+                    // output incomplete TF
                     if (fOutputIncompleteTF) {
 
                         std::cout << "#D Output incomplete TF: " << stfId << std::endl;
@@ -529,304 +417,13 @@ bool TimeFrameBuilder::ConditionalRun()
 
     return true;
 }
-#endif
-
-
-#if 0
-//______________________________________________________________________________
-bool TimeFrameBuilder::ConditionalRun()
-{
-    namespace STF = SubTimeFrame;
-    namespace TF  = TimeFrame;
-
-    // receive
-    fair::mq::Parts inParts;
-    if (Receive(inParts, fInputChannelName, 0, 1) > 0) {
-        assert(inParts.Size() >= 2);
-
-        auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
-        auto stfId     = stfHeader->timeFrameId;
-
-        LOG(debug4) << "msg size: " << inParts.Size()
-            << ", TFid: "<< stfId
-            << " FEid: 0x" << std::hex << stfHeader->femId
-            << " Type: " << std::dec << stfHeader->type;
-
-        auto nmsg = inParts.Size();
-        const auto& msg =inParts.At(nmsg -1);
-
-        auto msgSize  = msg->GetSize();
-        auto nWord    = msgSize / sizeof(uint64_t);
-        auto msgBegin = reinterpret_cast<uint64_t *>(msg->GetData());
-
-        auto firstHBF  = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 2));
-        //auto secondHBF = reinterpret_cast<uint64_t *>(msgBegin + (nWord - 1));
-
-#if 1
-        auto fem     = stfHeader->femId;
-        auto lastmsg = reinterpret_cast<uint64_t *>(inParts.At(inParts.Size() - 1)->GetData());
-        unsigned int type = (firstHBF[0] & 0xfc00'0000'0000'0000) >> 58;
-        //if ((type == 0x1c) || (type == 0x18) || (type == 0x14) || (type == 0x1e)) {
-        if ((type == 0x1c) || (type == 0x1e)) {
-        } else {
-            LOG(warn) << "BAD delimitor " << std::hex << lastmsg[0]
-                      << " FEM: " << std::dec << (fem & 0xff);
-        }
-#endif
-
-        if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
-            fTFBuffer[stfId].reserve(fNumSource);
-        }
-        fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
-#if 0
-        LOG(debug) << fTFBuffer[stfId].size() << " vs " << fNumSource;
-#endif
-    }
-
-
-    // send
-    if (!fTFBuffer.empty()) {
-
-        bool dqmSocketExists = fChannels.count(fDQMChannelName);
-        //auto decimatorNumSubChannels = GetNumSubChannels(fDecimatorChannelName);
-        unsigned int decimatorNumSubChannels = 0;
-        if (fDecimatorNumberOfConnectedPeers > 0) {
-            decimatorNumSubChannels = GetNumSubChannels(fDecimatorChannelName);
-        }
-
-
-        // find time frame in ready
-        for (auto itr = fTFBuffer.begin(); itr != fTFBuffer.end();) {
-            auto stfId  = itr->first;
-            auto& tfBuf = itr->second;
-
-            if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
-
-                LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
-
-                // move ownership to complete time frame
-                fair::mq::Parts outParts;
-                fair::mq::Parts dqmParts;
-
-                auto h = std::make_unique<TF::Header>();
-                h->magic       = TF::MAGIC;
-                h->timeFrameId = stfId;
-                h->numSource   = fNumSource;
-                h->length      = std::accumulate(tfBuf.begin(), tfBuf.end(), sizeof(TF::Header),
-                [](auto init, auto& stfBuf) {
-                    return init + std::accumulate(stfBuf.parts.begin(), stfBuf.parts.end(), 0,
-                    [] (auto jinit, auto& m) {
-                        return (!m) ? jinit : jinit + m->GetSize();
-                    });
-                });
-
-                // for dqm
-                if (dqmSocketExists) {
-                    for (auto& stfBuf: tfBuf) {
-                        for (auto& m: stfBuf.parts) {
-                            fair::mq::MessagePtr msgCopy(fTransportFactory->CreateMessage());
-                            msgCopy->Copy(*m);
-                            dqmParts.AddPart(std::move(msgCopy));
-                        }
-                    }
-                }
-
-                // LOG(debug) << " length = " << h->length;
-                outParts.AddPart(MessageUtil::NewMessage(*this, std::move(h)));
-                for (auto& stfBuf: tfBuf) {
-                    for (auto& m: stfBuf.parts) {
-                        outParts.AddPart(std::move(m));
-                    }
-                }
-                tfBuf.clear();
-
-                // for decimator
-                if ((fDecimatorNumberOfConnectedPeers > 0)
-                        && (fDecimationFactor > 0)
-                        && (fNumSend % fDecimationFactor == fDecimationOffset)) {
-
-                    auto poller = NewPoller(fDecimatorChannelName);
-                    poller->Poll(fPollTimeoutMS);
-                    for (auto iSubChannel=0u; iSubChannel<decimatorNumSubChannels; ++iSubChannel) {
-                        while (!NewStatePending()) {
-                            if (poller->CheckOutput(fDecimatorChannelName, iSubChannel)) {
-                                auto decimatorParts = MessageUtil::Copy(*this, outParts);
-                                // decimator output ready
-                                if (Send(decimatorParts, fDecimatorChannelName, iSubChannel) > 0) {
-                                    // successfully sent
-                                    // LOG(debug) << " successfully send to decimator "
-                                    // << fNumSend << " " << fDecimationFactor;
-                                    break;
-                                } else {
-                                    LOG(warn) << "Failed to enqueue to decimator output iSubChannel = "
-                                              << iSubChannel << " : TF = " << h->timeFrameId;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (dqmSocketExists) {
-                    if (Send(dqmParts, fDQMChannelName) < 0) {
-                        if (NewStatePending()) {
-                            LOG(info) << "Device is not RUNNING";
-                            return false;
-                        }
-                        LOG(error) << "Failed to enqueue TFB (DQM) ";
-                    }
-                }
-
-                auto poller = NewPoller(fOutputChannelName);
-                int attempts = 0;
-                while (!NewStatePending()) {
-                    poller->Poll(fPollTimeoutMS);
-                    auto direction = fDirection % fNumDestination;
-                    fDirection = direction + 1;
-                    if (poller->CheckOutput(fOutputChannelName, direction)) {
-                        // output ready
-
-                        if (Send(outParts, fOutputChannelName, direction) > 0) {
-                            // successfully sent
-                            //LOG(debug) << "successfully sent to out " << direction << " " << fDirection;
-                            ++fNumSend;
-                            break;
-                        } else {
-                            LOG(warn) << "Failed to enqueue time frame : TF = " << h->timeFrameId;
-                        }
-                    }
-
-                    if (fDiscardOutput) {
-                        attempts++;
-                        if (attempts >= fNumDestination) {
-                          LOG(error) << "Failed to send time frame after checking all destinations."
-                              << "Discarding data. Direction = " << direction;
-
-                          // outParts will be discarded because the parts is declared within the "if" scope.
-                          break;
-                        }
-                    }
-
-                    if (fNumDestination==1) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                    }
-                }
-
-            } else {
-                // discard incomplete time frame
-                auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
-
-
-#if 0
-                    LOG(warn) << "Timeframe #" <<  std::hex << stfId << " incomplete after "
-                              << std::dec << fBufferTimeoutInMs << " milliseconds, discarding";
-#else
-                    std::cout << "x" << std::flush;
-#endif
-
-#if 0
-                    ////// under debugging //////
-                    std::vector<uint32_t> femid;
-                    std::vector<uint32_t> expected = {
-                        160, 161, 162, 163, 164, 165, 166, 167, 168, 169,
-                        170, 171, 172, 173, 174, 175, 176, 177, 178, 179
-                    };
-                    std::vector<uint64_t> hb;
-                    for (auto & stfBuf : tfBuf) {
-                        auto & msg = stfBuf.parts[0];
-                        SubTimeFrame::Header *stfheader
-                            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
-                        //std::cout << " ID" << std::hex << stfheader->femId << std::dec;
-                        femid.push_back(stfheader->femId);
-                        for (auto it = expected.begin() ; it != expected.end() ;) {
-                            if (*it == (stfheader->femId && 0xff)) {
-                                it = expected.erase(it);
-                            } else {
-                                it++;
-                            }
-                        }
-                        //std::for_each(reinterpret_cast<uint64_t*>(msg.GetData()),
-                        //    reinterpret_cast<uint64_t*>(msg.GetData() + msg.GetSize()),
-                        //    ::HexDump{4});
-
-                        if (stfBuf.parts.Size() > 2) {
-                            auto & hb0 = stfBuf.parts[2];
-                            uint64_t hb00 = (reinterpret_cast<uint64_t *>(hb0.GetData()))[0];
-                            hb.push_back(hb00);
-                        }
-                    }
-                    //std::cout << "#D lost femId :" << stfId << ":";
-                    //for (auto & i : expected) std::cout << " " << (i & 0xff);
-                    std::cout << "#D FEM TFN: " << stfId << ", N: " << femid.size() << ", id:";
-                    for (auto & i : femid) std::cout << " " << (i & 0xff);
-                    std::cout << std::endl;
-                    #if 0
-                    std::cout << "#D HB :" << stfId << ":";
-                    for (auto & i : hb) std::cout << " " << std::hex <<i;
-                    std::cout << std::dec << std::endl;
-                    #endif
-#else
-                    TFBFailDump(tfBuf, stfId);
-#endif
-
-
-                    /*
-                    {// for debug-begin
-                      for (auto& stfBuf: tfBuf) {
-                        for (auto& m: stfBuf.parts) {
-                          std::for_each(reinterpret_cast<uint64_t*>(m->GetData()),
-                                        reinterpret_cast<uint64_t*>(m->GetData() + m->GetSize()),
-                                        ::HexDump{4});
-                        }
-                      }
-                    }// for debug-end
-                    */
-
-                    tfBuf.clear();
-                }
-            }
-
-            // remove empty buffer
-            if (tfBuf.empty()) {
-                itr = fTFBuffer.erase(itr);
-            } else {
-                ++itr;
-            }
-        }
-    } // send
-
-    // erase a depth limint exceeded TF.
-    if (fBufferDepthLimit > 0) {
-        if (fTFBuffer.size() > fBufferDepthLimit) {
-
-            std::cout << "#D Buffer Size: " << fTFBuffer.size()
-                << ": Top TFN: " << fTFBuffer.begin()->first
-                << " Size: " << fTFBuffer.begin()->second.size();
-            auto& tfBuf = fTFBuffer.begin()->second;
-
-            for (auto & stfBuf : tfBuf) {
-                auto & msg = stfBuf.parts[0];
-                SubTimeFrame::Header *stfheader
-                    = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
-                std::cout << " " << std::dec << (stfheader->femId & 0xff);
-            }
-            std::cout << std::endl;
-
-
-            fTFBuffer.begin()->second.clear();
-            fTFBuffer.erase(fTFBuffer.begin());
-        }
-    }
-
-    return true;
-}
-#endif
 
 
 //______________________________________________________________________________
 void TimeFrameBuilder::Init()
 {
 }
+
 
 //______________________________________________________________________________
 void TimeFrameBuilder::InitTask()
@@ -887,6 +484,7 @@ void TimeFrameBuilder::InitTask()
     LOG(debug) << " output-incomplete-tf = " << fOutputIncompleteTF;
 }
 
+
 //______________________________________________________________________________
 void TimeFrameBuilder::PostRun()
 {
@@ -914,6 +512,7 @@ void TimeFrameBuilder::PostRun()
         }
     }// for clean up
 }
+
 
 //_____________________________________________________________________________
 void TimeFrameBuilder::PreRun()
