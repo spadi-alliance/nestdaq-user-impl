@@ -5,15 +5,20 @@
 #include <algorithm>
 #include <numeric>
 #include <sstream>
+#include <ctime>
 
 #include <fairmq/Poller.h>
 #include <fairmq/runDevice.h>
 
 #include "utility/HexDump.h"
 #include "utility/MessageUtil.h"
+
+#include "RedisDataStore.h"
+
 #include "SubTimeFrameHeader.h"
 #include "TimeFrameHeader.h"
 #include "TimeFrameBuilder.h"
+
 
 //#include "AmQStrTdcData.h"
 
@@ -35,6 +40,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::DecimationOffset.data(),     bpo::value<std::string>()->default_value("0"),         "Decimation offset for decimated output channel")
     (opt::DiscardOutput.data(),        bpo::value<std::string>()->default_value("false"),     "Discard output option to eliminate the back pressure for upstream FairMQ device. true: discard, false (default): no discard causing back pressure")
     (opt::OutputIncompleteTF.data(),   bpo::value<std::string>()->default_value("false"),     "Output incomplete Time Frame")
+    (opt::ObjectDbNumber.data(),       bpo::value<std::string>()->default_value("3"),         "DB number for DQM objects")
     ;
 }
 
@@ -48,7 +54,7 @@ std::unique_ptr<fair::mq::Device> getDevice(FairMQProgOptions&)
 
 //______________________________________________________________________________
 TimeFrameBuilder::TimeFrameBuilder()
-    : fair::mq::Device()
+    : fair::mq::Device(), fKt(1000)
 {
 }
 
@@ -295,6 +301,7 @@ void TimeFrameBuilder::SendTimeFrameToEvery(
 
     // for out ; outParts will be moved to ZeroMQ.
     SendTimeFrame(outParts);
+    fNumSccesssfulTFB++;
 
     return;
 }
@@ -314,10 +321,13 @@ bool TimeFrameBuilder::ConditionalRun()
         auto stfHeader = reinterpret_cast<STF::Header*>(inParts.At(0)->GetData());
         auto stfId     = stfHeader->timeFrameId;
 
+#if 1
         LOG(debug4) << "msg size: " << inParts.Size()
             << ", TFid: "<< stfId
             << " FEid: 0x" << std::hex << stfHeader->femId
             << " Type: " << std::dec << stfHeader->type;
+#endif
+
 #if 1
         CheckHBFDelimitor(inParts, stfId);
 #endif
@@ -326,10 +336,12 @@ bool TimeFrameBuilder::ConditionalRun()
             fTFBuffer[stfId].reserve(fNumSource);
         }
         fTFBuffer[stfId].emplace_back(STFBuffer {std::move(inParts), std::chrono::steady_clock::now()});
+
 #if 0
         LOG(debug4) << "TFid: " << stfId
             << ", Fragments: " << fTFBuffer[stfId].size() << "/" << fNumSource;
 #endif
+
     }
 
     // send
@@ -369,6 +381,7 @@ bool TimeFrameBuilder::ConditionalRun()
                         SendTimeFrameToEvery(outParts);
                     }
 
+                    fNumFailedTFB++;
                     tfBuf.clear();
                 }
             }
@@ -387,6 +400,7 @@ bool TimeFrameBuilder::ConditionalRun()
     if (fBufferDepthLimit > 0) {
         if (fTFBuffer.size() > fBufferDepthLimit) {
 
+#if 1
             std::cout << "#D Buffer Size: " << fTFBuffer.size()
                 << ": Top TFN: " << fTFBuffer.begin()->first
                 << " Size: " << fTFBuffer.begin()->second.size();
@@ -399,6 +413,7 @@ bool TimeFrameBuilder::ConditionalRun()
                 std::cout << " " << std::dec << (stfheader->femId & 0xff);
             }
             std::cout << std::endl;
+#endif
 
             if (fOutputIncompleteTF) {
                 uint32_t stfId = fTFBuffer.begin()->first;
@@ -410,8 +425,39 @@ bool TimeFrameBuilder::ConditionalRun()
                 SendTimeFrameToEvery(outParts);
             }
 
+            fNumFailedTFB++;
             fTFBuffer.begin()->second.clear();
             fTFBuffer.erase(fTFBuffer.begin());
+        }
+    }
+
+    if (fKt.Check()) {
+        static int lcounts = 0;
+        LOG(debug) << "TimeFrameBuilding Successful: " << fNumSccesssfulTFB
+                  << ", Failed: " << fNumFailedTFB;
+        if ((lcounts++ % 5) == 0) {
+
+            double successfulRatio = 0;
+            if (fNumSccesssfulTFB + fNumFailedTFB > 0) {
+                successfulRatio
+                    = fNumSccesssfulTFB / static_cast<double>(fNumSccesssfulTFB + fNumFailedTFB)
+                    * 100.0;
+            }
+            #if 0
+            time_t now = std::time(nullptr);
+            std::cout << "#D "
+                << fKeyPrefixMetric + "SucessfulRatio "
+                << now
+                << " TFB Successful Ratio: "
+                << std::to_string(successfulRatio) << std::endl;
+            #endif
+            fDbMetric->ts_add(
+                fKeyPrefixMetric + "SuccessfulRatio",
+                std::to_string(std::time(nullptr) * 1000),
+                std::to_string(successfulRatio));
+
+            fNumSccesssfulTFB = 0;
+            fNumFailedTFB     = 0;
         }
     }
 
@@ -422,6 +468,51 @@ bool TimeFrameBuilder::ConditionalRun()
 //______________________________________________________________________________
 void TimeFrameBuilder::Init()
 {
+}
+
+void TimeFrameBuilder::SetKeyPrefix()
+{
+    std::string serverUri;
+    serverUri = fConfig->GetProperty<std::string>("metrics-uri");
+    if (serverUri.empty()) {
+        serverUri = fConfig->GetProperty<std::string>("registry-uri");
+    }
+    if (serverUri.empty()) {
+        LOG(error) << "DB server URI for metrics is not specified.";
+        throw std::runtime_error("DB server URI for metrics is not specified.");
+    }
+    
+    std::string serviceRegistryUri = fConfig->GetProperty<std::string>("registry-uri");
+    std::cout << "#D DB Server URI: " << serverUri << std::endl;
+    std::cout << "#D DB serviceRegistoryUri: " << serviceRegistryUri << std::endl;
+
+    std::string service_name = fConfig->GetProperty<std::string>("service-name");
+    std::string separator   = fConfig->GetProperty<std::string>("separator");
+    fKeyPrefixMetric = "ts" + separator + fId + separator;
+    fKeyPrefixObjects = "dqm" + separator + fId + separator;
+
+
+    if (fDbMetric == nullptr) {
+        fDbUriMetric = serverUri;
+        fDbMetric = std::make_unique<RedisDataStore>(fDbUriMetric);
+    }
+
+    if (fDbObjects == nullptr) {
+        fDbUriObjects = serverUri.substr(0, serverUri.rfind("/") + 1)
+            + fConfig->GetProperty<std::string>(OptionKey::ObjectDbNumber.data());
+        fDbObjects = std::make_unique<RedisDataStore>(fDbUriObjects);
+    }
+
+    LOG(info) << "Metric DB: " << fDbUriMetric << " Prefix:" << fKeyPrefixMetric;
+    LOG(info) << "DQM DB: " << fDbUriObjects << " Prefix:" << fKeyPrefixObjects;
+
+    /*
+    if (!serverUri.empty()) {
+        fClient = std::make_shared<sw::redis::Redis>(serverUri);
+    }
+    */
+
+    return;
 }
 
 
@@ -482,6 +573,9 @@ void TimeFrameBuilder::InitTask()
     std::string sOutputIncompleteTF = fConfig->GetProperty<std::string>(opt::OutputIncompleteTF.data());
     fOutputIncompleteTF = ((sOutputIncompleteTF == "1") || (sOutputIncompleteTF == "true") || (sOutputIncompleteTF == "yes"));
     LOG(debug) << " output-incomplete-tf = " << fOutputIncompleteTF;
+
+    SetKeyPrefix();
+
 }
 
 
