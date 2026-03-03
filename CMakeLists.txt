@@ -18,7 +18,7 @@ endif()
 #------------------------------------------------------------------------------
 # C++ standard level
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(MY_CXX_STANDARD 17)
+set(MY_CXX_STANDARD 20)
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD ${MY_CXX_STANDARD})
 elseif(${CMAKE_CXX_STANDARD} LESS ${MY_CXX_STANDARD})
@@ -140,6 +140,7 @@ if(ROOT_FOUND)
   message(STATUS "ROOT found")
   message(STATUS "ROOT_INCLUDE_DIRS ${ROOT_INCLUDE_DIRS}")
   message(STATUS "ROOT_LIBRARIES ${ROOT_LIBRARIES}")
+  
 
 #  ROOT_GENERATE_DICTIONARY(G__stl_vector_vector
 #    LINKDEF LinkDef/stl_vector_vector_LinkDef.h)
@@ -168,11 +169,26 @@ find_path(UHBOOK_HEADER uhbook.cxx ../uhbook/)
 message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
 #message(STATUS "UHBOOK_LIB:       ${UHBOOK_LIB}")
 
+# ---------- add EDM4HEP ---------
+find_package(EDM4HEP REQUIRED)
+message(STATUS "EDM4HEP_INCLUDE_DIR:    ${EDM4HEP_INCLUDE_DIR}")
+
+# ---------- add podio ---------
+find_package(podio REQUIRED)
+message(STATUS "podio_INCLUDE_DIR:    ${podio_INCLUDE_DIR}")
+message(STATUS "podio_LIBRARY_DIR:      ${podio_LIBRARY_DIR}")
+#message(STATUS "podio_LIBRARIES:      ${podio_LIBRARIES}")
+
+# ---------- add Python3 ---------
+find_package(Python REQUIRED)
+message(STATUS "Python_INCLUDE_DIRS:    ${Python_INCLUDE_DIRS}")
+
+
 #==============================================================================
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
 foreach(lvar IN ITEMS
-  Sampler; Sink; FileSink; STFBuilder;
+  Sampler; Sink; FileSink; JsonSink; EDM4hepSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
   fltcoin; LogicFilter;
@@ -197,13 +213,18 @@ foreach(lvar IN ITEMS
     ${REDIS_PLUS_PLUS_HEADER};
     ${UHBOOK_HEADER};
     ${CMAKE_SOURCE_DIR};
-#    ${FairLogger_INCDIR};
+    ${EDM4HEP_INCLUDE_DIR};
+    ${podio_INCLUDE_DIR};
+    ${Python_INCLUDE_DIRS};
+    ${ROOT_INCLUDE_DIRS};
+    #    ${FairLogger_INCDIR};
     ${fmt_INCDIR};
   )
 
   target_link_directories(${EXEC} PUBLIC
     ${Boost_LIBRARY_DIRS}; 
     ${FairMQ_LIBDIR};
+    ${ROOT_LIBRARIES};    
 #    ${FairLogger_LIBDIR};
   )
 
@@ -211,6 +232,13 @@ foreach(lvar IN ITEMS
     AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
     target_link_libraries(${EXEC} PUBLIC 
       ${Boost_LIBRARIES};  
+      ${ROOT_LIBRARIES};
+      ${podio_LIBRARY_DIR}/libpodio.so;      
+      ${podio_LIBRARY_DIR}/libpodioIO.so;
+      ${podio_LIBRARY_DIR}/libpodioDict.so;      
+      ${podio_LIBRARY_DIR}/libpodioRootIO.so;
+      ${podio_LIBRARY_DIR}/libpodioRootIODict.so;
+      ${EDM4HEP_INCLUDE_DIR}/../lib64/libedm4hep.so;
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};
@@ -226,6 +254,13 @@ foreach(lvar IN ITEMS
     OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
     target_link_libraries(${EXEC} PUBLIC 
       ${Boost_LIBRARIES};  
+      ${ROOT_LIBRARIES};
+      ${podio_LIBRARY_DIR}/libpodio.so;      
+      ${podio_LIBRARY_DIR}/libpodioIO.so;
+      ${podio_LIBRARY_DIR}/libpodioDict.so;      
+      ${podio_LIBRARY_DIR}/libpodioRootIO.so;
+      ${podio_LIBRARY_DIR}/libpodioRootIODict.so;
+      ${EDM4HEP_INCLUDE_DIR}/../lib64/libedm4hep.so;
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};

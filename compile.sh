@@ -1,7 +1,7 @@
 #!/bin/sh
-cmake -DCMAKE_PREFIX_PATH=$HOME/nestdaq  -DCMAKE_INSTALL_PREFIX=. -DCMAKE_CXX_STANDARD=17 -B build -S .
-#cmake -DCMAKE_PREFIX_PATH=$HOME/nestdaq  -DCMAKE_INSTALL_PREFIX=$HOME/nestdaq -DCMAKE_CXX_STANDARD=17 -B build -S .
-#cmake -DCMAKE_PREFIX_PATH=$HOME/nestdaq/  -DCMAKE_INSTALL_PREFIX=$HOME/run/local -DCMAKE_CXX_STANDARD=17 -B build -S .
+cmake  -DCMAKE_INSTALL_PREFIX=./install \
+       -DCMAKE_PREFIX_PATH="$HOME/spadi;$HOME/spadi/src/uhbook;$HOME/spadi/src/EDM4hep/install;$HOME/spadi/src/podio/install" \
+       -B ./build -S .
 #cd build
 #make
 #make install
