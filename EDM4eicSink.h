@@ -1,0 +1,90 @@
+#ifndef NESTDAQ_EDM4HEP_SINK_H_
+#define NESTDAQ_EDM4HEP_SINK_H_
+
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <thread>
+
+#include <fairmq/Device.h>
+#include <sw/redis++/redis++.h>
+#include "utility/RingBuffer.h"
+#include "utility/FileUtil.h"
+
+#include <edm4hep/SimTrackerHitCollection.h>
+#include <podio/Frame.h>
+#include <podio/ROOTWriter.h>
+
+
+namespace nestdaq {
+class TaskProcessorMT;
+
+class EDM4eicSink : public fair::mq::Device {
+public:
+    struct OptionKey {
+        static constexpr std::string_view InputDataChannelName{"in-chan-name"};
+        static constexpr std::string_view Multipart{"multipart"};
+        static constexpr std::string_view MergeMessage{"merge-msg"};
+        static constexpr std::string_view RunNumber{"run_number"};
+        static constexpr std::string_view MQTimeout{"mq-timeout"};
+        static constexpr std::string_view Discard{"discard"};
+        static constexpr std::string_view NThreads{"n-threads"};
+        static constexpr std::string_view InProcMQLength{"inproc-mq-length"};
+        static constexpr std::string_view MaxIteration{"max-iteration"};
+        static constexpr std::string_view WriteSleepInMilliSec{"write-sleep-in-msec"};
+    };
+
+    EDM4eicSink() : FairMQDevice() {}
+    EDM4eicSink(const EDM4eicSink &) = delete;
+    EDM4eicSink &operator=(const EDM4eicSink &) = delete;
+    ~EDM4eicSink() override = default;
+
+private:
+    bool CompressData(FairMQMessagePtr &rawMsg, int index);
+    bool CompressMultipartData(FairMQParts &rawMsgParts, int index);
+    bool HandleData(FairMQMessagePtr &msg, int index);
+    bool HandleDataMT(FairMQMessagePtr &msg, int index);
+    bool HandleMultipartData(FairMQParts &msgParts, int index);
+    bool HandleMultipartDataMT(FairMQParts &msgParts, int index);
+    void Init() override;
+    void InitTask() override;
+    void PreRun() override;
+    void PostRun() override;
+    void StartWorkers();
+    bool WriteData(FairMQMessagePtr &msg, int index);
+    bool WriteMultipartData(FairMQParts &msgParts, int index);
+
+    std::size_t fMaxIteration;
+    std::atomic<bool> fStopRequested;
+
+    std::string fInputDataChannelName;
+    std::unique_ptr<nestdaq::FileUtil> fFile;
+    std::shared_ptr<sw::redis::Redis> fClient;
+
+    std::unique_ptr<podio::ROOTWriter> writer;
+ 
+    nestdaq::FileUtil::CompressFunc fCompress;
+    std::atomic<std::size_t> fSize{0};
+    std::atomic<std::size_t> fCompressedSize{0};
+    std::size_t fNWrite{0};
+    int fMQTimeoutMS;
+    bool fDiscard;
+    bool fMultipart;
+    int  fWriteSleepInMilliSec;
+
+    bool fMergeMessage{false};
+    int64_t fRunNumber{0};
+    std::string run_comment;
+
+    int fInProcMQLength;
+    std::unique_ptr<nestdaq::TaskProcessorMT> fWorker;
+    std::size_t fNThreads{0};
+    std::size_t fNReceived{0};
+    std::string fFileExtension;
+    std::string fFilePath;
+};
+
+} // namespace nestdaq
+
+#endif

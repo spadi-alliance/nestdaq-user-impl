@@ -1,6 +1,6 @@
 #!/bin/sh
 cmake  -DCMAKE_INSTALL_PREFIX=./install \
-       -DCMAKE_PREFIX_PATH="$HOME/spadi;$HOME/spadi/src/uhbook;$HOME/spadi/src/EDM4hep/install;$HOME/spadi/src/podio/install" \
+       -DCMAKE_PREFIX_PATH="/home/work/NestDAQ/install;$HOME/exp/raris_ac-lgad_202603/install/podio;$HOME/exp/raris_ac-lgad_202603/install/EDM4hep;$HOME/exp/raris_ac-lgad_202603/install/EDM4eic" \
        -B ./build -S .
 #cd build
 #make

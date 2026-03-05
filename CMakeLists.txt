@@ -173,6 +173,11 @@ message(STATUS "UHBOOK_HEADER:    ${UHBOOK_HEADER}")
 find_package(EDM4HEP REQUIRED)
 message(STATUS "EDM4HEP_INCLUDE_DIR:    ${EDM4HEP_INCLUDE_DIR}")
 
+# ---------- add EDM4EIC ---------
+#find_package(EDM4EIC REQUIRED)
+set(EDM4EIC_INCLUDE_DIR ${EDM4HEP_INCLUDE_DIR}/../../EDM4eic/include)
+message(STATUS "EDM4EIC_INCLUDE_DIR:    ${EDM4EIC_INCLUDE_DIR}")
+
 # ---------- add podio ---------
 find_package(podio REQUIRED)
 message(STATUS "podio_INCLUDE_DIR:    ${podio_INCLUDE_DIR}")
@@ -188,7 +193,7 @@ message(STATUS "Python_INCLUDE_DIRS:    ${Python_INCLUDE_DIRS}")
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
 foreach(lvar IN ITEMS
-  Sampler; Sink; FileSink; JsonSink; EDM4hepSink; STFBuilder;
+  Sampler; Sink; FileSink; JsonSink; EDM4hepSink; EDM4eicSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
   fltcoin; LogicFilter;
@@ -214,6 +219,7 @@ foreach(lvar IN ITEMS
     ${UHBOOK_HEADER};
     ${CMAKE_SOURCE_DIR};
     ${EDM4HEP_INCLUDE_DIR};
+    ${EDM4EIC_INCLUDE_DIR};
     ${podio_INCLUDE_DIR};
     ${Python_INCLUDE_DIRS};
     ${ROOT_INCLUDE_DIRS};
@@ -239,6 +245,7 @@ foreach(lvar IN ITEMS
       ${podio_LIBRARY_DIR}/libpodioRootIO.so;
       ${podio_LIBRARY_DIR}/libpodioRootIODict.so;
       ${EDM4HEP_INCLUDE_DIR}/../lib64/libedm4hep.so;
+      ${EDM4EIC_INCLUDE_DIR}/../lib64/libedm4eic.so;
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};
@@ -261,6 +268,7 @@ foreach(lvar IN ITEMS
       ${podio_LIBRARY_DIR}/libpodioRootIO.so;
       ${podio_LIBRARY_DIR}/libpodioRootIODict.so;
       ${EDM4HEP_INCLUDE_DIR}/../lib64/libedm4hep.so;
+      ${EDM4EIC_INCLUDE_DIR}/../lib64/libedm4eic.so;
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};
