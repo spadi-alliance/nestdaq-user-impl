@@ -231,7 +231,7 @@ bool TFBFilePlayer::ConditionalRun()
             //  case AmQStrTdc::Data::SpillEnd:
             //---------------------------------
             case AmQStrTdc::Data::Heartbeat: {
-                fair::mq::Message [[maybe_unused]] *pmsg;
+                fair::mq::Message* pmsg;
                 if (fSplitMethod == 0) {
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                     auto & msg = outParts[outParts.Size() - 1];
@@ -288,7 +288,7 @@ bool TFBFilePlayer::ConditionalRun()
                 break;
             }
             case AmQStrTdc::Data::Heartbeat2nd: {
-                fair::mq::Message [[maybe_unused]] *pmsg;
+                fair::mq::Message* pmsg;
                 if (fSplitMethod == 2) {
                     outParts.AddPart(NewMessage(sizeof(uint64_t) * (ptr - wBegin + 1)));
                     auto & msg = outParts[outParts.Size() - 1];

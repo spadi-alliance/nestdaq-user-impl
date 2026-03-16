@@ -149,15 +149,19 @@ endif()
 #==============================================================================
 # ---------- add hiredis dependency ----------
 find_path(HIREDIS_HEADER hiredis)
-find_library(HIREDIS_LIB hiredis)
+#find_library(HIREDIS_LIB hiredis)
+  set(HIREDIS_LIB "/home/work/NestDAQ/install/lib64/libhiredis.so")
+
 
 message(STATUS "HIREDIS_HEADER: ${HIREDIS_HEADER}")
 message(STATUS "HIREDIS_LIB:    ${HIREDIS_LIB}")
 
 # ---------- add redis++ dependency ---------
 find_path(REDIS_PLUS_PLUS_HEADER sw)
-find_library(REDIS_PLUS_PLUS_LIB redis++)
+#find_library(REDIS_PLUS_PLUS_LIB redis++)
 #find_package(redis++)
+  set(REDIS_PLUS_PLUS_LIB "/home/work/NestDAQ/install/lib64/libredis++.so")
+
 
 message(STATUS "REDIS_PLUS_PLUS_HEADER: ${REDIS_PLUS_PLUS_HEADER}")
 message(STATUS "REDIS_PLUS_PLUS_LIB:    ${REDIS_PLUS_PLUS_LIB}")
@@ -175,7 +179,7 @@ message(STATUS "EDM4HEP_INCLUDE_DIR:    ${EDM4HEP_INCLUDE_DIR}")
 
 # ---------- add EDM4EIC ---------
 #find_package(EDM4EIC REQUIRED)
-set(EDM4EIC_INCLUDE_DIR ${EDM4HEP_INCLUDE_DIR}/../../EDM4eic/include)
+set(EDM4EIC_INCLUDE_DIR ${EDM4HEP_INCLUDE_DIR})
 message(STATUS "EDM4EIC_INCLUDE_DIR:    ${EDM4EIC_INCLUDE_DIR}")
 
 # ---------- add podio ---------
@@ -193,7 +197,7 @@ message(STATUS "Python_INCLUDE_DIRS:    ${Python_INCLUDE_DIRS}")
 # Sampler(for Emulator), Sink, FileSink, STFBuilder, TimeFrameBuilder
 #==============================================================================
 foreach(lvar IN ITEMS
-  Sampler; Sink; FileSink; JsonSink; EDM4hepSink; EDM4eicSink; STFBuilder;
+  Sampler; Sink; FileSink; JsonSink;  EDM4eicSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
   fltcoin; LogicFilter;
@@ -244,8 +248,8 @@ foreach(lvar IN ITEMS
       ${podio_LIBRARY_DIR}/libpodioDict.so;      
       ${podio_LIBRARY_DIR}/libpodioRootIO.so;
       ${podio_LIBRARY_DIR}/libpodioRootIODict.so;
-      ${EDM4HEP_INCLUDE_DIR}/../lib64/libedm4hep.so;
-      ${EDM4EIC_INCLUDE_DIR}/../lib64/libedm4eic.so;
+      ${EDM4HEP_INCLUDE_DIR}/../lib/libedm4hep.so;
+      ${EDM4EIC_INCLUDE_DIR}/../lib/libedm4eic.so;
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};
@@ -267,8 +271,8 @@ foreach(lvar IN ITEMS
       ${podio_LIBRARY_DIR}/libpodioDict.so;      
       ${podio_LIBRARY_DIR}/libpodioRootIO.so;
       ${podio_LIBRARY_DIR}/libpodioRootIODict.so;
-      ${EDM4HEP_INCLUDE_DIR}/../lib64/libedm4hep.so;
-      ${EDM4EIC_INCLUDE_DIR}/../lib64/libedm4eic.so;
+      ${EDM4HEP_INCLUDE_DIR}/../lib/libedm4hep.so;
+      ${EDM4EIC_INCLUDE_DIR}/../lib/libedm4eic.so;
       ${HIREDIS_LIB};
       ${REDIS_PLUS_PLUS_LIB};
       ${UHBOOK_LIB};

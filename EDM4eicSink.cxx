@@ -552,7 +552,9 @@ bool EDM4eicSink::WriteMultipartData(FairMQParts &msgParts, int index)
             //auto mom        = edm4hep::Vector3f(0.0, 0.0, 0.0);
 
 	    auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
-	    uint64_t cellID    = (std::uint64_t)idata.hrch;
+	    uint64_t cellID    = 0xffff93004a01015c | ((std::uint64_t)idata.hrch << 12);	      
+
+	    //uint64_t cellID    = (std::uint64_t)idata.hrch;	      
 	    int32_t  charge    = (int32_t) idata.hrtot;
 	    int32_t  timeStamp = (int32_t) idata.hrtdc;
 	    out_hits->create(
