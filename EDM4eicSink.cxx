@@ -15,6 +15,10 @@
 #include "utility/MessageUtil.h"
 #include "utility/TaskProcessorMT.h"
 #include "EDM4eicSink.h"
+#include "SubTimeFrameHeader.h"
+#include "TimeFrameHeader.h"
+#include "HeartbeatFrameHeader.h"
+#include "FilterHeader.h"
 #include "AmQStrTdcData.h"
 
 #include <edm4hep/SimTrackerHitCollection.h>
@@ -40,8 +44,8 @@ void addCustomOptions(bpo::options_description &options)
 {
     {   // EDM4eicSink's options ------------------------------
         options.add_options()
-        //
-        (opt::InputDataChannelName.data(),
+	  //
+	  (opt::InputDataChannelName.data(),
          bpo::value<std::string>()->default_value("in"),
          "Name of input channel")
         //
@@ -482,124 +486,220 @@ bool EDM4eicSink::WriteData(FairMQMessagePtr &msg, int index)
 }
 
 //______________________________________________________________________________
-bool EDM4eicSink::WriteMultipartData(FairMQParts &msgParts, int index)
+bool EDM4eicSink::WriteMultipartData(FairMQParts &inParts, int index)
 {
-    (void)index;
-
-    if (fStopRequested) {
-        return false;
-    }
-    auto len = MessageUtil::TotalLength(msgParts);
-    // LOG(info) << __LINE__ << ":" << __func__
-    //           << " index = " << index
-    //           << " n-received = " << fNReceived
-    //           << " parts.Sze() = " << msgParts.Size()
-    //           << " total length = " << len << " bytes"
-    //           << ", n-write = " << fNWrite;
+  (void)index;
+  
+  if (fStopRequested) {
+    return false;
+  }
+  
+  if (fMergeMessage) {
+    std::cout << "inParts.Size(): " << inParts.Size() << std::endl;
+    //for(int i = 0 ; i < inParts.Size() ; i++) {
+    //  int nwords = inParts[i].GetSize() / 8;
+    //  std::cout << "i, inParts[i].GetSize(), nwords" << i << ", " << inParts[i].GetSize() << "," << nwords <<std::endl;
+    //  char * pdata = reinterpret_cast<char *>(inParts[i].GetData());
+    //  for (int j = 0; j < nwords; j++ ){
+    //	uint64_t *hdata = reinterpret_cast<uint64_t *>(pdata + j * 8);
+    //	std::cout << "0x"  << std::hex << std::setw(8) << *hdata << std::dec << std::endl;
+    //  }
+    //}
     
-#if 0
-    for (const auto &m : msgParts) {
-      auto first = reinterpret_cast<const char *>(m->GetData());
-      auto last = first + m->GetSize();
-      LOG(debug) << "message nbytes = " << m->GetSize();
-      std::for_each(first, last, HexDump());
-    }
-#endif
-        
-    if (fMergeMessage) {
-        std::vector<char> v;
-        v.reserve(len);
-        for (auto &msg : msgParts) {
-            auto pbegin = reinterpret_cast<char *>(msg->GetData());
-            auto pend = pbegin + msg->GetSize();
-            v.insert(v.end(), std::make_move_iterator(pbegin), std::make_move_iterator(pend));
-        }
- 	std::stringstream ss;
-	AmQStrTdc::Data::Bits idata;
-	//ss << "v.size()" << std::dec << v.size() << std::endl;
-	uint64_t par_int;
+    TimeFrame::Header      *tfbHeader = 0;
+    SubTimeFrame::Header   *stfHeader = 0;
+    HeartbeatFrame::Header *hbfHeader = 0;
+    for(int i = 0 ; i < inParts.Size() ; i++) {
+      std::cout << "i, inParts[i].GetSize()" << i << ", " << inParts[i].GetSize() << std::endl;
+      char * pdata = reinterpret_cast<char *>(inParts[i].GetData());
+      uint64_t *top = reinterpret_cast<uint64_t *>(pdata);
+      if (*top == TimeFrame::MAGIC) {
+	tfbHeader = reinterpret_cast<TimeFrame::Header *>     (pdata);
+    	std::cout << "TF: TimeFrameId: " << std::dec << tfbHeader->timeFrameId
+    		  << std::hex << " 0x" << tfbHeader->timeFrameId
+    		  << std::dec << ", length: " << tfbHeader->length
+    		  << std::dec << ", type: " << tfbHeader->type
+    		  << std::dec << ", numSource: " << tfbHeader->numSource
+    		  << std::dec << std::endl;
 
-
-	for (int i = 0; i < v.size()/8; i++) {
-	  memcpy(&idata,&v.at(i*8),8);
-	  if (idata.head == AmQStrTdc::Data::Heartbeat) {
-	    //ss << "   HBF "
-	    //   << ", HBF num: 0x" << std::hex << idata.hbframe << std::dec
-	    //   << ", Delimiter flag: (0x" << std::hex << std::setw(4) << std::setfill('0') << idata.hbflag << std::setfill(' ') << std::dec << "";
-	    //ss << ", active bits:";
-	    //for (int i = 0; i < 16; i++){
-	    //  if ((idata.hbflag >> i) & 0x1) {
-	    //	ss << " bit" << i+1;
-	    //  }
-	    //}
-	    //if (idata.hbflag == 0){
-	    //  ss << " none";
-	    //}
-	    //ss << ")" << std::endl;
+      } else if (*top == SubTimeFrame::MAGIC) {
+	stfHeader = reinterpret_cast<SubTimeFrame::Header *>  (pdata);
+    	std::cout << "STF: TFID: 0x" << std::hex << stfHeader->timeFrameId << std::dec;
+    	std::cout << ", FemType: 0x" << std::hex << stfHeader->femType << std::dec;
+    	std::cout << ", FemId: 0x" << std::hex << stfHeader->femId << std::dec;
+    	std::cout << ", len: " << stfHeader->length;
+    	std::cout << ", hLen: " << stfHeader->hLength;
+    	std::cout << ", TimeSec: " << stfHeader->timeSec;
+    	std::cout << ", TimeUsec: " << stfHeader->timeUSec;
+    	std::cout << ", nwords: " << (stfHeader->length - sizeof(SubTimeFrame::Header)) / 8 << std::endl;
+    	//std::cout << "nword: " << nword << std::endl;
+    	//uint64_t hbcounter = 0;
+      } else if (*top == HeartbeatFrame::MAGIC) {
+	hbfHeader = reinterpret_cast<HeartbeatFrame::Header *>(pdata);
+    	pdata = pdata + sizeof(hbfHeader);
+    	unsigned int nwords = (inParts[i].GetSize() - sizeof(HeartbeatFrame::Header)) / 8;
+    	std::cout << "HBF: nwords: " << nwords << std::endl;
+    	std::cout << "sizeof(HeartbeatFrame::Header): " << sizeof(HeartbeatFrame::Header) << std::endl;
+    	std::cout << "inParts[i].GetSize(): " << inParts[i].GetSize() << std::endl;
+	auto out_hits1 = std::make_unique<edm4eic::RawTrackerHitCollection>();
+	auto out_hits2 = std::make_unique<edm4eic::RawTrackerHitCollection>();
+	auto out_hits3 = std::make_unique<edm4eic::RawTrackerHitCollection>();    
+	int out_hits_flag = 0;
+	uint64_t cellID    = 9999;
+	int32_t  charge    = -1;
+	int32_t  timeStamp = -1;
+    	for(unsigned int i = 0; i < nwords; i++){
+    	  AmQStrTdc::Data::Bits * idata = reinterpret_cast<AmQStrTdc::Data::Bits *>(pdata + i * 8);
+	  if (idata->head == AmQStrTdc::Data::Heartbeat) {
+	    std::cout << "  HBF Del: "
+		      << "FemId: 0x" << std::hex << std::setw(8) << std::setfill('0') << stfHeader->femId << std::setfill(' ') << std::dec
+		      << ", HBF num: 0x" << std::hex << idata->hbframe << std::dec
+		      << ", Delimiter flag: (0x" << std::hex << std::setw(4) << std::setfill('0') << idata->hbflag << std::setfill(' ') << std::dec << "";
+	    std::cout << ", active bits:";
+	    for (int i = 0; i < 16; i++){
+	      if ((idata->hbflag >> i) & 0x1) {
+		std::cout << " bit" << i+1;
+	      }
+	    }
+	    if (idata->hbflag == 0){
+	      std::cout << " none";
+	    }
+	    std::cout << ")" << std::endl;
 	    //hbcounter +=1;
-	  }else if (idata.head == AmQStrTdc::Data::Data || idata.head == AmQStrTdc::Data::Trailer ||
-		    idata.head == AmQStrTdc::Data::ThrottlingT1Start || idata.head == AmQStrTdc::Data::ThrottlingT1End ||
-		    idata.head == AmQStrTdc::Data::ThrottlingT2Start || idata.head == AmQStrTdc::Data::ThrottlingT2End){
-	    //if ( stfHeader.femType == 2 || stfHeader.femType == 5 ) { //HRTDC
-
-	    //auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
-            //auto cellID     = (std::uint64_t)idata.hrch;
-            //auto eDep       = (float)idata.hrtot;
-            //auto time       = (float)idata.hrtdc;
-            //auto pathLength = (float)0.0;
-            //auto quality    = (std::uint64_t)0;
-            //auto pos        = edm4hep::Vector3d(0.0, 0.0, 0.0);
-            //auto mom        = edm4hep::Vector3f(0.0, 0.0, 0.0);
-
-	    auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
-	    uint64_t cellID    = 0xffff93004a01015c | ((std::uint64_t)idata.hrch << 12);	      
-
-	    //uint64_t cellID    = (std::uint64_t)idata.hrch;	      
-	    int32_t  charge    = (int32_t) idata.hrtot;
-	    int32_t  timeStamp = (int32_t) idata.hrtdc;
-	    out_hits->create(
-			     cellID,
-			     charge,
-			     timeStamp);
-	    podio::Frame frame;
-	    frame.put(std::move(out_hits), "TOFBarrelADCTDC");
-	    writer->writeFrame(frame, "events");
-	    
-	    //}else if ( stfHeader.femType == 3 || stfHeader.femType == 6 ) { //LRTDC
-	    //  ss << ", ch: "<< std::setw(3) << idata.ch;		
-	    //  ss << ", tdc: "<< idata.tdc;
-	    //  ss << ", tot: "<< idata.tot << std::endl;
-	    //}
+	  }else if (idata->head == AmQStrTdc::Data::Data || idata->head == AmQStrTdc::Data::Trailer ||
+		    idata->head == AmQStrTdc::Data::ThrottlingT1Start || idata->head == AmQStrTdc::Data::ThrottlingT1End ||
+		    idata->head == AmQStrTdc::Data::ThrottlingT2Start || idata->head == AmQStrTdc::Data::ThrottlingT2End){
+	    std::cout << "  TDC ";
+	    std::cout << "FemId: 0x" << std::hex << std::setw(8) << std::setfill('0') << stfHeader->femId << std::setfill(' ') << std::dec;
+	    if ( stfHeader->femType == 2 || stfHeader->femType == 5 ) { //HRTDC
+	      if (stfHeader->femId == 0xc0a80a29) {
+		if ( (idata->hrch >= 0) && (idata->hrch <= 15) ) {
+		  cellID = idata->hrch;
+		  charge    = (int32_t) idata->hrtot;
+		  timeStamp = (int32_t) idata->hrtot;
+		  out_hits1->create(cellID,
+				    charge,
+				    timeStamp);
+		  std::cout << ", out_hits1: ";
+		  out_hits_flag++;
+		}else if ( (idata->hrch >= 16) && (idata->hrch <= 31) ) {
+		  cellID = idata->hrch - 16;
+		  charge    = (int32_t) idata->hrtot;
+		  timeStamp = (int32_t) idata->hrtot;
+		  out_hits2->create(cellID,
+				    charge,
+				    timeStamp);
+		  std::cout << ", out_hits2: ";
+		  out_hits_flag++;
+		}else if ( (idata->hrch >= 32) && (idata->hrch <= 47) ) {
+		  cellID = idata->hrch - 32;
+		  charge    = (int32_t) idata->hrtot;
+		  timeStamp = (int32_t) idata->hrtot;
+		  out_hits3->create(cellID,
+				    charge,
+				    timeStamp);
+		  std::cout << ", out_hits3: ";
+		  out_hits_flag++;
+		}
+		std::cout << ", tdc: " << idata->hrtdc;
+		std::cout << ", tot: " << idata->hrtot << std::endl;
+	      }
+	    }else if ( stfHeader->femType == 3 || stfHeader->femType == 6 ) { //LRTDC
+	      std::cout << ", ch: "<< std::setw(3) << idata->ch;		
+	      std::cout << ", tdc: "<< idata->tdc;
+	      std::cout << ", tot: "<< idata->tot << std::endl;
+	    }
 	  }
-	  //std::cout << "here" << std::endl;
 	}
-	
-	//fFile->Write(ss.str().c_str(), ss.str().size());
-
-        ++fNWrite;
-        if (fWriteSleepInMilliSec > 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
-            LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
-        }
-    } else {
-        for (auto &msg : msgParts) {
-	    //fFile->Write(reinterpret_cast<char *>(msg->GetData()), msg->GetSize());
-	    ++fNWrite;
-            if (fWriteSleepInMilliSec > 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
-                LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
-            }
-        }
+	if (out_hits_flag > 0){
+	  podio::Frame frame;
+	  frame.put(std::move(out_hits1), "TOFBarrelADCTDC1");
+	  frame.put(std::move(out_hits2), "TOFBarrelADCTDC2");
+	  frame.put(std::move(out_hits3), "TOFBarrelADCTDC3");
+	  writer->writeFrame(frame, "events");
+	}
+      }
     }
-
-    if ((fMaxIteration > 0) && (fNWrite == fMaxIteration)) {
-        LOG(info) << " number of WriteData() reached the max iteration. n-write = " << fNWrite
-                  << " max iteration = " << fMaxIteration << ". state transition : stop";
-        // ChangeState(fair::mq::Transition::Stop);
-        fStopRequested = true;
-    }
-
     
-    return !fStopRequested;
+    //	for (int i = 0; i < v.size()/8; i++) {
+    //	  memcpy(&idata,&v.at(i*8),8);
+    //	  if (idata->head == AmQStrTdc::Data::Heartbeat) {
+    //	    //ss << "   HBF "
+    //	    //   << ", HBF num: 0x" << std::hex << idata.hbframe << std::dec
+    //	    //   << ", Delimiter flag: (0x" << std::hex << std::setw(4) << std::setfill('0') << idata.hbflag << std::setfill(' ') << std::dec << "";
+    //	    //ss << ", active bits:";
+    //	    //for (int i = 0; i < 16; i++){
+    //	    //  if ((idata.hbflag >> i) & 0x1) {
+    //	    //	ss << " bit" << i+1;
+    //	    //  }
+    //	    //}
+    //	    //if (idata.hbflag == 0){
+    //	    //  ss << " none";
+    //	    //}
+    //	    //ss << ")" << std::endl;
+    //	    //hbcounter +=1;
+    //	  }else if (idata.head == AmQStrTdc::Data::Data || idata.head == AmQStrTdc::Data::Trailer ||
+    //		    idata.head == AmQStrTdc::Data::ThrottlingT1Start || idata.head == AmQStrTdc::Data::ThrottlingT1End ||
+    //		    idata.head == AmQStrTdc::Data::ThrottlingT2Start || idata.head == AmQStrTdc::Data::ThrottlingT2End){
+    //	    //if ( stfHeader.femType == 2 || stfHeader.femType == 5 ) { //HRTDC
+    //
+    //	    //auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
+    //            //auto cellID     = (std::uint64_t)idata.hrch;
+    //            //auto eDep       = (float)idata.hrtot;
+    //            //auto time       = (float)idata.hrtdc;
+    //            //auto pathLength = (float)0.0;
+    //            //auto quality    = (std::uint64_t)0;
+    //            //auto pos        = edm4hep::Vector3d(0.0, 0.0, 0.0);
+    //            //auto mom        = edm4hep::Vector3f(0.0, 0.0, 0.0);
+    //
+    //	    auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
+    //	    uint64_t cellID    = 0xffff93004a01015c | ((std::uint64_t)idata.hrch << 12);	      
+    //
+    //	    //uint64_t cellID    = (std::uint64_t)idata.hrch;	      
+    //	    int32_t  charge    = (int32_t) idata.hrtot;
+    //	    int32_t  timeStamp = (int32_t) idata.hrtdc;
+    //	    out_hits->create(
+    //			     cellID,
+    //			     charge,
+    //			     timeStamp);
+    //	    podio::Frame frame;
+    //	    frame.put(std::move(out_hits), "TOFBarrelADCTDC");
+    //	    writer->writeFrame(frame, "events");
+    //	    
+    //	    //}else if ( stfHeader.femType == 3 || stfHeader.femType == 6 ) { //LRTDC
+    //	    //  ss << ", ch: "<< std::setw(3) << idata.ch;		
+    //	    //  ss << ", tdc: "<< idata.tdc;
+    //	    //  ss << ", tot: "<< idata.tot << std::endl;
+    //	    //}
+    //	  }
+    //	  //std::cout << "here" << std::endl;
+    //	}
+    
+    //fFile->Write(ss.str().c_str(), ss.str().size());
+    
+    ++fNWrite;
+    if (fWriteSleepInMilliSec > 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+      LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
+    }
+  } else {
+    for (auto &msg : inParts) {
+      //fFile->Write(reinterpret_cast<char *>(msg->GetData()), msg->GetSize());
+      ++fNWrite;
+      if (fWriteSleepInMilliSec > 0) {
+	std::this_thread::sleep_for(std::chrono::milliseconds(fWriteSleepInMilliSec));
+	LOG(info) << __LINE__ << ":" << __func__ << " : fWriteSleepInMilliSec = " << fWriteSleepInMilliSec << " msec";
+      }
+    }
+  }
+  
+  if ((fMaxIteration > 0) && (fNWrite == fMaxIteration)) {
+    LOG(info) << " number of WriteData() reached the max iteration. n-write = " << fNWrite
+	      << " max iteration = " << fMaxIteration << ". state transition : stop";
+    // ChangeState(fair::mq::Transition::Stop);
+    fStopRequested = true;
+  }
+  return !fStopRequested;
 }
+
 } // namespace nestdaq
