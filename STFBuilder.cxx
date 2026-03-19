@@ -81,7 +81,7 @@ void AmQStrTdcSTFBuilder::BuildFrame(FairMQMessagePtr& msg, int index)
 
             LOG(warn)   << " " << i << " " << offset << " unknown head = " << std::hex << static_cast<uint16_t>(h)
 			<< " " << word->raw << std::dec << std::endl;
-	    continue;
+	    //	    continue;
         }
 
 	// in case of one delimiter...
