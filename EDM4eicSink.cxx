@@ -521,7 +521,6 @@ bool EDM4eicSink::WriteMultipartData(FairMQParts &inParts, int index)
     		  << std::dec << ", type: " << tfbHeader->type
     		  << std::dec << ", numSource: " << tfbHeader->numSource
     		  << std::dec << std::endl;
-
       } else if (*top == SubTimeFrame::MAGIC) {
 	stfHeader = reinterpret_cast<SubTimeFrame::Header *>  (pdata);
     	std::cout << "STF: TFID: 0x" << std::hex << stfHeader->timeFrameId << std::dec;
@@ -576,7 +575,7 @@ bool EDM4eicSink::WriteMultipartData(FairMQParts &inParts, int index)
 		if ( (idata->hrch >= 0) && (idata->hrch <= 15) ) {
 		  cellID = idata->hrch;
 		  charge    = (int32_t) idata->hrtot;
-		  timeStamp = (int32_t) idata->hrtot;
+		  timeStamp = (int32_t) idata->hrtdc;
 		  out_hits1->create(cellID,
 				    charge,
 				    timeStamp);
@@ -585,7 +584,7 @@ bool EDM4eicSink::WriteMultipartData(FairMQParts &inParts, int index)
 		}else if ( (idata->hrch >= 16) && (idata->hrch <= 31) ) {
 		  cellID = idata->hrch - 16;
 		  charge    = (int32_t) idata->hrtot;
-		  timeStamp = (int32_t) idata->hrtot;
+		  timeStamp = (int32_t) idata->hrtdc;
 		  out_hits2->create(cellID,
 				    charge,
 				    timeStamp);
@@ -594,7 +593,7 @@ bool EDM4eicSink::WriteMultipartData(FairMQParts &inParts, int index)
 		}else if ( (idata->hrch >= 32) && (idata->hrch <= 47) ) {
 		  cellID = idata->hrch - 32;
 		  charge    = (int32_t) idata->hrtot;
-		  timeStamp = (int32_t) idata->hrtot;
+		  timeStamp = (int32_t) idata->hrtdc;
 		  out_hits3->create(cellID,
 				    charge,
 				    timeStamp);
@@ -620,62 +619,6 @@ bool EDM4eicSink::WriteMultipartData(FairMQParts &inParts, int index)
 	}
       }
     }
-    
-    //	for (int i = 0; i < v.size()/8; i++) {
-    //	  memcpy(&idata,&v.at(i*8),8);
-    //	  if (idata->head == AmQStrTdc::Data::Heartbeat) {
-    //	    //ss << "   HBF "
-    //	    //   << ", HBF num: 0x" << std::hex << idata.hbframe << std::dec
-    //	    //   << ", Delimiter flag: (0x" << std::hex << std::setw(4) << std::setfill('0') << idata.hbflag << std::setfill(' ') << std::dec << "";
-    //	    //ss << ", active bits:";
-    //	    //for (int i = 0; i < 16; i++){
-    //	    //  if ((idata.hbflag >> i) & 0x1) {
-    //	    //	ss << " bit" << i+1;
-    //	    //  }
-    //	    //}
-    //	    //if (idata.hbflag == 0){
-    //	    //  ss << " none";
-    //	    //}
-    //	    //ss << ")" << std::endl;
-    //	    //hbcounter +=1;
-    //	  }else if (idata.head == AmQStrTdc::Data::Data || idata.head == AmQStrTdc::Data::Trailer ||
-    //		    idata.head == AmQStrTdc::Data::ThrottlingT1Start || idata.head == AmQStrTdc::Data::ThrottlingT1End ||
-    //		    idata.head == AmQStrTdc::Data::ThrottlingT2Start || idata.head == AmQStrTdc::Data::ThrottlingT2End){
-    //	    //if ( stfHeader.femType == 2 || stfHeader.femType == 5 ) { //HRTDC
-    //
-    //	    //auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
-    //            //auto cellID     = (std::uint64_t)idata.hrch;
-    //            //auto eDep       = (float)idata.hrtot;
-    //            //auto time       = (float)idata.hrtdc;
-    //            //auto pathLength = (float)0.0;
-    //            //auto quality    = (std::uint64_t)0;
-    //            //auto pos        = edm4hep::Vector3d(0.0, 0.0, 0.0);
-    //            //auto mom        = edm4hep::Vector3f(0.0, 0.0, 0.0);
-    //
-    //	    auto out_hits = std::make_unique<edm4eic::RawTrackerHitCollection>();
-    //	    uint64_t cellID    = 0xffff93004a01015c | ((std::uint64_t)idata.hrch << 12);	      
-    //
-    //	    //uint64_t cellID    = (std::uint64_t)idata.hrch;	      
-    //	    int32_t  charge    = (int32_t) idata.hrtot;
-    //	    int32_t  timeStamp = (int32_t) idata.hrtdc;
-    //	    out_hits->create(
-    //			     cellID,
-    //			     charge,
-    //			     timeStamp);
-    //	    podio::Frame frame;
-    //	    frame.put(std::move(out_hits), "TOFBarrelADCTDC");
-    //	    writer->writeFrame(frame, "events");
-    //	    
-    //	    //}else if ( stfHeader.femType == 3 || stfHeader.femType == 6 ) { //LRTDC
-    //	    //  ss << ", ch: "<< std::setw(3) << idata.ch;		
-    //	    //  ss << ", tdc: "<< idata.tdc;
-    //	    //  ss << ", tot: "<< idata.tot << std::endl;
-    //	    //}
-    //	  }
-    //	  //std::cout << "here" << std::endl;
-    //	}
-    
-    //fFile->Write(ss.str().c_str(), ss.str().size());
     
     ++fNWrite;
     if (fWriteSleepInMilliSec > 0) {
