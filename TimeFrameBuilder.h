@@ -12,6 +12,7 @@
 
 #include <fairmq/Device.h>
 
+#include "KTimer.cxx"
 
 class TimeFrameBuilder : public fair::mq::Device
 {
@@ -28,10 +29,12 @@ public:
         static constexpr std::string_view DecimationFactor     {"decimation-factor"};
         static constexpr std::string_view DecimationOffset     {"decimation-offset"};
         static constexpr std::string_view DiscardOutput        {"discard-output"};
+        static constexpr std::string_view OutputIncompleteTF   {"output-incomplete-tf"};
+        static constexpr std::string_view ObjectDbNumber       {"object-db-number"};
     };
 
     struct STFBuffer {
-        FairMQParts parts;
+        fair::mq::Parts parts;
         std::chrono::steady_clock::time_point start;
     };
 
@@ -62,11 +65,38 @@ private:
     int fDecimatorNumberOfConnectedPeers {0};
     int fPollTimeoutMS    {0};
     uint64_t fNumSend {0};
-    bool fDiscardOutput;
+    bool fDiscardOutput {false};
+    bool fOutputIncompleteTF {false};
 
     std::unordered_map<uint32_t, std::vector<STFBuffer>> fTFBuffer;
-    //std::unordered_set<uint64_t> fDiscarded;
 
+    int fNumSccesssfulTFB {0};
+    int fNumFailedTFB     {0};
+
+    void MakeOutPartsFromSTFBuffers(
+        std::vector<STFBuffer>&,
+        uint32_t,
+        uint16_t,
+        fair::mq::Parts&); 
+    void SendTimeFrame(fair::mq::Parts&);
+    void SendTimeFrameForDQM(fair::mq::Parts&);
+    void SendTimeFrameForDecimator(fair::mq::Parts&);
+    void SendTimeFrameToEvery(fair::mq::Parts&);
+    void TFBFailDump(std::vector<STFBuffer>&, uint32_t);
+    void TFBFailCheck(std::vector<STFBuffer>&);
+    std::unordered_map<uint32_t, int> fSegmentCounts;
+    int CheckHBFDelimitor(fair::mq::Parts&, uint32_t);
+    void TFBSegmentCheck(std::vector<STFBuffer>&);
+
+    std::string fKeyPrefixMetric;
+    std::string fDbUriMetric;
+    std::unique_ptr<RedisDataStore> fDbMetric {nullptr};
+    std::string fKeyPrefixObjects;
+    std::string fDbUriObjects;
+    std::unique_ptr<RedisDataStore> fDbObjects {nullptr};
+    void SetKeyPrefix();
+
+    KTimer fKt;
 };
 
 #endif
