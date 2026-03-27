@@ -113,6 +113,33 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
 }
 
 
+void TimeFrameBuilder::TFBSegmentCheck(std::vector<STFBuffer> &tfBuf)
+{
+
+    std::vector<uint32_t> femid;
+    std::vector<uint32_t> expected = {
+        160, 161, 162, 163, 164, 165, 166, 167, 168, 169,
+        170, 171, 172, 173, 174, 175, 176, 177, 178, 179
+    };
+    std::vector<uint64_t> hb;
+    for (auto & stfBuf : tfBuf) {
+        auto & msg = stfBuf.parts[0];
+        SubTimeFrame::Header *stfheader
+            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+        uint32_t femid = stfheader->femId;
+        if (fSegmentCounts.count(femid) > 0) {
+            fSegmentCounts[femid]++;
+        } else {
+            fSegmentCounts[femid] = 1;
+        }
+    }
+
+    //check segment counts
+
+    return;
+}
+
+
 int TimeFrameBuilder::CheckHBFDelimitor(fair::mq::Parts &inParts, uint32_t stfId)
 {
     auto nmsg = inParts.Size();
@@ -433,9 +460,11 @@ bool TimeFrameBuilder::ConditionalRun()
 
     if (fKt.Check()) {
         static int lcounts = 0;
-        LOG(debug) << "TimeFrameBuilding Successful: " << fNumSccesssfulTFB
-                  << ", Failed: " << fNumFailedTFB;
-        if ((lcounts++ % 5) == 0) {
+        //if ((lcounts++ % 5) == 0) {
+        if ((lcounts++ % 1) == 0) {
+
+            LOG(debug) << "TimeFrameBuilding Successful: " << fNumSccesssfulTFB
+                << ", Failed: " << fNumFailedTFB;
 
             double successfulRatio = 0;
             if (fNumSccesssfulTFB + fNumFailedTFB > 0) {

@@ -83,7 +83,10 @@ private:
     void SendTimeFrameForDecimator(fair::mq::Parts&);
     void SendTimeFrameToEvery(fair::mq::Parts&);
     void TFBFailDump(std::vector<STFBuffer>&, uint32_t);
+    void TFBFailCheck(std::vector<STFBuffer>&);
+    std::unordered_map<uint32_t, int> fSegmentCounts;
     int CheckHBFDelimitor(fair::mq::Parts&, uint32_t);
+    void TFBSegmentCheck(std::vector<STFBuffer>&);
 
     std::string fKeyPrefixMetric;
     std::string fDbUriMetric;
