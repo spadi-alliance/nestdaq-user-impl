@@ -7,12 +7,12 @@ The processing time unit is four times the unit of the input TDC data. For examp
 ## Redis DB Keys
 
 ### Key prefix
-- Defaut: parameter:LogicFilger:
+- Defaut: parameter:LogicFilter:
 
 ### trigger-signals
-Defines the input channels. Each input signal is specified as a triplet: (<module id> <channel id> <offset>).
+Defines the input channels. Each input signal is specified as a triplet: (\<module id\> \<channel id\> \<offset\>).  
 Signal IDs: Assigned sequentially starting from 0 based on the order of the definitions.
-Capacity: A maximum of 32 signals can be defined.
+A maximum of 32 signals can be defined.
 - Default: (0xc0a802a9 0 0) (0xc0a802a9 1 0)
 
 ### trigger-expression
@@ -31,7 +31,7 @@ Defines the logical expression applied to the input signals. It supports both In
 - RPN: Must be prefixed with the keyword RPN.
 
 - Default: RPN 0 1 &  
-(Generates a trigger based on the coincidence of input channels 0 and 1.)
+(Generates a trigger based on the coincidence of signal id 0 and 1.)
 
 ### trigger-width
 Sets the TDC coincidence window. Let $T$ be the trigger-width value and $t$ be the TDC value; the window is defined as: 
