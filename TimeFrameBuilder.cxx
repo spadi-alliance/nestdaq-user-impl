@@ -72,7 +72,6 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
         auto & msg = stfBuf.parts[0];
         SubTimeFrame::Header *stfheader
             = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
-        //std::cout << " ID" << std::hex << stfheader->femId << std::dec;
         femid.push_back(stfheader->femId);
         for (auto it = expected.begin() ; it != expected.end() ;) {
             if (*it == (stfheader->femId && 0xff)) {
@@ -92,11 +91,7 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
         }
     }
 
-#if 0
-    std::cout << "#D TFid :" << stfId << " Lost FEid :";
-    for (auto & i : expected) std::cout << " " << (i & 0xff);
-    std::cout << std::endl;
-#else
+#if 1
     std::cout << "#D TFB Fail. TFid: " << stfId << "(0x" << std::hex << stfId << "), "
         << std::dec << "N: " << femid.size() << "/" << fNumSource << ", FEid:";
     for (auto & i : femid) std::cout << " " << (i & 0xff);
@@ -115,8 +110,6 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
 
 void TimeFrameBuilder::TFBSegmentCheck(std::vector<STFBuffer> &tfBuf)
 {
-
-    std::vector<uint32_t> femid;
     std::vector<uint32_t> expected = {
         160, 161, 162, 163, 164, 165, 166, 167, 168, 169,
         170, 171, 172, 173, 174, 175, 176, 177, 178, 179
@@ -137,6 +130,63 @@ void TimeFrameBuilder::TFBSegmentCheck(std::vector<STFBuffer> &tfBuf)
     //check segment counts
 
     return;
+}
+
+void TimeFrameBuilder::StoreSuccessfulSegmentIDs(const std::vector<STFBuffer> &stfBuf)
+{
+    fSuccessfulSegmentIDs.clear();
+    fSuccessfulSegmentIDs.resize(0);
+
+    for (auto & stf : stfBuf) {
+        auto & msg = stf.parts[0];
+        SubTimeFrame::Header *stfheader
+            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+        uint32_t femid = stfheader->femId;
+        fSuccessfulSegmentIDs.emplace_back(femid);
+    }
+    #if 0
+    std::sort(fSuccessfulSegmentIDs.begin(), fSuccessfulSegmentIDs.end());
+    #endif
+
+    return;
+}
+
+std::vector<uint32_t> TimeFrameBuilder::CheckLostSegmentIDs(const std::vector<STFBuffer> &stfBuf)
+{
+    std::vector<uint32_t> lostSegmentIds;
+    std::vector<uint32_t> existedSegmentIds;
+
+    for (auto & stf : stfBuf) {
+        auto & msg = stf.parts[0];
+        SubTimeFrame::Header *stfheader
+            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+        uint32_t femid = stfheader->femId;
+        existedSegmentIds.emplace_back(femid);
+    }
+
+    for (auto & femid : fSuccessfulSegmentIDs) {
+
+        #if 0
+        std::cout << "#D Succeeded femid: " << femid << " (" << (femid & 0xff) << ") : "
+            << [&existedSegmentIds](uint32_t x) {
+                if (std::find(
+                    existedSegmentIds.begin(), existedSegmentIds.end(), x)
+                        == existedSegmentIds.end()) {
+                    return "lost";
+                } else {
+                    return "exists";
+                }
+                }(femid)
+            << std::endl;
+        #endif
+
+        if (std::find(existedSegmentIds.begin(), existedSegmentIds.end(), femid)
+            == existedSegmentIds.end()) {
+            lostSegmentIds.emplace_back(femid);
+        }
+    }
+
+    return lostSegmentIds;
 }
 
 
@@ -382,19 +432,38 @@ bool TimeFrameBuilder::ConditionalRun()
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
                 LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
 
-                fair::mq::Parts outParts;
+                if (fFirstTFB) {
+                    fFirstTFB = false;
+                    StoreSuccessfulSegmentIDs(tfBuf);
+                }
 
+                fair::mq::Parts outParts;
                 MakeOutPartsFromSTFBuffers(tfBuf, stfId, TimeFrame::TF_COMPLETE, outParts);
                 tfBuf.clear();
 
                 SendTimeFrameToEvery(outParts);
 
             } else {
-                // discard incomplete time frame
+                // Timeout processing for incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
                     // output debug info
-                    TFBFailDump(tfBuf, stfId);
+                    //TFBFailDump(tfBuf, stfId);
+
+                    #if 0
+                    std::cout << "#D Succeeded segments for TF " << stfId << ": " << std::dec;
+                    for (auto & id : fSuccessfulSegmentIDs) {
+                        std::cout << id << " (" << (id & 0xff) << ") ";
+                    }
+                    std::cout << std::endl;
+                    #endif
+
+                    std::vector<uint32_t> lostSegmentIds = CheckLostSegmentIDs(tfBuf);
+                    std::string lostSegmentIdsStr;
+                    for (auto & id : lostSegmentIds) {
+                        lostSegmentIdsStr += std::to_string(id) + "(" + std::to_string(id & 0xff) + ") ";
+                    }
+                    LOG(warn) << "TFB Timeout: TF ID: " << stfId << ", Lost Segment ID: " << lostSegmentIdsStr;
 
                     // output incomplete TF
                     if (fOutputIncompleteTF) {
@@ -441,6 +510,14 @@ bool TimeFrameBuilder::ConditionalRun()
             }
             std::cout << std::endl;
 #endif
+
+            std::vector<uint32_t> lostSegmentIds = CheckLostSegmentIDs(tfBuf);
+            std::string lostSegmentIdsStr;
+            for (auto & id : lostSegmentIds) {
+                lostSegmentIdsStr += std::to_string(id) + "(" + std::to_string(id & 0xff) + ") ";
+            }
+            LOG(warn) << "Buffer overflow: TF ID: " << fTFBuffer.begin()->first
+                << ", Lost segment ID: " << lostSegmentIdsStr;
 
             if (fOutputIncompleteTF) {
                 uint32_t stfId = fTFBuffer.begin()->first;
@@ -640,6 +717,9 @@ void TimeFrameBuilder::PostRun()
 //_____________________________________________________________________________
 void TimeFrameBuilder::PreRun()
 {
-    fDirection    = 0;
+    fDirection = 0;
     fNumSend = 0;
+    fFirstTFB = true;
+    fNumSccesssfulTFB = 0;
+    fNumFailedTFB = 0;
 }
