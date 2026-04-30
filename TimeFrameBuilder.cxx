@@ -41,6 +41,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::DiscardOutput.data(),        bpo::value<std::string>()->default_value("false"),     "Discard output option to eliminate the back pressure for upstream FairMQ device. true: discard, false (default): no discard causing back pressure")
     (opt::OutputIncompleteTF.data(),   bpo::value<std::string>()->default_value("false"),     "Output incomplete Time Frame")
     (opt::ObjectDbNumber.data(),       bpo::value<std::string>()->default_value("3"),         "DB number for DQM objects")
+    (opt::EnableCheckHBF.data(),       bpo::value<std::string>()->default_value("true"),      "Check HBF delimiter")
     ;
 }
 
@@ -405,9 +406,9 @@ bool TimeFrameBuilder::ConditionalRun()
             << " Type: " << std::dec << stfHeader->type;
 #endif
 
-#if 1
-        CheckHBFDelimitor(inParts, stfId);
-#endif
+	if (fEnableCheckHBF) {
+        	CheckHBFDelimitor(inParts, stfId);
+	}
 
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
             fTFBuffer[stfId].reserve(fNumSource);
@@ -589,8 +590,8 @@ void TimeFrameBuilder::SetKeyPrefix()
     }
     
     std::string serviceRegistryUri = fConfig->GetProperty<std::string>("registry-uri");
-    std::cout << "#D DB Server URI: " << serverUri << std::endl;
-    std::cout << "#D DB serviceRegistoryUri: " << serviceRegistryUri << std::endl;
+    LOG(debug) << "DB Server URI: " << serverUri;
+    LOG(debug) << "DB serviceRegistoryUri: " << serviceRegistryUri;
 
     std::string service_name = fConfig->GetProperty<std::string>("service-name");
     std::string separator   = fConfig->GetProperty<std::string>("separator");
@@ -679,6 +680,10 @@ void TimeFrameBuilder::InitTask()
     std::string sOutputIncompleteTF = fConfig->GetProperty<std::string>(opt::OutputIncompleteTF.data());
     fOutputIncompleteTF = ((sOutputIncompleteTF == "1") || (sOutputIncompleteTF == "true") || (sOutputIncompleteTF == "yes"));
     LOG(debug) << " output-incomplete-tf = " << fOutputIncompleteTF;
+
+    std::string sEnableCheckHBF = fConfig->GetProperty<std::string>(opt::EnableCheckHBF.data());
+    fEnableCheckHBF = ((sEnableCheckHBF == "1") || (sEnableCheckHBF == "true") || (sEnableCheckHBF == "yes"));
+    LOG(debug) << " enable-check-hbf = " << fEnableCheckHBF;
 
     SetKeyPrefix();
 

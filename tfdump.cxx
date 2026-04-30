@@ -347,11 +347,12 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 			std::cout <<  "#----" << std::endl;
 		}
 	} else if (data_mode == DM_OTHER) {
+
+		#if 0
 		std::cout << "#E Unkown data message" << std::endl;
 		std::cout << "#D " << reinterpret_cast<char *>(&msg_magic)
 			<< " 0x" << std::hex << msg_magic << std::dec << std::endl;
 
-		#if 1
 		for (unsigned int i = 0 ; i < msize; i++) {
 			if ((i % 16) == 0) {
 				if (i != 0) std::cout << std::endl;

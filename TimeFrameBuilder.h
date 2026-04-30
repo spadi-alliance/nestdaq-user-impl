@@ -31,6 +31,7 @@ public:
         static constexpr std::string_view DiscardOutput        {"discard-output"};
         static constexpr std::string_view OutputIncompleteTF   {"output-incomplete-tf"};
         static constexpr std::string_view ObjectDbNumber       {"object-db-number"};
+        static constexpr std::string_view EnableCheckHBF       {"enable-check-hbf"};
     };
 
     struct STFBuffer {
@@ -92,6 +93,7 @@ private:
     void StoreSuccessfulSegmentIDs(const std::vector<STFBuffer>&);
     std::vector<uint32_t> CheckLostSegmentIDs(const std::vector<STFBuffer>&);
     bool fFirstTFB {true};
+    bool fEnableCheckHBF {true};
 
     std::string fKeyPrefixMetric;
     std::string fDbUriMetric;
