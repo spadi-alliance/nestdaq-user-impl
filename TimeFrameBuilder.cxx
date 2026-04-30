@@ -183,6 +183,7 @@ std::vector<uint32_t> TimeFrameBuilder::CheckLostSegmentIDs(const std::vector<ST
         if (std::find(existedSegmentIds.begin(), existedSegmentIds.end(), femid)
             == existedSegmentIds.end()) {
             lostSegmentIds.emplace_back(femid);
+            fLostSegmentCounts[femid]++;
         }
     }
 
@@ -552,19 +553,49 @@ bool TimeFrameBuilder::ConditionalRun()
             #if 0
             time_t now = std::time(nullptr);
             std::cout << "#D "
-                << fKeyPrefixMetric + "SucessfulRatio "
+                << fKeyPrefixMetric + gKeySuccessfulRatio + " "
                 << now
                 << " TFB Successful Ratio: "
                 << std::to_string(successfulRatio) << std::endl;
             #endif
+
             fDbMetric->ts_add(
-                fKeyPrefixMetric + "SuccessfulRatio",
+                fKeyPrefixMetricTs + gKeySuccessfulRatio,
                 std::to_string(std::time(nullptr) * 1000),
                 std::to_string(successfulRatio));
 
             fNumSccesssfulTFB = 0;
             fNumFailedTFB     = 0;
         }
+
+        static bool flagLostSegment = false;
+        if ((lcounts++ % 1) == 0) {
+            if (fLostSegmentCounts.size() > 0) {
+                LOG(debug) << "Lost segment counts: ";
+                fDbMetric->del(fKeyPrefixMetric + gKeyLostSegments);
+                for (const auto& [femid, lostcounts] : fLostSegmentCounts) {
+                    #if 0
+                    LOG(debug) << "  FEM ID: " << femid << " (" << (femid & 0xff) << ")"
+                               << ", Counts: " << lostcounts;
+                    #endif
+                    std::string femid_str = std::to_string(femid);
+                    std::string lostcounts_str = std::to_string(lostcounts);
+                    try {
+                        fDbMetric->hset(fKeyPrefixMetric + gKeyLostSegments, femid_str, lostcounts_str);
+                    } catch(const sw::redis::Error &e) {
+                        std::cerr << e.what() << std::endl;
+                    }
+                    flagLostSegment = true;
+                }
+                fLostSegmentCounts.clear();
+            } else {
+                if (flagLostSegment) {
+                    fDbMetric->del(fKeyPrefixMetric + gKeyLostSegments);
+                    flagLostSegment = false;
+                }
+            }
+        }
+
     }
 
     return true;
@@ -594,7 +625,8 @@ void TimeFrameBuilder::SetKeyPrefix()
 
     std::string service_name = fConfig->GetProperty<std::string>("service-name");
     std::string separator   = fConfig->GetProperty<std::string>("separator");
-    fKeyPrefixMetric = "ts" + separator + fId + separator;
+    fKeyPrefixMetricTs = "ts" + separator + fId + separator;
+    fKeyPrefixMetric = "metrics" + separator + fId + separator;
     fKeyPrefixObjects = "dqm" + separator + fId + separator;
 
 
@@ -609,7 +641,8 @@ void TimeFrameBuilder::SetKeyPrefix()
         fDbObjects = std::make_unique<RedisDataStore>(fDbUriObjects);
     }
 
-    LOG(info) << "Metric DB: " << fDbUriMetric << " Prefix:" << fKeyPrefixMetric;
+    LOG(info) << "Metric DB: " << fDbUriMetric << " Prefix: "
+        << fKeyPrefixMetric << " " << fKeyPrefixMetricTs;
     LOG(info) << "DQM DB: " << fDbUriObjects << " Prefix:" << fKeyPrefixObjects;
 
     /*
@@ -722,4 +755,5 @@ void TimeFrameBuilder::PreRun()
     fFirstTFB = true;
     fNumSccesssfulTFB = 0;
     fNumFailedTFB = 0;
+    fLostSegmentCounts.clear();
 }
