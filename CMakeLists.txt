@@ -237,6 +237,19 @@ foreach(lvar IN ITEMS
       AmQTdcModule;
       sqlite3;
     )
+  elseif ((FairMQ_VERSION VERSION_EQUAL 1.10.0))
+    target_link_libraries(${EXEC} PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      fairmq;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+    )
   else()
     message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
   endif()
@@ -279,10 +292,18 @@ if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
   )
 elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
   AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
-  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))  
+  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
   target_link_libraries(AmQStrTdcSampler  PUBLIC
     FairMQ;
     FairMQStateMachine;
+    FairLogger;
+    ${Boost_LIBRARIES};
+    Utility;
+    sqlite3;
+  )
+elseif((FairMQ_VERSION VERSION_EQUAL 1.10.0))
+  target_link_libraries(AmQStrTdcSampler  PUBLIC
+    fairmq;
     FairLogger;
     ${Boost_LIBRARIES};
     Utility;
@@ -341,11 +362,20 @@ if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
   )
 elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
   AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
-  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))  
+  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
   target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     FairMQ;
     FairMQStateMachine;
+    FairLogger;
+    ${ROOT_LIBRARIES};
+    ${HIREDIS_LIB};
+    ${REDIS_PLUS_PLUS_LIB};
+  )
+elseif ((FairMQ_VERSION VERSION_EQUAL 1.10.0)) 
+  target_link_libraries(${EXEC} PUBLIC 
+    ${Boost_LIBRARIES};  
+    fairmq;
     FairLogger;
     ${ROOT_LIBRARIES};
     ${HIREDIS_LIB};

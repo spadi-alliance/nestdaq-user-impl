@@ -53,6 +53,9 @@ void addCustomOptions(bpo::options_description &options)
          "Number of iterations (if zero, no limitation is set)")
         (opt::WriteSleepInMilliSec.data(), bpo::value<std::string>()->default_value("0"),
          "Write Sleep in msec")
+        //
+        (opt::DQMChannelName.data(), bpo::value<std::string>()->default_value("dqm"),
+         "Name of DQM channel")
 	;
     }
 
@@ -147,6 +150,23 @@ bool FileSink::HandleData(FairMQMessagePtr &msg, int index)
     // LOG(info) << __LINE__ << ":" << __func__ << " index = " << index << " n-received = " << fNReceived << ", n-write =
     // " << fNWrite;
     ++fNReceived;
+
+    // send data to data quality monitor 
+#if 1
+    FairMQParts dqmParts;
+	if (int nSubChan = fChannels.count(fDQMChannelName)) {
+		FairMQMessagePtr msgCopy(fTransportFactory->CreateMessage());
+		msgCopy->Copy(*msg);
+		dqmParts.AddPart(std::move(msgCopy));
+        if (Send(dqmParts,fDQMChannelName) < 0) {
+            if (NewStatePending()) {
+                LOG(info) << "Device is not RUNNING";
+            } else {
+                LOG(error) << "Failed to enqueue time frame slice (DQM) " << std::endl;
+            }
+        }
+    }   
+#endif
     return WriteData(msg, index);
 }
 
@@ -181,6 +201,20 @@ bool FileSink::HandleMultipartData(FairMQParts &msgParts, int index)
     // LOG(info) << __LINE__ << ":" << __func__ << " index = " << index << " n-received = " << fNReceived << ", n-write =
     // " << fNWrite;
     ++fNReceived;
+    auto nSubChan = GetNumSubChannels(fDQMChannelName);    
+
+	for (auto iSubChan = 0; iSubChan < nSubChan; ++iSubChan) {
+        fair::mq::Parts partsCopy = MessageUtil::Copy(*this, msgParts);
+        if (Send(partsCopy,fDQMChannelName,iSubChan) < 0) {
+            if (NewStatePending()) {
+                LOG(info) << "Device is not RUNNING";
+            } else {
+                LOG(error) << "Failed to enqueue time frame slice (DQM) " << std::endl;
+            }
+        }
+    }   
+
+
     return WriteMultipartData(msgParts, index);
 }
 
@@ -226,6 +260,7 @@ void FileSink::InitTask()
     };
 
     fInputDataChannelName = get(opt::InputDataChannelName);
+    fDQMChannelName = get(opt::DQMChannelName);
 
     fNThreads = std::stoi(get(opt::NThreads));
     if (fNThreads < 1) {
