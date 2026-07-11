@@ -4,6 +4,7 @@
 #include "utility/TaskProcessorMT.h"
 
 #include <fairmq/FairMQLogger.h>
+#include <fairmq/Transports.h>
 
 namespace nestdaq {
 //_____________________________________________________________________________

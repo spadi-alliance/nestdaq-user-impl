@@ -30,6 +30,7 @@ public:
         static constexpr std::string_view InProcMQLength{"inproc-mq-length"};
         static constexpr std::string_view MaxIteration{"max-iteration"};
         static constexpr std::string_view WriteSleepInMilliSec{"write-sleep-in-msec"};
+        static constexpr std::string_view DQMChannelName{"dqm-chan-name"};
     };
 
     FileSink() : FairMQDevice() {}
@@ -56,6 +57,7 @@ private:
     std::atomic<bool> fStopRequested;
 
     std::string fInputDataChannelName;
+    std::string fDQMChannelName;
     std::unique_ptr<nestdaq::FileUtil> fFile;
     std::shared_ptr<sw::redis::Redis> fClient;
     nestdaq::FileUtil::CompressFunc fCompress;
