@@ -71,14 +71,7 @@ With `trigger-signals` and `trigger-expression`,
 Computational cost depends on number of Subgroups. If your trigger logic has less than 32 channels, it is recommended to use without subgroups.
 
 
-
-- 32ch以上のトリガーロジックへの対応( https://github.com/SATSUKIUM/nestdaq-user-impl/tree/dev_lf_more32_debug )
-- クローンしてdev_lf_more32_debugのブランチをプルすると使える
-- TriggerLogic.shの記法が変更された
-- いままで: signalの組み合わせがtrigger-expressionと呼ばれていた
-- これから: signalを1つ以上持つgroupの組み合わせをtrigger-expressionと呼ぶ。
-- つまり、シグナルをグループでラップすることで実質的にLUTに32ch以上を詰め込むことがこのアップデートである
-### 新しい記法
+### 従来との違い・互換性
 - "trigger-signals"は(group IP CH Offset left_width right_width)もしくは、(“Group-Subgroup” IP CH Offset left_width right_width)を列挙することになります
 - 同じグループに属するチャンネル/サブグループはORのロジックが自動で組まれます
 - 同じサブグループに属するチャンネルはANDのロジックが自動で組まれます
