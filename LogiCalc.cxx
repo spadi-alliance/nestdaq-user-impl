@@ -14,6 +14,8 @@
 
 #include "infixtorp.cxx"
 
+#define DEBUG_MORE32 1
+
 class LogiCalc
 {
 public:
@@ -85,7 +87,7 @@ std::vector<std::string> & LogiCalc::SetFormula(std::string sparam)
 		sform = infixtorp(sparam)->to_rpn();
 	}
 
-	#if 0
+	#if DEBUG_MORE32
 	std::cout << "#D input formula: " << sparam << std::endl;
 	std::cout << "#D rpn formula  : " << sform << std::endl;
 	#endif
@@ -108,6 +110,12 @@ std::vector<std::string> & LogiCalc::SetFormula(std::string sparam)
 		offset = pos + slen;
 	}
 	
+	#if DEBUG_MORE32
+	std::cout << "\n[LogiCalc::SetFormula] commands: " << std::endl;
+	for(int i = 0 ; i < fCommands.size() ; i++) {
+		std::cout << "#D command " << std::setw(2) << i << ": " << fCommands[i] << std::endl;
+	}
+	#endif
 	return fCommands;
 }
 
