@@ -360,29 +360,25 @@ int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L) {
+	} else if (type == SubTimeFrame::TDC64L) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::Unpack(val, &tdc) == TDC64L::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L_V1) {
+	} else if (type == SubTimeFrame::TDC64L_V1) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::v1::Unpack(val, &tdc) == TDC64L::v1::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64H_V3) {
+	} else if (type == SubTimeFrame::TDC64H_V3) {
 		struct TDC64H_V3::tdc64 tdc;
 		if (TDC64H_V3::Unpack(val, &tdc) == TDC64H_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L_V3) {
+	} else if (type == SubTimeFrame::TDC64L_V3) {
 		struct TDC64L_V3::tdc64 tdc;
 		if (TDC64L_V3::Unpack(val, &tdc) == TDC64L_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
@@ -390,8 +386,11 @@ int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 		}
 	} else {
 		std::cout << "Unknown device : " << std::hex << type << std::endl;
+		const uint64_t* data = reinterpret_cast<const uint64_t*>(&val);
+		for (size_t i = 0; i < sizeof(val) / sizeof(uint64_t); ++i) {
+			std::cout << "Data[" << i << "]: " << std::hex << data[i] << std::endl;
+		}
 	}
-
 
 	if (hbflag > 0) fHBflag |= hbflag;
 	if (fKt4->Check()) {
