@@ -55,6 +55,7 @@ public:
         static constexpr std::string_view MaxHBF            {"max-hbf"};
         static constexpr std::string_view SplitMethod       {"split"};
         static constexpr std::string_view TimeFrameIdType   {"time-frame-id-type"};
+        static constexpr std::string_view DiscardOutput     {"discard-output"};
     };
 
     AmQStrTdcSTFBuilder();
@@ -95,6 +96,7 @@ private:
   
     TimeFrameIdType fTimeFrameIdType;
     int32_t fSTFId{-1}; // 8-bit spill counter and 16-bit HB frame from heartbeat delimiter
+    bool fDiscardOutput;
 
     bool mdebug;
     RecvBuffer fInputPayloads;

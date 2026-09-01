@@ -84,7 +84,7 @@ void FileUtil::AddOptions(bpo::options_description &options, const std::unordere
     add_option(a, opt::Prefix, bpo::value<std::string>(), d(opt::Prefix), v);
     add_option(a, opt::RunNumberFormat, bpo::value<std::string>(), d(opt::RunNumberFormat), v, {"run{:06d}"});
     add_option(a, opt::BranchNumberFormat, bpo::value<std::string>(), d(opt::BranchNumberFormat), v, {"_{:03d}"});
-    add_option(a, opt::FileExtension, bpo::value<std::string>(), d(opt::FileExtension), v);
+    add_option(a, opt::FileExtension, bpo::value<std::string>(), d(opt::FileExtension), v, {".dat"});
     add_option(a, opt::BufferSize, bpo::value<std::string>(), d(opt::BufferSize), v, std::to_string(BUFSIZ));
     add_option(a, opt::CBufSize, bpo::value<std::string>(), d(opt::CBufSize), v, {"-1"});
     add_option(a, opt::Split, bpo::value<std::string>(), d(opt::Split), v, {sopt::None.data()});

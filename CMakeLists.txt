@@ -12,7 +12,7 @@ if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
   add_compile_options(-fdiagnostics-color=always)
 elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   message("turn on colored error message of Clang")
-  add_compiler_options(-fcolor-diagnostics)
+  add_compile_options(-fcolor-diagnostics)
 endif()
 
 #------------------------------------------------------------------------------
@@ -187,7 +187,8 @@ foreach(lvar IN ITEMS
   FilterTimeFrameSliceByTracking;  # Add this line           2024/7/18
   InputRegister;
 #  AmQStrTdcDqm;
-  Scaler)
+  Scaler;
+  ScalerSQ)
 
   set(EXEC ${lvar})
   add_executable(${EXEC} 
@@ -197,7 +198,6 @@ foreach(lvar IN ITEMS
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
     ${FairMQ_INCDIR};
-#    ${ROOT_INCLUDE_DIRS};
     ${HIREDIS_HEADER};
     ${REDIS_PLUS_PLUS_HEADER};
     ${UHBOOK_HEADER};
@@ -212,20 +212,52 @@ foreach(lvar IN ITEMS
 #    ${FairLogger_LIBDIR};
   )
 
-  target_link_libraries(${EXEC} PUBLIC 
-    ${Boost_LIBRARIES};  
-#    ${fmt_LIB};
-#    ${ROOT_LIBRARIES};
-    ${HIREDIS_LIB};
-    ${REDIS_PLUS_PLUS_LIB};
-    ${UHBOOK_LIB};
-    FairMQ;
-    FairMQStateMachine;
-    FairLogger;
-    Utility;
-    stdc++fs;
-    AmQTdcModule;
-  )
+  if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+    AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+    target_link_libraries(${EXEC} PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      fairmq;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+    )
+  elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+    AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+    OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
+    target_link_libraries(${EXEC} PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      FairMQ;
+      FairMQStateMachine;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+    )
+  elseif ((FairMQ_VERSION VERSION_EQUAL 1.10.0))
+    target_link_libraries(${EXEC} PUBLIC 
+      ${Boost_LIBRARIES};  
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+      ${UHBOOK_LIB};
+      fairmq;
+      FairLogger;
+      Utility;
+      stdc++fs;
+      AmQTdcModule;
+      sqlite3;
+    )
+  else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+  endif()
 
   install(TARGETS
     ${EXEC};
@@ -254,14 +286,38 @@ target_link_directories(AmQStrTdcSampler PUBLIC
     ${FairMQ_LIBDIR};
 )
 
-target_link_libraries(AmQStrTdcSampler  PUBLIC
-#                        ${fmt_LIB};
-    FairMQ;
+if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+  target_link_libraries(AmQStrTdcSampler  PUBLIC
+    fairmq;
     FairLogger;
-    FairMQStateMachine;
     ${Boost_LIBRARIES};
     Utility;
-)
+    sqlite3;
+  )
+elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
+  target_link_libraries(AmQStrTdcSampler  PUBLIC
+    FairMQ;
+    FairMQStateMachine;
+    FairLogger;
+    ${Boost_LIBRARIES};
+    Utility;
+    sqlite3;
+  )
+elseif((FairMQ_VERSION VERSION_EQUAL 1.10.0))
+  target_link_libraries(AmQStrTdcSampler  PUBLIC
+    fairmq;
+    FairLogger;
+    ${Boost_LIBRARIES};
+    Utility;
+    sqlite3;
+  )
+else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+endif()
+
 
 install(TARGETS
     AmQStrTdcSampler
@@ -299,7 +355,20 @@ target_link_directories(${EXEC} PUBLIC
     ${ROOT_LIBRARIES};
 )
 
-target_link_libraries(${EXEC} PUBLIC 
+if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
+  target_link_libraries(${EXEC} PUBLIC 
+    ${Boost_LIBRARIES};  
+    fairmq
+    FairLogger;
+    ${ROOT_LIBRARIES};
+    ${HIREDIS_LIB};
+    ${REDIS_PLUS_PLUS_LIB};
+  )
+elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
+  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
+  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
+  target_link_libraries(${EXEC} PUBLIC 
     ${Boost_LIBRARIES};  
     FairMQ;
     FairMQStateMachine;
@@ -307,7 +376,19 @@ target_link_libraries(${EXEC} PUBLIC
     ${ROOT_LIBRARIES};
     ${HIREDIS_LIB};
     ${REDIS_PLUS_PLUS_LIB};
-)
+  )
+elseif ((FairMQ_VERSION VERSION_EQUAL 1.10.0)) 
+  target_link_libraries(${EXEC} PUBLIC 
+    ${Boost_LIBRARIES};  
+    fairmq;
+    FairLogger;
+    ${ROOT_LIBRARIES};
+    ${HIREDIS_LIB};
+    ${REDIS_PLUS_PLUS_LIB};
+  )
+else()
+    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
+endif()
 
 install(TARGETS ${EXEC};
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -321,3 +402,4 @@ endforeach()
 #================================================================================
 add_subdirectory(utility)
 add_subdirectory(emulator)
+add_subdirectory(sqlite)

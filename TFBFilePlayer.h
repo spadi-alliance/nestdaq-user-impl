@@ -20,6 +20,7 @@ public:
         static constexpr std::string_view PollTimeout       {"poll-timeout"};
         static constexpr std::string_view IterationWait     {"wait"};
         static constexpr std::string_view SplitMethod       {"split"};
+        static constexpr std::string_view EnableRecbe       {"recbe"};
 
     };
     TFBFilePlayer();
@@ -44,6 +45,8 @@ private:
     int fPollTimeoutMS     {0};
     int fWait              {0};
     int fSplitMethod       {0};
+
+    bool fEnableRecbe      {false};
 };
 
 #endif

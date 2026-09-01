@@ -3,6 +3,7 @@
 #include <future>
 #include <map>
 #include <iostream>
+#include <algorithm>
 #include <boost/format.hpp>
 #include <cmath>
 
@@ -16,8 +17,7 @@
 #include "utility/HexDump.h"
 #include "utility/MessageUtil.h"
 
-#include "Scaler.h"
-
+#include "ScalerSQ.h"
 
 namespace bpo = boost::program_options;
 
@@ -26,7 +26,7 @@ namespace bpo = boost::program_options;
 void addCustomOptions(bpo::options_description& options)
 {
   {
-    using opt = Scaler::OptionKey;
+    using opt = ScalerSQ::OptionKey;
   options.add_options()
     (opt::NumSource.data(),          bpo::value<std::string>()->default_value("1"), "Number of source endpoint")
     (opt::BufferTimeoutInMs.data(),  bpo::value<std::string>()->default_value("100000"), "Buffer timeout in milliseconds")
@@ -34,14 +34,11 @@ void addCustomOptions(bpo::options_description& options)
     (opt::InputChannelName.data(),   bpo::value<std::string>()->default_value("in"), "Name of the input channel")
     (opt::OutputChannelName.data(),  bpo::value<std::string>()->default_value("out"), "Name of the output channel")    
     (opt::UpdateInterval.data(),     bpo::value<std::string>()->default_value("1000"), "Canvas update rate in milliseconds")
-    (opt::ServerUri.data(),          bpo::value<std::string>()->default_value("tcp://127.0.0.1:6379/3"), "Redis server URI (if empty, the same URI of the service registry is used.)")
+    (opt::DataBaseDir.data(),        bpo::value<std::string>()->default_value(""), "path to data base file")    
     ;
   }
    {   // FileUtil's options ------------------------------
      using fu = nestdaq::FileUtil;
-     //using fopt = fu::OptionKey;
-     //using sopt = fu::SplitOption;
-     //using oopt = fu::OpenmodeOption;
      auto &desc = fu::GetDescriptions();	
      fu::AddOptions(options);
    }
@@ -51,20 +48,19 @@ void addCustomOptions(bpo::options_description& options)
 //______________________________________________________________________________
 std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
 {
-   return std::make_unique<Scaler>();
+   return std::make_unique<ScalerSQ>();
 }
 
 //______________________________________________________________________________
-Scaler::Scaler()
+ScalerSQ::ScalerSQ()
     : FairMQDevice()
 {
     
 }
 
 //______________________________________________________________________________
-bool Scaler::HandleData(FairMQParts& parts, int index)
+bool ScalerSQ::HandleData(FairMQParts& parts, int index)
 {
-
   namespace STF = SubTimeFrame;
   namespace Data = AmQStrTdc::Data;
   using Bits = Data::Bits;
@@ -94,14 +90,77 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
     auto dt = std::chrono::steady_clock::now() - fPrevUpdate;
     if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fUpdateIntervalInMs) {
       try {
-        fTsHeartbeatCounterKey = join({"scaler", fdevId, "heartbeatCounter"}, fSeparator);
-	data_store->ts_add(fTsHeartbeatCounterKey, "*", std::to_string(tsHeartbeatCounter));
-	fTsHeartbeatFlagKey = join({"scaler", fdevId, "heartbeatFlag"}, fSeparator);
-	data_store->ts_add(fTsHeartbeatFlagKey, "*", std::to_string(tsHeartbeatFlag));
+	/* SQLite */	
+	auto timestamp =
+	  std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
-	std::string fCountsVsCh = join({"scaler", fdevId, "counts-vs-ch"}, fSeparator);
-	data_store->write(fCountsVsCh,Slowdashify(*hScaler));
+	/* Scaler */
 
+	for (int i = 0; i < hScaler->GetNBins(); i++){
+	  //	  LOG(debug) << "ch: " << i << "     sc: " << hScaler->GetBinContent(i+1);
+	  int nsc = hScaler->GetBinContent(i+1);
+	  std::string ich = "ch" + std::to_string(i);
+	  std::string tableName = tables[0] + fNumId;
+	  std::string value = values[0];
+
+	  std::string sql = "INSERT INTO " + tableName + " " + value + ";";
+
+	  int rc = sqlite3_prepare_v2(SqltDB, sql.c_str(), -1, &st, NULL);
+	  if(rc == SQLITE_OK){
+
+	    sqlite3_bind_int(st, 1, timestamp);
+	    sqlite3_bind_text(st, 2, ich.c_str(), ich.length(), SQLITE_TRANSIENT);
+	    sqlite3_bind_double(st, 3, nsc);
+
+	    if(SQLITE_DONE != sqlite3_step(st)){
+	      LOG(debug) << "Insert Error: " << sqlite3_errmsg(SqltDB);
+	    }
+	  }
+	  sqlite3_finalize(st);
+	}
+
+	/* AmQ Flag */
+	for (int i = 0; i < hFlag->GetBins() - 1; i++){
+	  //	  LOG(debug) << "ibit: " << i << "     flag: " << hFlag->GetBinContent(i+1);
+
+	  int nflag = hFlag->GetBinContent(i+1);
+	  std::string nbit = "ibit" + std::to_string(i);
+	  std::string tableName = tables[1] + fNumId;
+	  std::string value = values[1];
+	  std::string sql = "INSERT INTO " + tableName + " " + value + ";";
+	  
+	  int rc = sqlite3_prepare_v2(SqltDB, sql.c_str(), -1, &st, NULL);
+	  if(rc == SQLITE_OK){
+
+	    sqlite3_bind_int(st, 1, timestamp);
+	    sqlite3_bind_text(st, 2, nbit.c_str(), nbit.length(), SQLITE_TRANSIENT);
+	    sqlite3_bind_int(st, 3, nflag);
+
+	    if(SQLITE_DONE != sqlite3_step(st)){
+	      LOG(debug) << "Insert Error: " << sqlite3_errmsg(SqltDB);
+	    }
+	  }
+	  sqlite3_finalize(st);
+	}
+
+	{
+	  std::string tableName = tables[2] + fNumId;
+	  std::string value = values[2];
+	  std::string sql = "INSERT INTO " + tableName + " " + value + ";";	  
+	  int rc = sqlite3_prepare_v2(SqltDB, sql.c_str(), -1, &st, NULL);
+	  
+	  if(rc == SQLITE_OK){
+	    sqlite3_bind_int(st, 1, timestamp);
+	    sqlite3_bind_double(st, 2, tsHeartbeatCounter);
+
+	    if(SQLITE_DONE != sqlite3_step(st)){
+	      LOG(debug) << "Insert Error: " << sqlite3_errmsg(SqltDB);
+	    }	    
+	  }
+	  sqlite3_finalize(st);	  
+	}
+
+	/* */
 	
 	uint64_t deltaHeartbeatCounter = tsHeartbeatCounter - fPrevHeartbeatCounter;
 	double   dt_in_sec = deltaHeartbeatCounter * 0.000524; /* 1 heart beat = 512 us */
@@ -114,12 +173,12 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 	  hCountRate.SetBinContent(i, hCountRate.GetBinContent(i)/dt_in_sec);
 	}
 	
-	std::string fRateVsCh = join({"scaler", fdevId, "rate-vs-ch"}, fSeparator);
-	data_store->write(fRateVsCh,Slowdashify(hCountRate));
+	//std::string fRateVsCh = join({"scaler", fdevId, "rate-vs-ch"}, fSeparator);
+	//	data_store->write(fRateVsCh,Slowdashify(hCountRate));
 	
 	// for checking the flag bit for AmQ
-	std::string fFlagBit = join({"flag", fdevId, "bit"}, fSeparator);
-	data_store->write(fFlagBit,Slowdashify(*hFlag));
+	//std::string fFlagBit = join({"flag", fdevId, "bit"}, fSeparator);
+	//	data_store->write(fFlagBit,Slowdashify(*hFlag));
 	
 	LOG(info) << "tsHeartbeatCounter: " << tsHeartbeatCounter;
 	LOG(info) << "tsHeartbeatFlag   : " << tsHeartbeatFlag;
@@ -143,141 +202,122 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
   //  Check(stfs);
   
   auto nmsg      = parts.Size();
-  //  LOG(debug) <<"nmsg: " << nmsg;
-
   for(int imsg = 1; imsg < nmsg; ++imsg){
 
     const auto& msg = parts.At(imsg);
-    auto mSize    = msg->GetSize();
-    auto nword    = mSize / sizeof(uint64_t);
-    auto msgStart =  reinterpret_cast<uint64_t *>(msg->GetData());
     
-    uint64_t htype[2];
-    htype[1] = *(msgStart + 2); // if nword > 2 (tdc hits are inclued), data start. 
-    htype[0] = *(msgStart + (nword - 2));
-    //    LOG(debug) << "htype[0]: " << std::hex << htype[0];
-    //    LOG(debug) << "htype[1]: " << std::hex << htype[1];
-
-    int nchk;
-    if(htype[0]!=htype[1]){
-      nchk = 2;
-    }else if(htype[0]==htype[1]){
-      nchk = 1;
+    auto wb =  reinterpret_cast<Bits*>(msg->GetData());
+    if(fDebug){
+      LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
+      LOG(debug) << " head =" << std::hex << wb->head << std::dec;
     }
-    // nchk = 1; only for checking heartbeat frame
       
-    for(int iw = 0; iw < nchk; iw++){
-      auto wb = reinterpret_cast<Bits*>(&htype[iw]);
-      
-      //      LOG(debug) << "msgStart: " << *msgStart;
-      //      LOG(debug) << " word =" << std::hex << wb->raw << std::dec;
-      //      LOG(debug) << " head =" << std::hex << wb->head << std::dec;
-
-      switch (wb->head) {
-      case Data::Heartbeat:
-	{
-	  //      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
-	  if(fDebug){
-	    LOG(debug) << "== Data::Heartbeat --> ";
-	    LOG(debug) << "hbframe#: " << std::hex << wb->hbframe << std::dec;
-	    LOG(debug) << "toffset : " << std::hex << wb->toffset << std::dec;
-	    LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
-	    LOG(debug) << "hbtype1: " << std::hex << wb->hbtype1 << std::dec;
-	    LOG(debug) << "head =" << std::hex << wb->head << std::dec;
-	    LOG(debug) << "== scaler --> ";
-	  }
-	  if(fDebug){
-	    LOG(debug) << "============================";
-	    LOG(debug) << "HB frame : " << wb->hbframe;		
-	    LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
-	    LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
-	    LOG(debug) << "hbflag: "  << wb->hbflag;
-	  }
+    switch (wb->head) {
+    case Data::Heartbeat:
+      {
+	//      LOG(info) << "HBF comes:  " << std::hex << wb->raw;
+	if(fDebug){
+	  LOG(debug) << "== Data::Heartbeat --> ";
+	  LOG(debug) << "hbframe: " << std::hex << wb->hbframe << std::dec;
+	  LOG(debug) << "toffset : " << std::hex << wb->toffset << std::dec;
+	  LOG(debug) << "hbfalg: " << std::hex << wb->hbflag << std::dec;
+	  LOG(debug) << "hbtype1: " << std::hex << wb->hbtype1 << std::dec;
+	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
+	  LOG(debug) << "== scaler --> ";
+	}
+	if(fDebug){
+	  LOG(debug) << "============================";
+	  LOG(debug) << "HB frame : " << wb->hbframe;		
+	  LOG(debug) << "timeFrameId : " << stfHeader->timeFrameId;
+	  LOG(debug) << "# of HB: " << wb->hbframe - stfHeader->timeFrameId;
+	  LOG(debug) << "hbflag: "  << wb->hbflag;
+	}
 	
-	  tsHeartbeatCounter++;
+	tsHeartbeatCounter++;
 	
-	  for(int i=0; i<16; i++){
-	    auto bit_sum = (wb->hbflag >> i) & 0x01;
-	    FlagSum[i] = fpreFlagSum[i] + bit_sum;
-	    if (bit_sum) {
-	      hFlag->Fill(i);
-	    }
-	  }      
-	  tsHeartbeatFlag = wb->hbflag;      
+	for(int i=0; i<10; i++){
+	  auto bit_sum = (wb->hbflag >> i) & 0x01;
+	  FlagSum[i] = fpreFlagSum[i] + bit_sum;
+	  if (bit_sum) {
+	    hFlag->Fill(i);
+	  }
+	}      
+	tsHeartbeatFlag = wb->hbflag;      
 
-	  for(int i=0; i<16; i++)
-	    fpreFlagSum[i] = FlagSum[i];
+	for(int i=0; i<10; i++)
+	  fpreFlagSum[i] = FlagSum[i];
             
-	  //      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
-	  //      LOG(info) << "HBF Flag:  " << tsHeartbeatFlag;
+	//      LOG(info) << "HBF Count:  " << tsHeartbeatCounter;
+	//      LOG(info) << "HBF Flag:  " << tsHeartbeatFlag;
 	
-	  break;
-	}
-
-      case Data::Heartbeat2nd:
-	{
-	  if(fDebug){
-	    LOG(debug) << "== Data::Heartbeat2nd --> ";
-	    LOG(debug) << "transSize: " << std::hex << wb->transSize << std::dec;
-	    LOG(debug) << "geneSize : " << std::hex << wb->geneSize << std::dec;
-	    LOG(debug) << "userReg: " << std::hex << wb->userReg << std::dec;
-	    LOG(debug) << "hbtype2: " << std::hex << wb->hbtype2 << std::dec;
-	    LOG(debug) << "head =" << std::hex << wb->head << std::dec;
-	    LOG(debug) << "== scaler --> ";
-	  }
-		
-	  break;
-	}
-      case Data::Data:
-	{
-	  auto msgBegin = reinterpret_cast<Data::Word*>(msg->GetData());	
-	  auto msgSize  = msg->GetSize();
-	  auto nWord    = msgSize / sizeof(uint64_t);
-	
-	  for(long unsigned int i = 0; i < nWord; ++i){	  
-	    auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
-	  
-	    if(fDebug){
-	      if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==6) )
-	      LOG(debug) << "LRtdc: "   << std::hex << iwb->tdc << std::dec;
-	      if(stfHeader->femType == 2 || (stfHeader->femType==5))	  
-	      LOG(debug) << "HRtdc: " << std::hex << iwb->hrtdc<< std::dec;
-	    }
-	
-	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==6) ) {
-	      hScaler->Fill(static_cast<int>(iwb->ch)+1);
-	    }else if(stfHeader->femType == 2 || (stfHeader->femType==5)) {
-	      hScaler->Fill(static_cast<int>(iwb->ch)+1);
-	    }
-	    
-	  }//
-	}
-	
-	break;	
-
-      case Data::Trailer:
-	break;
-
-      case Data::ThrottlingT1Start:
-	break;
-
-      case Data::ThrottlingT1End:
-	break;
-
-      case Data::ThrottlingT2Start:
-	break;
-
-      case Data::ThrottlingT2End:
-	break;
-	
-      default:
-	LOG(error) << " unknown Head : " << std::hex << wb->head << std::dec
-		   << " FEMId: " << std::hex << stfHeader->femId;
-                   
 	break;
       }
+
+    case Data::Heartbeat2nd:
+      {
+	if(fDebug){
+	  LOG(debug) << "== Data::Heartbeat2nd --> ";
+	  LOG(debug) << "transSize: " << std::hex << wb->transSize << std::dec;
+	  LOG(debug) << "geneSize : " << std::hex << wb->geneSize << std::dec;
+	  LOG(debug) << "userReg: " << std::hex << wb->userReg << std::dec;
+	  LOG(debug) << "hbtype2: " << std::hex << wb->hbtype2 << std::dec;
+	  LOG(debug) << "head =" << std::hex << wb->head << std::dec;
+	  LOG(debug) << "== scaler --> ";
+	}
+
+	break;
+      }
+	
+    case Data::Data:
+      {
+	auto msgBegin = reinterpret_cast<Data::Word*>(msg->GetData());	
+	auto msgSize  = msg->GetSize();
+	auto nWord    = msgSize / sizeof(uint64_t);
+	
+	for(long unsigned int i = 0; i < nWord; ++i){	  
+	  auto iwb = reinterpret_cast<Bits*>(msgBegin+i);	
+	  
+	  if(fDebug){
+	    if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==6) )
+	      LOG(debug) << "LRtdc: "   << std::hex << iwb->tdc << std::dec;
+	    if(stfHeader->femType == 2 || stfHeader->femType == 5)	  
+	      LOG(debug) << "HRtdc: " << std::hex << iwb->hrtdc<< std::dec;
+	  }
+	
+	  if( (stfHeader->femType == 1) || (stfHeader->femType==3) || (stfHeader->femType==6) ){	    
+	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
+	  }else if(stfHeader->femType == 2 || stfHeader->femType == 5){
+	    hScaler->Fill(static_cast<int>(iwb->ch)+1);
+	  }
+	    
+	}//
+      }
+	
+      break;	
+
+    case Data::Trailer:
+      break;
+
+    case Data::ThrottlingT1Start:
+      break;
+
+    case Data::ThrottlingT1End:
+      break;
+
+    case Data::ThrottlingT2Start:
+      break;
+
+    case Data::ThrottlingT2End:
+      break;
+      
+    default:
+      LOG(error) << " unknown Head : " << std::hex << wb->head << std::dec
+		 << " FEMId: " << std::hex << stfHeader->femId;
+                   
+      break;
     }
   }
+
 
   /* make scaler data */
 
@@ -292,7 +332,7 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
   FairMQParts outParts;
   fFEMId = stfHeader->femId;
   
-  //  auto femid = stfHeader->femId & 0xff;
+  //  auto femid = stfHeader->FEMId & 0xff;
   scHeader->femType     = 200;  
   scHeader->femId       = stfHeader->femId;
   scHeader->length      = outdata->size()*sizeof(uint64_t) + sizeof(STF::Header);  
@@ -342,13 +382,13 @@ bool Scaler::HandleData(FairMQParts& parts, int index)
 }
 
 //______________________________________________________________________________
-void Scaler::Init()
+void ScalerSQ::Init()
 {
     Reporter::Instance(fConfig);
 }
 
 //______________________________________________________________________________
-void Scaler::InitTask()
+void ScalerSQ::InitTask()
 {
     using opt = OptionKey;
     
@@ -372,28 +412,22 @@ void Scaler::InitTask()
     LOG(debug) << " output channel : name = " << fOutputChannelName;
     
     LOG(debug) << " number of source = " << fNumSource;
-
+    
     fUpdateIntervalInMs = std::stoi(fConfig->GetProperty<std::string>(opt::UpdateInterval.data()));
     LOG(debug) << "fUpdateIntervalInMs: "<< fUpdateIntervalInMs ;      
 
+    fDataBaseDir = fConfig->GetProperty<std::string>(opt::DataBaseDir.data());    
+    LOG(debug) << " directory for sqlite data base: " << fDataBaseDir;
+    
     fHbc.resize(fNumSource);
 
-    using opt = Scaler::OptionKey;
-    std::string serverUri = fConfig->GetProperty<std::string>(opt::ServerUri.data());
-    LOG(debug) << "serverUri: " << serverUri;
-    data_store = new RedisDataStore(serverUri);
+    using opt = ScalerSQ::OptionKey;
     
     fdevId        = fConfig->GetProperty<std::string>("id");
     LOG(debug) << "fdevId: " << fdevId;
     fTopPrefix   = "scaler";
     fSeparator   = fConfig->GetProperty<std::string>("separator");
     LOG(debug) << "fSeparator: " << fSeparator;
-    const auto fCreatedTimeKey = join({fTopPrefix, opt::CreatedTimePrefix.data()},   fSeparator);
-    const auto fHostNameKey    = join({fTopPrefix, opt::HostnamePrefix.data()},      fSeparator);
-    const auto fIpAddressKey   = join({fTopPrefix, opt::HostIpAddressPrefix.data()}, fSeparator);
-    data_store->hset(fCreatedTimeKey, fdevId, "n/a");
-    data_store->hset(fHostNameKey,    fdevId, fConfig->GetProperty<std::string>("hostname"));
-    data_store->hset(fIpAddressKey,   fdevId, fConfig->GetProperty<std::string>("host-ip"));
 
     Reporter::Reset();
 
@@ -402,38 +436,106 @@ void Scaler::InitTask()
     fFile->Print();
     fFileExtension = fFile->GetExtension();
 
-    //
-    LOG(debug) << "Handle";
-    OnData(fInputChannelName, &Scaler::HandleData);
+    OnData(fInputChannelName, &ScalerSQ::HandleData);
     
 }
 
 //______________________________________________________________________________
-void Scaler::PreRun()
+void ScalerSQ::PreRun()
 {
-    using opt = Scaler::OptionKey;
+    using opt = ScalerSQ::OptionKey;
     if (fConfig->Count(opt::RunNumber.data())) {
         fRunNumber = std::stoll(fConfig->GetProperty<std::string>(opt::RunNumber.data()));
         LOG(debug) << " RUN number = " << fRunNumber;
     }
     fFile->SetRunNumber(fRunNumber);
+    
     fFile->ClearBranch();
+    
     fFile->Open();
 
     for(int i=0; i<10; ++i){
       FlagSum[i] = 0;
       fpreFlagSum[i] = 0;
     }
-
     hScaler     = new UH1Book("ScalerHisto",128,0.,128.);
     hScalerPrev = new UH1Book("ScalerHistoPrev",128,0.,128.);
-    hFlag       = new UH1Book("FlagHisto",16,0.,16.);
-    hFlagPrev   = new UH1Book("FlagHistoPrev",16,0.,16.);
+    hFlag       = new UH1Book("FlagHisto",10,0.,10.);
+    hFlagPrev   = new UH1Book("FlagHistoPrev",10,0.,10.);
+    LOG(debug) << " 4. ";
+    
+    std::string devId = fdevId;    
+    std::vector<std::string> res;
+    std::string substr;
+    
+    for ( const char c : devId){
+      if( c== '-' ){
+	res.push_back(substr); substr.clear();
+      }else{
+	substr += c;
+      }      
+    }
+    res.push_back(substr);
+    
+    int last = res.size() - 1;
+    fNumId = res[last];    
+    LOG(debug) << "fNumId: " << fNumId;
+    
+    std::string DBFileName = fDataBaseDir + "/" + fdevId + "_DB.db";
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE ;
+
+    /* Open SQLite Database */
+    const char* zVfs = NULL; /* Name of VFS module to use */
+    int rc = sqlite3_open_v2(DBFileName.c_str(), &SqltDB, flags, zVfs);
+    
+    if( rc != SQLITE_OK ){
+      LOG(error) << "Cannnot create database file: " << DBFileName;
+      LOG(error) << "Closed SQLite DB Handler";
+      sqlite3_close(SqltDB);
+      
+    }else{
+
+      char * err_msg;
+      int err_pragm = sqlite3_exec(SqltDB, "PRAGMA busy_timeout = milliseconds",0,0,&err_msg);
+      if(err_pragm != SQLITE_OK){
+	LOG(error) << " Set Pragma Error " << err_msg;
+	sqlite3_free(err_msg);
+      }
+    }
+
+    /* Create Table */
+    for(int i=0 ; i<3; ++i){
+      std::string tableName = tables[i] + fNumId;
+      std::string column = columns[i];
+	
+      std::string sql = "CREATE TABLE IF NOT EXISTS " + tableName + " " + column + ";";
+      LOG(debug) << "sql: " << sql << std::endl;
+
+      rc = sqlite3_prepare_v2(SqltDB, sql.c_str(), -1, &st, NULL);
+
+      if (rc != SQLITE_OK) {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(SqltDB) << std::endl;
+        sqlite3_close(SqltDB);
+      }
+
+      // Excute SQL
+      rc = sqlite3_step(st);
+      if (rc != SQLITE_DONE) {
+        std::cerr << "Failed to create table: " << sqlite3_errmsg(SqltDB) << std::endl;
+        sqlite3_finalize(st);
+        sqlite3_close(SqltDB);
+      }
+    }
+
+    // Release statement resource 
+    sqlite3_finalize(st);
+    
 }
 //______________________________________________________________________________
-void Scaler::PostRun()
+void ScalerSQ::PostRun()
 {
-
+    sqlite3_close(SqltDB);
+  
     int nrecv=0;
     if (fChannels.count(fInputChannelName) > 0) {
         auto n = fChannels.count(fInputChannelName);
@@ -476,6 +578,6 @@ void Scaler::PostRun()
     delete hScaler;
     delete hScalerPrev;
     delete hFlag;
-    delete hFlagPrev;  
+    delete hFlagPrev;
     LOG(debug) << __func__ << " done";
 }

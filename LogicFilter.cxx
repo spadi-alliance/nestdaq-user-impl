@@ -48,7 +48,7 @@ struct LogicFilter : fair::mq::Device
 		static constexpr std::string_view SplitMethod        {"split"};
 
 		static constexpr std::string_view TriggerSignals     {"trigger-signals"};
-		static constexpr std::string_view TriggerFormula     {"trigger-formula"};
+		static constexpr std::string_view TriggerFormula     {"trigger-expression"};
 		static constexpr std::string_view TriggerWidth       {"trigger-width"};
 	};
 
@@ -1460,7 +1460,7 @@ void addCustomOptions(bpo::options_description& options)
 
 		(opt::TriggerSignals.data(),
 			bpo::value<std::string>()->default_value(
-			"((0xc0a802a9 0 0) (0xc0a802a9 1 0)"),
+			"(0xc0a802a9 0 0) (0xc0a802a9 1 0)"),
 			"Triger signals (module_IP Channel_number Offset)")
 		(opt::TriggerFormula.data(),
 			bpo::value<std::string>()->default_value("RPN 0 1 &"),

@@ -8,7 +8,7 @@
 #include <thread>
 
 #include <fairmq/Device.h>
-
+#include <sw/redis++/redis++.h>
 #include "utility/RingBuffer.h"
 #include "utility/FileUtil.h"
 #include "FileSinkHeader.h"
@@ -19,7 +19,6 @@ class TaskProcessorMT;
 
 class FileSink : public fair::mq::Device {
 public:
-    const std::string fClassName;
     struct OptionKey {
         static constexpr std::string_view InputDataChannelName{"in-chan-name"};
         static constexpr std::string_view Multipart{"multipart"};
@@ -30,9 +29,11 @@ public:
         static constexpr std::string_view NThreads{"n-threads"};
         static constexpr std::string_view InProcMQLength{"inproc-mq-length"};
         static constexpr std::string_view MaxIteration{"max-iteration"};
+        static constexpr std::string_view WriteSleepInMilliSec{"write-sleep-in-msec"};
+        static constexpr std::string_view DQMChannelName{"dqm-chan-name"};
     };
 
-    FileSink() : FairMQDevice(), fFile(), fClassName(__func__) {}
+    FileSink() : FairMQDevice() {}
     FileSink(const FileSink &) = delete;
     FileSink &operator=(const FileSink &) = delete;
     ~FileSink() override = default;
@@ -56,7 +57,9 @@ private:
     std::atomic<bool> fStopRequested;
 
     std::string fInputDataChannelName;
+    std::string fDQMChannelName;
     std::unique_ptr<nestdaq::FileUtil> fFile;
+    std::shared_ptr<sw::redis::Redis> fClient;
     nestdaq::FileUtil::CompressFunc fCompress;
     std::atomic<std::size_t> fSize{0};
     std::atomic<std::size_t> fCompressedSize{0};
@@ -64,9 +67,11 @@ private:
     int fMQTimeoutMS;
     bool fDiscard;
     bool fMultipart;
+    int  fWriteSleepInMilliSec;
 
     bool fMergeMessage{false};
     int64_t fRunNumber{0};
+    std::string run_comment;
 
     int fInProcMQLength;
     std::unique_ptr<nestdaq::TaskProcessorMT> fWorker;
