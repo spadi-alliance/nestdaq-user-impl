@@ -95,6 +95,7 @@ private:
     bool fFirstTFB {true};
     bool fEnableCheckHBF {true};
 
+    std::string fKeyPrefixMetricTs;
     std::string fKeyPrefixMetric;
     std::string fDbUriMetric;
     std::unique_ptr<RedisDataStore> fDbMetric {nullptr};
@@ -103,7 +104,12 @@ private:
     std::unique_ptr<RedisDataStore> fDbObjects {nullptr};
     void SetKeyPrefix();
 
+    std::unordered_map<uint32_t, int> fLostSegmentCounts;
+
     KTimer fKt;
 };
+
+inline const std::string gKeySuccessfulRatio {"SuccessfulRatio"};
+inline const std::string gKeyLostSegments {"LostSegments"};
 
 #endif
