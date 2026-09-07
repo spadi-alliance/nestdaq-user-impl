@@ -41,6 +41,7 @@ void addCustomOptions(bpo::options_description& options)
     (opt::DiscardOutput.data(),        bpo::value<std::string>()->default_value("false"),     "Discard output option to eliminate the back pressure for upstream FairMQ device. true: discard, false (default): no discard causing back pressure")
     (opt::OutputIncompleteTF.data(),   bpo::value<std::string>()->default_value("false"),     "Output incomplete Time Frame")
     (opt::ObjectDbNumber.data(),       bpo::value<std::string>()->default_value("3"),         "DB number for DQM objects")
+    (opt::EnableCheckHBF.data(),       bpo::value<std::string>()->default_value("true"),      "Check HBF delimiter")
     ;
 }
 
@@ -72,7 +73,6 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
         auto & msg = stfBuf.parts[0];
         SubTimeFrame::Header *stfheader
             = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
-        //std::cout << " ID" << std::hex << stfheader->femId << std::dec;
         femid.push_back(stfheader->femId);
         for (auto it = expected.begin() ; it != expected.end() ;) {
             if (*it == (stfheader->femId && 0xff)) {
@@ -92,11 +92,7 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
         }
     }
 
-#if 0
-    std::cout << "#D TFid :" << stfId << " Lost FEid :";
-    for (auto & i : expected) std::cout << " " << (i & 0xff);
-    std::cout << std::endl;
-#else
+#if 1
     std::cout << "#D TFB Fail. TFid: " << stfId << "(0x" << std::hex << stfId << "), "
         << std::dec << "N: " << femid.size() << "/" << fNumSource << ", FEid:";
     for (auto & i : femid) std::cout << " " << (i & 0xff);
@@ -115,8 +111,6 @@ void TimeFrameBuilder::TFBFailDump(std::vector<STFBuffer> &tfBuf, uint32_t stfId
 
 void TimeFrameBuilder::TFBSegmentCheck(std::vector<STFBuffer> &tfBuf)
 {
-
-    std::vector<uint32_t> femid;
     std::vector<uint32_t> expected = {
         160, 161, 162, 163, 164, 165, 166, 167, 168, 169,
         170, 171, 172, 173, 174, 175, 176, 177, 178, 179
@@ -137,6 +131,64 @@ void TimeFrameBuilder::TFBSegmentCheck(std::vector<STFBuffer> &tfBuf)
     //check segment counts
 
     return;
+}
+
+void TimeFrameBuilder::StoreSuccessfulSegmentIDs(const std::vector<STFBuffer> &stfBuf)
+{
+    fSuccessfulSegmentIDs.clear();
+    fSuccessfulSegmentIDs.resize(0);
+
+    for (auto & stf : stfBuf) {
+        auto & msg = stf.parts[0];
+        SubTimeFrame::Header *stfheader
+            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+        uint32_t femid = stfheader->femId;
+        fSuccessfulSegmentIDs.emplace_back(femid);
+    }
+    #if 0
+    std::sort(fSuccessfulSegmentIDs.begin(), fSuccessfulSegmentIDs.end());
+    #endif
+
+    return;
+}
+
+std::vector<uint32_t> TimeFrameBuilder::CheckLostSegmentIDs(const std::vector<STFBuffer> &stfBuf)
+{
+    std::vector<uint32_t> lostSegmentIds;
+    std::vector<uint32_t> existedSegmentIds;
+
+    for (auto & stf : stfBuf) {
+        auto & msg = stf.parts[0];
+        SubTimeFrame::Header *stfheader
+            = reinterpret_cast<SubTimeFrame::Header *>(msg.GetData());
+        uint32_t femid = stfheader->femId;
+        existedSegmentIds.emplace_back(femid);
+    }
+
+    for (auto & femid : fSuccessfulSegmentIDs) {
+
+        #if 0
+        std::cout << "#D Succeeded femid: " << femid << " (" << (femid & 0xff) << ") : "
+            << [&existedSegmentIds](uint32_t x) {
+                if (std::find(
+                    existedSegmentIds.begin(), existedSegmentIds.end(), x)
+                        == existedSegmentIds.end()) {
+                    return "lost";
+                } else {
+                    return "exists";
+                }
+                }(femid)
+            << std::endl;
+        #endif
+
+        if (std::find(existedSegmentIds.begin(), existedSegmentIds.end(), femid)
+            == existedSegmentIds.end()) {
+            lostSegmentIds.emplace_back(femid);
+            fLostSegmentCounts[femid]++;
+        }
+    }
+
+    return lostSegmentIds;
 }
 
 
@@ -274,8 +326,7 @@ void TimeFrameBuilder::SendTimeFrameForDecimator(
 
 
 void TimeFrameBuilder::SendTimeFrame(
-    fair::mq::Parts& outParts
-)
+    fair::mq::Parts& outParts)
 {
     // send for Output
     auto poller = NewPoller(fOutputChannelName);
@@ -355,9 +406,9 @@ bool TimeFrameBuilder::ConditionalRun()
             << " Type: " << std::dec << stfHeader->type;
 #endif
 
-#if 1
-        CheckHBFDelimitor(inParts, stfId);
-#endif
+	if (fEnableCheckHBF) {
+        	CheckHBFDelimitor(inParts, stfId);
+	}
 
         if (fTFBuffer.find(stfId) == fTFBuffer.end()) {
             fTFBuffer[stfId].reserve(fNumSource);
@@ -382,19 +433,38 @@ bool TimeFrameBuilder::ConditionalRun()
             if (tfBuf.size() == static_cast<long unsigned int>(fNumSource)) {
                 LOG(debug4) << "All comes : " << tfBuf.size() << " stfId: "<< stfId ;
 
-                fair::mq::Parts outParts;
+                if (fFirstTFB) {
+                    fFirstTFB = false;
+                    StoreSuccessfulSegmentIDs(tfBuf);
+                }
 
+                fair::mq::Parts outParts;
                 MakeOutPartsFromSTFBuffers(tfBuf, stfId, TimeFrame::TF_COMPLETE, outParts);
                 tfBuf.clear();
 
                 SendTimeFrameToEvery(outParts);
 
             } else {
-                // discard incomplete time frame
+                // Timeout processing for incomplete time frame
                 auto dt = std::chrono::steady_clock::now() - tfBuf.front().start;
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(dt).count() > fBufferTimeoutInMs) {
                     // output debug info
-                    TFBFailDump(tfBuf, stfId);
+                    //TFBFailDump(tfBuf, stfId);
+
+                    #if 0
+                    std::cout << "#D Succeeded segments for TF " << stfId << ": " << std::dec;
+                    for (auto & id : fSuccessfulSegmentIDs) {
+                        std::cout << id << " (" << (id & 0xff) << ") ";
+                    }
+                    std::cout << std::endl;
+                    #endif
+
+                    std::vector<uint32_t> lostSegmentIds = CheckLostSegmentIDs(tfBuf);
+                    std::string lostSegmentIdsStr;
+                    for (auto & id : lostSegmentIds) {
+                        lostSegmentIdsStr += std::to_string(id) + "(" + std::to_string(id & 0xff) + ") ";
+                    }
+                    LOG(warn) << "TFB Timeout: TF ID: " << stfId << ", Lost Segment ID: " << lostSegmentIdsStr;
 
                     // output incomplete TF
                     if (fOutputIncompleteTF) {
@@ -442,6 +512,14 @@ bool TimeFrameBuilder::ConditionalRun()
             std::cout << std::endl;
 #endif
 
+            std::vector<uint32_t> lostSegmentIds = CheckLostSegmentIDs(tfBuf);
+            std::string lostSegmentIdsStr;
+            for (auto & id : lostSegmentIds) {
+                lostSegmentIdsStr += std::to_string(id) + "(" + std::to_string(id & 0xff) + ") ";
+            }
+            LOG(warn) << "Buffer overflow: TF ID: " << fTFBuffer.begin()->first
+                << ", Lost segment ID: " << lostSegmentIdsStr;
+
             if (fOutputIncompleteTF) {
                 uint32_t stfId = fTFBuffer.begin()->first;
                 auto & tfBuf = fTFBuffer.begin()->second;
@@ -475,19 +553,49 @@ bool TimeFrameBuilder::ConditionalRun()
             #if 0
             time_t now = std::time(nullptr);
             std::cout << "#D "
-                << fKeyPrefixMetric + "SucessfulRatio "
+                << fKeyPrefixMetric + gKeySuccessfulRatio + " "
                 << now
                 << " TFB Successful Ratio: "
                 << std::to_string(successfulRatio) << std::endl;
             #endif
+
             fDbMetric->ts_add(
-                fKeyPrefixMetric + "SuccessfulRatio",
+                fKeyPrefixMetricTs + gKeySuccessfulRatio,
                 std::to_string(std::time(nullptr) * 1000),
                 std::to_string(successfulRatio));
 
             fNumSccesssfulTFB = 0;
             fNumFailedTFB     = 0;
         }
+
+        static bool flagLostSegment = false;
+        if ((lcounts++ % 1) == 0) {
+            if (fLostSegmentCounts.size() > 0) {
+                LOG(debug) << "Lost segment counts: ";
+                fDbMetric->del(fKeyPrefixMetric + gKeyLostSegments);
+                for (const auto& [femid, lostcounts] : fLostSegmentCounts) {
+                    #if 0
+                    LOG(debug) << "  FEM ID: " << femid << " (" << (femid & 0xff) << ")"
+                               << ", Counts: " << lostcounts;
+                    #endif
+                    std::string femid_str = std::to_string(femid);
+                    std::string lostcounts_str = std::to_string(lostcounts);
+                    try {
+                        fDbMetric->hset(fKeyPrefixMetric + gKeyLostSegments, femid_str, lostcounts_str);
+                    } catch(const sw::redis::Error &e) {
+                        LOG(error) << "Lost segment, DB write fail : " << e.what();
+                    }
+                    flagLostSegment = true;
+                }
+                fLostSegmentCounts.clear();
+            } else {
+                if (flagLostSegment) {
+                    fDbMetric->del(fKeyPrefixMetric + gKeyLostSegments);
+                    flagLostSegment = false;
+                }
+            }
+        }
+
     }
 
     return true;
@@ -512,12 +620,13 @@ void TimeFrameBuilder::SetKeyPrefix()
     }
     
     std::string serviceRegistryUri = fConfig->GetProperty<std::string>("registry-uri");
-    std::cout << "#D DB Server URI: " << serverUri << std::endl;
-    std::cout << "#D DB serviceRegistoryUri: " << serviceRegistryUri << std::endl;
+    LOG(debug) << "DB Server URI: " << serverUri;
+    LOG(debug) << "DB serviceRegistoryUri: " << serviceRegistryUri;
 
     std::string service_name = fConfig->GetProperty<std::string>("service-name");
     std::string separator   = fConfig->GetProperty<std::string>("separator");
-    fKeyPrefixMetric = "ts" + separator + fId + separator;
+    fKeyPrefixMetricTs = "ts" + separator + fId + separator;
+    fKeyPrefixMetric = "metrics" + separator + fId + separator;
     fKeyPrefixObjects = "dqm" + separator + fId + separator;
 
 
@@ -532,7 +641,8 @@ void TimeFrameBuilder::SetKeyPrefix()
         fDbObjects = std::make_unique<RedisDataStore>(fDbUriObjects);
     }
 
-    LOG(info) << "Metric DB: " << fDbUriMetric << " Prefix:" << fKeyPrefixMetric;
+    LOG(info) << "Metric DB: " << fDbUriMetric << " Prefix: "
+        << fKeyPrefixMetric << " " << fKeyPrefixMetricTs;
     LOG(info) << "DQM DB: " << fDbUriObjects << " Prefix:" << fKeyPrefixObjects;
 
     /*
@@ -603,6 +713,10 @@ void TimeFrameBuilder::InitTask()
     fOutputIncompleteTF = ((sOutputIncompleteTF == "1") || (sOutputIncompleteTF == "true") || (sOutputIncompleteTF == "yes"));
     LOG(debug) << " output-incomplete-tf = " << fOutputIncompleteTF;
 
+    std::string sEnableCheckHBF = fConfig->GetProperty<std::string>(opt::EnableCheckHBF.data());
+    fEnableCheckHBF = ((sEnableCheckHBF == "1") || (sEnableCheckHBF == "true") || (sEnableCheckHBF == "yes"));
+    LOG(debug) << " enable-check-hbf = " << fEnableCheckHBF;
+
     SetKeyPrefix();
 
 }
@@ -640,6 +754,10 @@ void TimeFrameBuilder::PostRun()
 //_____________________________________________________________________________
 void TimeFrameBuilder::PreRun()
 {
-    fDirection    = 0;
+    fDirection = 0;
     fNumSend = 0;
+    fFirstTFB = true;
+    fNumSccesssfulTFB = 0;
+    fNumFailedTFB = 0;
+    fLostSegmentCounts.clear();
 }
