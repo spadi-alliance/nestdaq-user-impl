@@ -3,6 +3,17 @@ cmake_minimum_required(VERSION 3.11)
 
 project(nestdaq LANGUAGES CXX C)
 
+# Optional CUDA for LogicFilterGpu only. Default OFF so machines without a
+# CUDA toolkit keep the same compile as before (cmake .. ; make).
+option(USE_CUDA "Enable CUDA acceleration for LogicFilterGpu" OFF)
+if(USE_CUDA)
+  enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+  message(STATUS "USE_CUDA: ON (LogicFilterGpu GPU path)")
+else()
+  message(STATUS "USE_CUDA: OFF (LogicFilterGpu builds CPU fallback)")
+endif()
+
 message(STATUS "PROJECT_NAME: ${PROJECT_NAME}")
 
 # check c++ compiler and turn on colored output
@@ -175,7 +186,7 @@ foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
-  fltcoin; LogicFilter;
+  fltcoin; LogicFilter; LogicFilterGpu;
   tfdump;
 # onlinedisplay;
   FilterTimeFrameSliceABC;
@@ -189,6 +200,19 @@ foreach(lvar IN ITEMS
   add_executable(${EXEC} 
     ${EXEC}.cxx;
   )
+
+  # CUDA sources stay off the original LogicFilter / fltcoin targets.
+  if((${EXEC} STREQUAL "LogicFilterGpu") AND USE_CUDA)
+    target_sources(${EXEC} PRIVATE TriggerCuda.cu)
+    target_compile_definitions(${EXEC} PRIVATE USE_CUDA)
+    target_link_libraries(${EXEC} PRIVATE CUDA::cudart)
+    set_target_properties(${EXEC} PROPERTIES
+      CUDA_SEPARABLE_COMPILATION ON
+      CUDA_STANDARD 17
+      CUDA_STANDARD_REQUIRED ON
+      CUDA_ARCHITECTURES native
+    )
+  endif()
 
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  

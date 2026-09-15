@@ -9,6 +9,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <cstdint>
 #include <vector>
 #include <stack>
 
@@ -22,6 +23,14 @@ public:
 	void MakeTable(std::string &);
 	bool LookUp(uint32_t);
 	void Dump();
+	// Export helpers for the LogicFilterGpu CUDA path (no-op for CPU LookUp)
+	uint32_t GetMapSize() const { return (uint32_t)fMapSize; }
+	void ExportLut(std::vector<uint8_t>& out) const {
+		out.resize(fMapSize);
+		for (unsigned int i = 0; i < fMapSize; i++) {
+			out[i] = fLut[i] ? 1u : 0u;
+		}
+	}
 protected:
 private:
 	bool ExtractBit(uint32_t, int);
