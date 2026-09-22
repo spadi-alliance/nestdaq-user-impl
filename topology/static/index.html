@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nestdaq topology</title>
+  <link rel="stylesheet" href="/viewer.css">
+</head>
+<body>
+  <header>
+    <h1 id="page-title">topology <span>live from Redis</span></h1>
+    <div class="meta">
+      <div id="stats"></div>
+      <div id="clock"></div>
+    </div>
+  </header>
+  <div class="toolbar">
+    <nav class="nav">
+      <a href="/" id="nav-topo">topology</a>
+      <a href="/params" id="nav-params">params</a>
+      <a class="dl" href="/docs/technical-note-en.pdf" download="nestdaq-topology-technical-note-en.pdf">note EN</a>
+      <a class="dl" href="/docs/technical-note-en.tex" download="nestdaq-topology-technical-note-en.tex">note EN tex</a>
+      <a class="dl" href="/docs/technical-note-ko.pdf" download="nestdaq-topology-technical-note-ko.pdf">note KO</a>
+    </nav>
+    <div id="toolbar-topo" class="toolbar-group">
+      <label><input type="checkbox" id="tog-mesh"> draw every mesh line (even when N×M is large)</label>
+      <label><input type="checkbox" id="tog-expected"> show topology+presence expectation instead of actual peer lists</label>
+    </div>
+    <div id="toolbar-params" class="toolbar-group" hidden>
+      <label>filter
+        <input type="search" id="params-filter" placeholder="key / field / value">
+      </label>
+    </div>
+    <label><input type="checkbox" id="tog-demo"> show production-shaped demo (ignore live Redis)</label>
+  </div>
+  <ul class="warnings" id="warnlist"></ul>
+  <div id="stage">
+    <svg class="graph" id="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+    <aside id="detail"></aside>
+  </div>
+  <div id="view-params" hidden>
+    <div id="params-root"></div>
+  </div>
+  <script src="/viewer.js"></script>
+</body>
+</html>
