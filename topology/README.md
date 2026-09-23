@@ -60,7 +60,7 @@ state or devices still negotiating).
 ## Run
 
 ```bash
-# after Redis is up (run/init.sh) and topology.sh / param.sh / run-*.sh
+# after Redis is up (topology/run/init.sh) and topology.sh / param.sh / run-*.sh
 python3 topology/serve.py
 # http://127.0.0.1:8765/
 ```
@@ -73,4 +73,4 @@ python3 topology/serve.py --dump          # JSON snapshot
 
 The page polls `/api/snapshot` every second (same idea as `WebGui::PollState`,
 without touching nestdaq or its websocket). Empty Redis shows an empty graph
-and a warning — run `run/run-stf-tf-flt.sh` (or another `run-*.sh`) for live boxes.
+and a warning — run a `run-*.sh` from `topology/run` (or another scripts dir) for live boxes.

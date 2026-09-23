@@ -139,6 +139,7 @@ def _tcp_up(host: str, port: int) -> bool:
 
 def default_uri() -> str:
     for cand in (
+        HERE / "run" / "redis-server.txt",
         HERE.parent / "run" / "redis-server.txt",
         HERE.parent / "run_daid-daq-01" / "redis-server.txt",
     ):
@@ -339,8 +340,8 @@ def make_handler(app: App):
                         payload.get("links") or [],
                         services,
                     )
-                    n_params = app.rt.write_run_params(services, str(HERE.parent / "run"))
-                    run_dir = HERE.parent / "run"
+                    run_dir = HERE / "run"
+                    n_params = app.rt.write_run_params(services, str(run_dir))
                     json_path = run_dir / "_edit_run.json"
                     json_path.write_text(json.dumps({"services": services}), encoding="utf-8")
                     env = os.environ.copy()

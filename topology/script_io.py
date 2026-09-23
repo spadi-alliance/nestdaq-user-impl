@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-DEFAULT_SCRIPTS_DIR = "run"
+DEFAULT_SCRIPTS_DIR = "topology/run"
 PROTECTED = {
     "start_device.sh",
     "device_launch.sh",
@@ -58,12 +58,26 @@ def classify(name: str) -> str:
 def list_script_dirs() -> List[str]:
     out = []
     root = REPO.resolve()
-    for child in sorted(root.iterdir(), key=lambda p: p.name.lower()):
-        if not child.is_dir() or child.name.startswith("."):
+    seen = set()
+    kids = [p for p in root.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    extra = root / "topology" / "run"
+    if extra.is_dir():
+        kids.append(extra)
+    for child in sorted(kids, key=lambda p: str(p.relative_to(root)).lower()):
+        rel = str(child.relative_to(root))
+        if rel in seen:
             continue
-        if any(p.suffix == ".sh" and p.is_file() for p in child.iterdir()):
-            out.append(child.name)
-    if DEFAULT_SCRIPTS_DIR not in out and (root / DEFAULT_SCRIPTS_DIR).is_dir():
+        try:
+            has_sh = any(p.suffix == ".sh" and p.is_file() for p in child.iterdir())
+        except OSError:
+            continue
+        if not has_sh:
+            continue
+        seen.add(rel)
+        out.append(rel)
+    if DEFAULT_SCRIPTS_DIR in out:
+        out.remove(DEFAULT_SCRIPTS_DIR)
+    if (root / DEFAULT_SCRIPTS_DIR).is_dir():
         out.insert(0, DEFAULT_SCRIPTS_DIR)
     return out
 
@@ -489,6 +503,8 @@ def _render_run(stem: str, services: List[Dict[str, Any]]) -> str:
         "",
         "if [ -f ./device_launch.sh ]; then",
         "  . ./device_launch.sh",
+        'elif [ -f "$(dirname "$0")/../topology/run/device_launch.sh" ]; then',
+        '  . "$(dirname "$0")/../topology/run/device_launch.sh"',
         'elif [ -f "$(dirname "$0")/../run/device_launch.sh" ]; then',
         '  . "$(dirname "$0")/../run/device_launch.sh"',
         "else",
