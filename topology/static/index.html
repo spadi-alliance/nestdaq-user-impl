@@ -17,30 +17,146 @@
   <div class="toolbar">
     <nav class="nav">
       <a href="/" id="nav-topo">topology</a>
+      <a href="/edit" id="nav-edit">edit</a>
+      <a href="/scripts" id="nav-scripts">scripts</a>
       <a href="/params" id="nav-params">params</a>
-      <a class="dl" href="/docs/technical-note-en.pdf" download="nestdaq-topology-technical-note-en.pdf">note EN</a>
-      <a class="dl" href="/docs/technical-note-en.tex" download="nestdaq-topology-technical-note-en.tex">note EN tex</a>
-      <a class="dl" href="/docs/technical-note-ko.pdf" download="nestdaq-topology-technical-note-ko.pdf">note KO</a>
+      <a href="/daq" id="nav-daq">daq</a>
     </nav>
     <div id="toolbar-topo" class="toolbar-group">
-      <label><input type="checkbox" id="tog-mesh"> draw every mesh line (even when N×M is large)</label>
-      <label><input type="checkbox" id="tog-expected"> show topology+presence expectation instead of actual peer lists</label>
+      <label><input type="checkbox" id="tog-warnings"> show warnings</label>
     </div>
     <div id="toolbar-params" class="toolbar-group" hidden>
       <label>filter
         <input type="search" id="params-filter" placeholder="key / field / value">
       </label>
     </div>
-    <label><input type="checkbox" id="tog-demo"> show production-shaped demo (ignore live Redis)</label>
   </div>
-  <ul class="warnings" id="warnlist"></ul>
+  <div id="daq-bar">
+    <div class="daq-row">
+      <span id="daq-ws" class="pill info">daq-webctl …</span>
+      <label class="daq-run">run
+        <input id="daq-run" type="text" inputmode="numeric" autocomplete="off">
+      </label>
+      <button type="button" id="daq-run-set">set</button>
+      <button type="button" id="daq-run-inc">+1</button>
+      <span id="daq-run-meta" class="daq-meta"></span>
+    </div>
+    <div class="daq-row daq-cmds">
+      <div class="daq-group">
+        <button type="button" data-cmd="CONNECT">connect</button>
+        <button type="button" data-cmd="INIT TASK">init task</button>
+        <button type="button" data-cmd="RUN" class="go">run</button>
+      </div>
+      <div class="daq-group">
+        <button type="button" data-cmd="STOP">stop</button>
+        <button type="button" data-cmd="RESET TASK">reset task</button>
+        <button type="button" data-cmd="RESET DEVICE">reset device</button>
+        <button type="button" data-cmd="END" class="danger">end</button>
+      </div>
+      <label><input type="checkbox" id="wait-device-ready" checked> wait device ready</label>
+      <label><input type="checkbox" id="wait-ready" checked> wait ready</label>
+      <label><input type="checkbox" id="run-number-auto-increment-checkbox" checked> +1 on stop</label>
+    </div>
+  </div>
+  <ul class="warnings" id="warnlist" hidden></ul>
   <div id="stage">
-    <svg class="graph" id="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="graph-scroll">
+      <svg class="graph" id="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
     <aside id="detail"></aside>
+  </div>
+  <div id="view-edit" hidden>
+    <div class="edit-toolbar">
+      <button type="button" id="edit-load">load from Redis</button>
+      <button type="button" id="edit-write" class="go">write to Redis</button>
+      <button type="button" id="edit-start">start processes</button>
+      <button type="button" id="edit-clear-form">clear edit</button>
+      <button type="button" id="edit-clear-redis" class="danger">clear Redis (keep run #)</button>
+      <label class="edit-inline">dir <input id="edit-script-dir" value="run" list="scripts-dir-list"></label>
+      <label class="edit-inline">stem <input id="edit-script-stem" value="from-edit" title="prefix; time is appended"></label>
+      <button type="button" id="edit-write-scripts">write topo + param + run scripts</button>
+      <span id="edit-status" class="daq-meta"></span>
+    </div>
+    <div class="edit-grid">
+      <section class="edit-bins">
+        <h2>bin/</h2>
+        <p class="edit-hint">click a binary to add a service. DecSink = FileSink with another service name.</p>
+        <ul id="edit-bin-list"></ul>
+      </section>
+      <section class="edit-services">
+        <h2>services and endpoints</h2>
+        <div id="edit-svc-root"></div>
+      </section>
+      <section class="edit-links">
+        <h2>links</h2>
+        <div id="edit-link-root"></div>
+        <button type="button" id="edit-add-link">add link</button>
+      </section>
+    </div>
+  </div>
+  <div id="view-scripts" hidden>
+    <div class="edit-toolbar">
+      <label class="edit-inline">directory
+        <input id="scripts-dir" value="run" list="scripts-dir-list">
+      </label>
+      <datalist id="scripts-dir-list"></datalist>
+      <button type="button" id="scripts-list">list</button>
+      <button type="button" id="scripts-run" class="go">run selected</button>
+      <span id="scripts-status" class="daq-meta"></span>
+    </div>
+    <p class="edit-hint">Lists *.sh in the directory (default run/). topology / param / run are grouped. Run executes the script with cwd = that directory.</p>
+    <div class="scripts-cols">
+      <section>
+        <h2>topology</h2>
+        <ul id="scripts-topology" class="scripts-list"></ul>
+      </section>
+      <section>
+        <h2>param</h2>
+        <ul id="scripts-param" class="scripts-list"></ul>
+      </section>
+      <section>
+        <h2>run</h2>
+        <ul id="scripts-run-list" class="scripts-list"></ul>
+      </section>
+      <section>
+        <h2>other</h2>
+        <ul id="scripts-other" class="scripts-list"></ul>
+      </section>
+    </div>
+    <div class="scripts-io">
+      <section>
+        <h2 id="scripts-preview-title">preview</h2>
+        <pre id="scripts-preview"></pre>
+      </section>
+      <section>
+        <h2>output</h2>
+        <pre id="scripts-output"></pre>
+      </section>
+    </div>
   </div>
   <div id="view-params" hidden>
     <div id="params-root"></div>
   </div>
+  <div id="view-daq" hidden>
+    <div class="daq-targets">
+      <label>services
+        <select id="serviceSelector" multiple size="8"></select>
+      </label>
+      <label>instances
+        <select id="instanceSelector" multiple size="8"></select>
+      </label>
+    </div>
+    <div class="daq-table-wrap">
+      <table id="daq-summary"></table>
+    </div>
+    <div class="daq-table-wrap">
+      <table id="daq-instances"></table>
+    </div>
+    <p id="daq-ws-ids" class="daq-meta"></p>
+  </div>
+  <script src="/ctl.js"></script>
+  <script src="/editor.js"></script>
+  <script src="/scripts.js"></script>
   <script src="/viewer.js"></script>
 </body>
 </html>

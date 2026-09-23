@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 try:
@@ -118,6 +119,20 @@ class RedisTopology:
     def ping(self) -> bool:
         return bool(self.r0.ping())
 
+    def clear_except_run(self) -> Dict[str, Any]:
+        """Flush DB0/1/2. Keep only run_info:run_number and latest_run_number."""
+        keep = {}
+        for name in ("run_number", "latest_run_number"):
+            val = self.r0.get(f"{RUN_INFO}:{name}")
+            if val is not None:
+                keep[name] = val
+        self.r0.flushdb()
+        self.r1.flushdb()
+        self.r2.flushdb()
+        for name, val in keep.items():
+            self.r0.set(f"{RUN_INFO}:{name}", val)
+        return {"ok": True, "kept": keep}
+
     def snapshot(self) -> Dict[str, Any]:
         t0 = time.time()
         stale: List[Dict[str, str]] = []
@@ -148,18 +163,8 @@ class RedisTopology:
 
         expected = expand_mesh(endpoints, links, live)
         actual = mesh_from_runtime(runtime, live, endpoints, links)
-        source = "actual" if actual["edges"] else "expected"
-        edges = actual["edges"] if actual["edges"] else expected["edges"]
-
-        if actual["edges"] and expected["edges"]:
-            a = _edge_keyset(actual["edges"])
-            e = _edge_keyset(expected["edges"])
-            if a != e:
-                warnings.append(
-                    f"actual peer mesh ({len(a)}) differs from topology+presence "
-                    f"expectation ({len(e)}); leftover connect state or devices "
-                    f"still negotiating"
-                )
+        edges = actual["edges"]
+        source = "redis" if edges else "none"
 
         services = self._services(endpoints, links, live, runtime, params)
         groups = classify_groups(links, services, edges)
@@ -239,6 +244,99 @@ class RedisTopology:
         out.sort(key=lambda x: (x["from_service"], x["to_service"], x["from_channel"]))
         return out
 
+    def write_topology(
+        self,
+        endpoints: List[Dict[str, Any]],
+        links: List[Dict[str, str]],
+        services: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """Replace only topology:endpoint/link/count. Presence stays."""
+        old = scan_keys(self.r0, f"{TOP}:{TOPOLOGY}:{ENDPOINT}:*")
+        old.extend(scan_keys(self.r0, f"{TOP}:{TOPOLOGY}:{LINK}:*"))
+        old.extend(scan_keys(self.r0, f"{TOP}:{TOPOLOGY}:count:*"))
+        if old:
+            self.r0.delete(*old)
+        n_ep = 0
+        for ep in endpoints or []:
+            svc = str(ep.get("service") or "").strip()
+            ch = str(ep.get("channel") or "").strip()
+            if not svc or not ch or ":" in svc:
+                continue
+            key = f"{TOP}:{TOPOLOGY}:{ENDPOINT}:{svc}:{ch}"
+            self.r0.hset(key, "type", str(ep.get("type") or "push"))
+            self.r0.hset(key, "method", str(ep.get("method") or "bind"))
+            self.r0.hset(key, "autoSubChannel", "true" if _truthy(ep.get("autoSubChannel")) else "false")
+            n_ep += 1
+        n_lk = 0
+        for lk in links or []:
+            a = str(lk.get("from_service") or "").strip()
+            ac = str(lk.get("from_channel") or "").strip()
+            b = str(lk.get("to_service") or "").strip()
+            bc = str(lk.get("to_channel") or "").strip()
+            if not a or not ac or not b or not bc:
+                continue
+            self.r0.set(f"{TOP}:{TOPOLOGY}:{LINK}:{a}:{ac},{b}:{bc}", "none")
+            n_lk += 1
+        counts: Dict[str, int] = {}
+        for svc in services or []:
+            name = str(svc.get("name") or "").strip()
+            if not name:
+                continue
+            try:
+                n = int(svc.get("n") or 0)
+            except (TypeError, ValueError):
+                n = 0
+            n = max(0, min(n, 200))
+            self.r0.set(f"{TOP}:{TOPOLOGY}:count:{name}", str(n))
+            counts[name] = n
+        return {"ok": True, "endpoints": n_ep, "links": n_lk, "counts": counts}
+
+    def read_counts(self) -> Dict[str, int]:
+        out: Dict[str, int] = {}
+        for key in scan_keys(self.r0, f"{TOP}:{TOPOLOGY}:count:*"):
+            name = key.rsplit(":", 1)[-1]
+            try:
+                out[name] = int(self.r0.get(key) or 0)
+            except (TypeError, ValueError):
+                out[name] = 0
+        return out
+
+    def write_run_params(self, services: List[Dict[str, Any]], run_dir: str) -> int:
+        """Minimal DB2 parameters so FileSink / TFB can start."""
+        root = Path(run_dir)
+        n_keys = 0
+        for svc in services or []:
+            name = str(svc.get("name") or "").strip()
+            binary = str(svc.get("binary") or name).strip()
+            try:
+                n = int(svc.get("n") or 0)
+            except (TypeError, ValueError):
+                n = 0
+            n = max(0, min(n, 200))
+            for i in range(n):
+                key = f"parameters:{name}-{i}"
+                if name in {"AmQStrTdcSampler", "Sampler"} or binary in {"AmQStrTdcSampler", "Sampler"}:
+                    self.r2.hset(key, "msiTcpIp", f"192.168.2.{101 + i}")
+                    self.r2.hset(key, "TdcType", "5")
+                if binary == "FileSink" or name in {"FileSink", "DecSink"}:
+                    sub = "dcmdata" if name == "DecSink" else "tdcdata"
+                    dest = root / "data" / sub / f"{i:02d}"
+                    dest.mkdir(parents=True, exist_ok=True)
+                    self.r2.hset(key, "multipart", "true")
+                    self.r2.hset(key, "prefix", str(dest))
+                    self.r2.hset(key, "ext", ".dat")
+                    self.r2.hset(key, "openmode", "recreate")
+                if name == "TimeFrameBuilder":
+                    self.r2.hset(key, "decimation-factor", "1000")
+                    self.r2.hset(key, "decimation-offset", "0")
+                if name == "STFBuilder":
+                    self.r2.hset(key, "max-hbf", "4")
+                if name == "TimeFrameSlicerByLogicTiming":
+                    self.r2.hset(key, "time-offset-begin", "-250")
+                    self.r2.hset(key, "time-offset-end", "250")
+                n_keys += 1
+        return n_keys
+
     def _read_live(self) -> List[Dict[str, Any]]:
         keys = scan_keys(self.r0, f"{TOP}:*:*:{PRESENCE}")
         live = []
@@ -303,7 +401,7 @@ class RedisTopology:
             inst_rt["service"] = service
             inst_rt["id"] = inst
             ch = inst_rt["channels"].setdefault(ch_name, {
-                "name": ch_name, "props": {}, "peers": [],
+                "name": ch_name, "props": {}, "peers": [], "sockets": [],
             })
             if len(parts) == 5:
                 props = self.r0.hgetall(key) or {}
@@ -331,13 +429,39 @@ class RedisTopology:
                 ch["peers"] = kept
 
         for key in scan_keys(self.r0, f"{TOP}:*:*:{SOCKET}:*"):
-            parts = key.split(SEP)
-            if len(parts) < 5 or parts[0] != TOP:
+            parts = key.split(SEP, 4)
+            if len(parts) != 5 or parts[0] != TOP or parts[3] != SOCKET:
                 continue
-            service, inst = parts[1], parts[2]
+            service, inst, rest = parts[1], parts[2], parts[4]
             if (service, inst) not in present:
                 stale.append({"key": key, "reason": "socket of instance without presence"})
                 continue
+            if not rest.startswith("chans."):
+                continue
+            bits = rest.split(".")
+            if len(bits) < 3:
+                continue
+            ch_name = bits[1]
+            try:
+                sidx = int(bits[2])
+            except ValueError:
+                sidx = 0
+            h = self.r0.hgetall(key) or {}
+            inst_rt = runtime[inst]
+            inst_rt["service"] = service
+            inst_rt["id"] = inst
+            ch = inst_rt["channels"].setdefault(ch_name, {
+                "name": ch_name, "props": {}, "peers": [], "sockets": [],
+            })
+            ch.setdefault("sockets", []).append({
+                "index": sidx,
+                "address": h.get("address", ""),
+                "method": h.get("method", ""),
+            })
+            if h.get("address") and not ch.get("address"):
+                ch["address"] = h.get("address", "")
+            if h.get("method") and not ch.get("method"):
+                ch["method"] = h.get("method", "")
 
         return dict(runtime), stale
 
@@ -354,7 +478,6 @@ class RedisTopology:
             "uri": self.uri,
             "ts": time.time(),
             "elapsed_ms": int((time.time() - t0) * 1000),
-            "demo": False,
             "params": registered,
             "counts": _param_counts(registered),
             "warnings": warnings,
@@ -395,12 +518,7 @@ class RedisTopology:
         return params, stale
 
     def _services(self, endpoints, links, live, runtime, params):
-        names: Set[str] = set()
-        names.update(ep["service"] for ep in endpoints)
-        for lk in links:
-            names.add(lk["from_service"])
-            names.add(lk["to_service"])
-        names.update(x["service"] for x in live)
+        names: Set[str] = {x["service"] for x in live}
 
         by_svc: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         for inst in live:
@@ -521,64 +639,129 @@ def expand_mesh(endpoints, links, live) -> Dict[str, Any]:
     return {"edges": edges}
 
 
+def _split_addrs(raw: str) -> List[str]:
+    s = (raw or "").strip()
+    if not s or s.lower() in {"unspecified", "none", "null"}:
+        return []
+    return [x.strip() for x in s.split(",") if x.strip()]
+
+
+def _parse_ep_addr(addr: str) -> Dict[str, str]:
+    out = {"raw": addr, "scheme": "", "host": "", "port": "", "path": ""}
+    if "://" not in addr:
+        return out
+    scheme, rest = addr.split("://", 1)
+    out["scheme"] = scheme.lower()
+    if out["scheme"] in {"ipc", "inproc"}:
+        out["path"] = rest
+        return out
+    if rest.startswith("["):
+        end = rest.find("]")
+        if end > 0:
+            out["host"] = rest[1:end]
+            tail = rest[end + 1:]
+            if tail.startswith(":"):
+                out["port"] = tail[1:]
+            return out
+    if ":" in rest:
+        host, port = rest.rsplit(":", 1)
+        out["host"] = host
+        out["port"] = port
+    else:
+        out["host"] = rest
+    return out
+
+
+def _addrs_match(a: Dict[str, str], b: Dict[str, str]) -> bool:
+    if not a.get("scheme") or a["scheme"] != b.get("scheme"):
+        return False
+    if a["scheme"] in {"ipc", "inproc"}:
+        return bool(a.get("path")) and a["path"] == b.get("path")
+    if not a.get("port") or a["port"] != b.get("port"):
+        return False
+    wild = {"", "*", "0.0.0.0", "::"}
+    if a.get("host") in wild or b.get("host") in wild:
+        return True
+    return a.get("host") == b.get("host")
+
+
+def _channel_addrs(ch: Dict[str, Any]) -> List[str]:
+    addrs: List[str] = []
+    for sock in ch.get("sockets") or []:
+        addrs.extend(_split_addrs(sock.get("address") or ""))
+    if not addrs:
+        addrs = _split_addrs(ch.get("address") or "")
+    return addrs
+
+
 def mesh_from_runtime(runtime, live, endpoints, links) -> Dict[str, Any]:
-    """Use peer lists written after CONNECT. Drop peers without presence."""
+    """Edges from Redis bind/connect addresses of present instances only.
+
+    Peer lists are candidate names (every instance of the linked service).
+    After CONNECT, socket/channel address is the real target. Match those.
+    """
     if not runtime:
         return {"edges": []}
-    link_set = {
+    topo_fwd = {
         (lk["from_service"], lk["from_channel"], lk["to_service"], lk["to_channel"])
         for lk in links
     }
-    link_set |= {(b, d, a, c) for (a, c, b, d) in list(link_set)}
+    topo_rev = {(b, d, a, c) for (a, c, b, d) in topo_fwd}
+    linked = topo_fwd | topo_rev
 
-    inst_svc = {x["id"]: x["service"] for x in live}
+    binds: List[Dict[str, Any]] = []
+    connects: List[Dict[str, Any]] = []
+    for inst, rt in runtime.items():
+        svc = rt.get("service")
+        for ch_name, ch in rt.get("channels", {}).items():
+            method = (ch.get("method") or (ch.get("props") or {}).get("method") or "").lower()
+            auto = bool(ch.get("autoSubChannel"))
+            for i, raw in enumerate(_channel_addrs(ch)):
+                rec = {
+                    "id": inst, "service": svc, "channel": ch_name,
+                    "sub": i, "auto": auto, **_parse_ep_addr(raw),
+                }
+                if method == "bind":
+                    binds.append(rec)
+                elif method == "connect":
+                    connects.append(rec)
+
     edges = []
     seen = set()
-    for inst, rt in runtime.items():
-        svc = rt.get("service") or inst_svc.get(inst)
-        for ch_name, ch in rt.get("channels", {}).items():
-            auto = bool(ch.get("autoSubChannel"))
-            for idx, peer in enumerate(ch.get("peers") or []):
-                pair = (svc, ch_name, peer["service"], peer["channel"])
-                if links and pair not in link_set:
-                    continue
-                # Orient along the topology.sh link order when known.
-                forward = (svc, ch_name, peer["service"], peer["channel"])
-                reverse = (peer["service"], peer["channel"], svc, ch_name)
-                if forward in {(lk["from_service"], lk["from_channel"],
-                                lk["to_service"], lk["to_channel"]) for lk in links}:
-                    src_id, src_svc, src_ch = inst, svc, ch_name
-                    dst_id, dst_svc, dst_ch = peer["id"], peer["service"], peer["channel"]
-                    sa, sb = idx, 0
-                elif reverse in {(lk["from_service"], lk["from_channel"],
-                                  lk["to_service"], lk["to_channel"]) for lk in links}:
-                    src_id, src_svc, src_ch = peer["id"], peer["service"], peer["channel"]
-                    dst_id, dst_svc, dst_ch = inst, svc, ch_name
-                    sa, sb = 0, idx
-                else:
-                    src_id, src_svc, src_ch = inst, svc, ch_name
-                    dst_id, dst_svc, dst_ch = peer["id"], peer["service"], peer["channel"]
-                    sa, sb = idx, 0
-                key = (src_id, src_ch, dst_id, dst_ch)
-                if key in seen:
-                    continue
-                seen.add(key)
-                routing = ""
-                if auto:
-                    routing = ROUTING.get(src_svc, "round-robin / FairMQ PUSH")
-                edges.append({
-                    "from_id": src_id,
-                    "from_service": src_svc,
-                    "from_channel": src_ch,
-                    "from_sub": sa,
-                    "to_id": dst_id,
-                    "to_service": dst_svc,
-                    "to_channel": dst_ch,
-                    "to_sub": sb,
-                    "autoSubChannel": auto,
-                    "routing": routing,
-                    "origin": "actual",
-                })
+    for c in connects:
+        for b in binds:
+            pair = (c["service"], c["channel"], b["service"], b["channel"])
+            if links and pair not in linked:
+                continue
+            if not _addrs_match(c, b):
+                continue
+            if (c["service"], c["channel"], b["service"], b["channel"]) in topo_fwd:
+                src, dst, sa, sb = c, b, c["sub"], b["sub"]
+            elif (b["service"], b["channel"], c["service"], c["channel"]) in topo_fwd:
+                src, dst, sa, sb = b, c, b["sub"], c["sub"]
+            else:
+                src, dst, sa, sb = c, b, c["sub"], b["sub"]
+            key = (src["id"], src["channel"], dst["id"], dst["channel"], sa, sb)
+            if key in seen:
+                continue
+            seen.add(key)
+            auto = bool(src.get("auto") or dst.get("auto")
+                        or _find_ep(endpoints, src["service"], src["channel"]).get("autoSubChannel")
+                        or _find_ep(endpoints, dst["service"], dst["channel"]).get("autoSubChannel"))
+            routing = ROUTING.get(src["service"], "round-robin / FairMQ PUSH") if auto else ""
+            edges.append({
+                "from_id": src["id"],
+                "from_service": src["service"],
+                "from_channel": src["channel"],
+                "from_sub": sa,
+                "to_id": dst["id"],
+                "to_service": dst["service"],
+                "to_channel": dst["channel"],
+                "to_sub": sb,
+                "autoSubChannel": auto,
+                "routing": routing,
+                "origin": "redis",
+            })
     return {"edges": edges}
 
 
@@ -628,167 +811,129 @@ def classify_groups(links, services, edges) -> List[Dict[str, Any]]:
     return groups
 
 
-def demo_snapshot() -> Dict[str, Any]:
-    """In-memory snapshot matching run_daid-daq-01 production counts.
-
-    Used when Redis is empty so the viewer can still show the mesh policy.
-    """
-    spec = [
-        ("AmQStrTdcSampler", 6, [("out", "push", "bind", False)]),
-        ("STFBuilder", 6, [
-            ("in", "pull", "connect", False),
-            ("out", "push", "connect", True),
-        ]),
-        ("TimeFrameBuilder", 1, [
-            ("in", "pull", "bind", False),
-            ("out", "push", "connect", True),
-            ("decimator", "push", "connect", False),
-        ]),
-        ("LogicFilter", 4, [
-            ("in", "pull", "bind", False),
-            ("out", "push", "connect", True),
-        ]),
-        ("TimeFrameSlicerByLogicTiming", 4, [
-            ("in", "pull", "bind", False),
-            ("out", "push", "connect", True),
-        ]),
-        ("FileSink", 1, [("in", "pull", "bind", False)]),
-        ("DecSink", 1, [("in", "pull", "bind", False)]),
-    ]
-    endpoints = []
-    live = []
-    services = []
-    for name, n, eps in spec:
-        for ch, typ, method, auto in eps:
-            endpoints.append({
-                "service": name, "channel": ch, "type": typ, "method": method,
-                "transport": "zeromq", "autoSubChannel": auto, "numSockets": 0,
-                "waitForPeerConnection": True, "raw": {},
-            })
-        ids = [f"{name}-{i}" for i in range(n)]
-        for i, inst in enumerate(ids):
-            live.append({
-                "id": inst, "service": name, "index": i, "uuid": f"demo-{inst}",
-                "ttl": 5, "state": "RUNNING", "updated": "", "host": "demo", "ip": "",
-            })
-        services.append({
-            "name": name, "instances": ids, "n": n,
-            "endpoints": [e for e in endpoints if e["service"] == name],
-            "routing": ROUTING.get(name, ""), "params": {},
-        })
-    links = [
-        {"from_service": "AmQStrTdcSampler", "from_channel": "out",
-         "to_service": "STFBuilder", "to_channel": "in", "value": "none"},
-        {"from_service": "STFBuilder", "from_channel": "out",
-         "to_service": "TimeFrameBuilder", "to_channel": "in", "value": "none"},
-        {"from_service": "TimeFrameBuilder", "from_channel": "out",
-         "to_service": "LogicFilter", "to_channel": "in", "value": "none"},
-        {"from_service": "TimeFrameBuilder", "from_channel": "decimator",
-         "to_service": "DecSink", "to_channel": "in", "value": "none"},
-        {"from_service": "LogicFilter", "from_channel": "out",
-         "to_service": "TimeFrameSlicerByLogicTiming", "to_channel": "in",
-         "value": "none"},
-        {"from_service": "TimeFrameSlicerByLogicTiming", "from_channel": "out",
-         "to_service": "FileSink", "to_channel": "in", "value": "none"},
-    ]
-    expected = expand_mesh(endpoints, links, live)
-    groups = classify_groups(links, services, expected["edges"])
+def empty_snapshot(uri: str = "", warnings: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Empty live graph when Redis is down. Does not invent processes."""
     return {
-        "ok": True,
-        "uri": "demo://stf-tf-flt-tfs",
+        "ok": False,
+        "uri": uri,
         "ts": time.time(),
         "elapsed_ms": 0,
-        "source": "expected",
-        "demo": True,
-        "services": services,
-        "endpoints": endpoints,
-        "links": links,
-        "instances": live,
-        "edges": expected["edges"],
-        "expected_edges": expected["edges"],
+        "source": "none",
+        "services": [],
+        "endpoints": [],
+        "links": [],
+        "instances": [],
+        "edges": [],
+        "expected_edges": [],
         "actual_edges": [],
-        "groups": groups,
+        "groups": [],
         "params": {},
         "stale": [],
-        "warnings": ["demo snapshot (Redis empty or --demo); not live presence"],
+        "warnings": list(warnings or []),
         "counts": {
-            "services": len(services),
-            "instances": len(live),
-            "logical_links": len(links),
-            "mesh_edges": len(expected["edges"]),
+            "services": 0,
+            "instances": 0,
+            "logical_links": 0,
+            "mesh_edges": 0,
             "stale_keys": 0,
         },
     }
 
 
-def demo_params_snapshot() -> Dict[str, Any]:
-    """Shape of run/param.sh so the params page is not blank under --demo."""
-    rows = [
-        {
-            "name": "TFBFilePlayer-0",
-            "key": "parameters:TFBFilePlayer-0",
-            "kind": "instance",
-            "live": True,
-            "leftover": False,
-            "fields": {
-                "in-file": "/demo/tfb.dat",
-                "wait": "0",
-                "max-iterations": "0",
-                "split": "2",
-                "recbe": "false",
-            },
-        },
-        {
-            "name": "LogicFilterGpu",
-            "key": "parameters:LogicFilterGpu",
-            "kind": "service",
-            "live": True,
-            "leftover": False,
-            "fields": {
-                "trigger-signals": "(0xc0a802a9 0 0) (0xc0a802a9 1 0) (0xc0a802a9 2 0) (0xc0a802a9 3 0)",
-                "trigger-expression": "RPN 0 1 & 2 & 3 &",
-                "trigger-width": "10",
-            },
-        },
-        {
-            "name": "LogicFilterGpu-0",
-            "key": "parameters:LogicFilterGpu-0",
-            "kind": "instance",
-            "live": True,
-            "leftover": False,
-            "fields": {
-                "data-suppress": "true",
-                "remove-hb": "false",
-                "split": "2",
-                "poll-timeout": "1",
-                "trigger-signals": "(0xc0a802a9 0 0) (0xc0a802a9 1 0) (0xc0a802a9 2 0) (0xc0a802a9 3 0)",
-                "trigger-expression": "RPN 0 1 & 2 & 3 &",
-                "trigger-width": "10",
-            },
-        },
-        {
-            "name": "FileSink-0",
-            "key": "parameters:FileSink-0",
-            "kind": "instance",
-            "live": True,
-            "leftover": False,
-            "fields": {
-                "multipart": "true",
-                "prefix": "data/fltgpu/tf",
-                "ext": ".dat",
-            },
-        },
-    ]
+def empty_params_snapshot(uri: str = "", warnings: Optional[List[str]] = None) -> Dict[str, Any]:
     return {
-        "ok": True,
-        "uri": "demo://param.sh",
+        "ok": False,
+        "uri": uri,
         "ts": time.time(),
         "elapsed_ms": 0,
-        "demo": True,
-        "params": rows,
-        "counts": _param_counts(rows),
-        "warnings": ["demo parameters (Redis empty or --demo); not live param.sh"],
+        "params": [],
+        "counts": _param_counts([]),
+        "warnings": list(warnings or []),
     }
+
+
+DAQCTL_CHANNEL = "daqctl"
+RUN_INFO = "run_info"
+KNOWN_DAQ_COMMANDS = {
+    "BIND", "COMPLETE INIT", "CONNECT", "END", "INIT DEVICE", "INIT TASK",
+    "RESET DEVICE", "RESET TASK", "RUN", "STOP", "exit", "quit", "reset", "start",
+}
+KNOWN_RUN_INFO = {"run_number", "wait-device-ready", "wait-ready"}
+
+
+def _daq_services(live: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    by: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for inst in live:
+        by[inst["service"]].append(inst)
+    out = []
+    for svc, rows in sorted(by.items()):
+        counts: Dict[str, int] = defaultdict(int)
+        insts = []
+        for row in rows:
+            st = row.get("state") or "Undefined"
+            counts[st] += 1
+            insts.append({
+                "service": row["service"],
+                "instance": row["id"],
+                "state": st,
+                "date": row.get("updated") or "",
+            })
+        out.append({
+            "service": svc,
+            "n_instances": len(rows),
+            "date": max((r.get("updated") or "") for r in rows),
+            "counts": [{"name": k, "value": v} for k, v in counts.items()],
+            "instances": insts,
+        })
+    return out
+
+
+# RedisTopology DAQ helpers (same path as WebGui::RedisPublishDaqCommand)
+def daq_status_from(rt: "RedisTopology") -> Dict[str, Any]:
+    live = rt._read_live()
+    return {
+        "ok": True,
+        "via": "redis",
+        "channel": DAQCTL_CHANNEL,
+        "run_number": rt.r0.get(f"{RUN_INFO}:run_number") or "",
+        "latest_run_number": rt.r0.get(f"{RUN_INFO}:latest_run_number") or "",
+        "wait_device_ready": _truthy(rt.r0.get(f"{RUN_INFO}:wait-device-ready") or "true"),
+        "wait_ready": _truthy(rt.r0.get(f"{RUN_INFO}:wait-ready") or "true"),
+        "services": _daq_services(live),
+        "service_list_changed": "true",
+        "instance_list_changed": "true",
+    }
+
+
+def daq_set_run_info(rt: "RedisTopology", name: str, value: str) -> str:
+    if name not in KNOWN_RUN_INFO:
+        raise ValueError(f"unknown run_info field: {name}")
+    rt.r0.set(f"{RUN_INFO}:{name}", value)
+    return rt.r0.get(f"{RUN_INFO}:{name}") or ""
+
+
+def daq_incr_run(rt: "RedisTopology") -> int:
+    return int(rt.r0.incr(f"{RUN_INFO}:run_number"))
+
+
+def daq_publish(rt: "RedisTopology", value: str, services: List[str], instances: List[str]) -> Dict[str, Any]:
+    cmd = str(value or "").strip()
+    if cmd not in KNOWN_DAQ_COMMANDS:
+        raise ValueError(f"unknown command: {cmd}")
+    svcs = services or ["all"]
+    insts = instances or ["all"]
+    if cmd == "RUN":
+        cur = rt.r0.get(f"{RUN_INFO}:run_number")
+        if cur:
+            rt.r0.set(f"{RUN_INFO}:latest_run_number", cur)
+    payload = {
+        "command": "change_state",
+        "value": cmd,
+        "services": svcs,
+        "instances": insts,
+    }
+    n = rt.r0.publish(DAQCTL_CHANNEL, json.dumps(payload))
+    return {"ok": True, "subscribers": int(n), "payload": payload}
 
 
 def dumps(snap: Dict[str, Any]) -> str:
