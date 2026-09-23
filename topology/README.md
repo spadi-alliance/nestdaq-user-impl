@@ -68,10 +68,9 @@ python3 topology/serve.py
 ```bash
 python3 topology/serve.py --redis redis://127.0.0.1:6379
 python3 topology/serve.py --dump          # JSON snapshot
-python3 topology/serve.py --demo          # production-shaped demo, no Redis
+./topology/start.sh                       # background
 ```
 
 The page polls `/api/snapshot` every second (same idea as `WebGui::PollState`,
-without touching nestdaq or its websocket). If Redis has no topology and no
-presence, a demo of `run_daid-daq-01` counts is shown so the layout can be
-checked; a warning says it is not live.
+without touching nestdaq or its websocket). Empty Redis shows an empty graph
+and a warning — run `run/run-stf-tf-flt.sh` (or another `run-*.sh`) for live boxes.
