@@ -86,24 +86,6 @@ def list_binaries() -> list:
                 ]),
             })
     return rows
-DOCS = STATIC / "docs"
-DOC_FILES = {
-    "technical-note-en.pdf": (
-        DOCS / "technical-note-en.pdf",
-        "application/pdf",
-        "nestdaq-topology-technical-note-en.pdf",
-    ),
-    "technical-note-ko.pdf": (
-        DOCS / "technical-note-ko.pdf",
-        "application/pdf",
-        "nestdaq-topology-technical-note-ko.pdf",
-    ),
-    "technical-note-en.tex": (
-        HERE / "docs" / "technical-note-en.tex",
-        "application/x-tex; charset=utf-8",
-        "nestdaq-topology-technical-note-en.tex",
-    ),
-}
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
@@ -141,7 +123,6 @@ def default_uri() -> str:
     for cand in (
         HERE / "run" / "redis-server.txt",
         HERE.parent / "run" / "redis-server.txt",
-        HERE.parent / "run_daid-daq-01" / "redis-server.txt",
     ):
         if cand.is_file():
             host = cand.read_text().strip().split()[0]
@@ -219,16 +200,6 @@ def make_handler(app: App):
                 return self._file(STATIC / "ctl.js", "application/javascript")
             if path == "/viewer.css":
                 return self._file(STATIC / "viewer.css", "text/css")
-            if path.startswith("/docs/"):
-                name = Path(path).name
-                spec = DOC_FILES.get(name)
-                if spec:
-                    fpath, ctype, download = spec
-                    return self._file(
-                        fpath,
-                        ctype,
-                        extra={"Content-Disposition": f'attachment; filename="{download}"'},
-                    )
             if path == "/api/snapshot":
                 body = json.dumps(app.snapshot()).encode("utf-8")
                 return self._send(200, body, "application/json")
@@ -421,7 +392,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Live nestdaq topology from Redis")
     p.add_argument("--redis", default=default_uri(), help="redis://host:port")
     p.add_argument("--port", type=int, default=8765)
-    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--dump", action="store_true", help="print snapshot JSON and exit")
     p.add_argument("--ctl-host", default="127.0.0.1", help="daq-webctl host")
     p.add_argument("--ctl-port", type=int, default=8080, help="daq-webctl port")

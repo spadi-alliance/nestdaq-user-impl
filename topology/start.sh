@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start the topology viewer (http://127.0.0.1:8765/).
+# Start the topology viewer (http://<host>:8765/, binds 0.0.0.0 by default).
 #
 #   ./start.sh              background, append serve.log
 #   ./start.sh --nolog      background, no log file
@@ -17,7 +17,7 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 cd "$HERE"
 
-HOST="${HOST:-127.0.0.1}"
+HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8765}"
 PIDFILE="${PIDFILE:-$HERE/serve.pid}"
 LOGFILE="${LOGFILE:-$HERE/serve.log}"
