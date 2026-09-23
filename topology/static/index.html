@@ -72,7 +72,7 @@
       <button type="button" id="edit-start">start processes</button>
       <button type="button" id="edit-clear-form">clear edit</button>
       <button type="button" id="edit-clear-redis" class="danger">clear Redis (keep run #)</button>
-      <label class="edit-inline">dir <input id="edit-script-dir" value="run" list="scripts-dir-list"></label>
+      <label class="edit-inline">dir <input id="edit-script-dir" value="topology/run" list="scripts-dir-list"></label>
       <label class="edit-inline">stem <input id="edit-script-stem" value="from-edit" title="prefix; time is appended"></label>
       <button type="button" id="edit-write-scripts">write topo + param + run scripts</button>
       <span id="edit-status" class="daq-meta"></span>
@@ -97,14 +97,14 @@
   <div id="view-scripts" hidden>
     <div class="edit-toolbar">
       <label class="edit-inline">directory
-        <input id="scripts-dir" value="run" list="scripts-dir-list">
+        <input id="scripts-dir" value="topology/run" list="scripts-dir-list">
       </label>
       <datalist id="scripts-dir-list"></datalist>
       <button type="button" id="scripts-list">list</button>
       <button type="button" id="scripts-run" class="go">run selected</button>
       <span id="scripts-status" class="daq-meta"></span>
     </div>
-    <p class="edit-hint">Lists *.sh in the directory (default run/). topology / param / run are grouped. Run executes the script with cwd = that directory.</p>
+    <p class="edit-hint">Lists *.sh in the directory (default topology/run). Change the path to use another folder under the repo. topology / param / run are grouped. Run executes the script with cwd = that directory.</p>
     <div class="scripts-cols">
       <section>
         <h2>topology</h2>

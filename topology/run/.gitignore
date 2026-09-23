@@ -1,0 +1,6 @@
+_*.log
+_edit_run.json
+_edit_run.log
+data/
+dump.rdb
+*.dat

@@ -2,7 +2,7 @@
 
 const SCRIPTS_DIR_KEY = "nestdaq-scripts-dir";
 
-let scriptsDir = "run";
+let scriptsDir = "topology/run";
 let scriptsSelected = "";
 let scriptsLoaded = false;
 
@@ -118,7 +118,8 @@ function initScripts() {
   if (!listBtn) return;
   try {
     const saved = localStorage.getItem(SCRIPTS_DIR_KEY);
-    if (saved) scriptsDir = saved;
+    if (saved && saved !== "run") scriptsDir = saved;
+    else if (saved === "run") scriptsDir = "topology/run";
   } catch (err) { /* ignore */ }
   const inp = document.getElementById("scripts-dir");
   if (inp) inp.value = scriptsDir;
