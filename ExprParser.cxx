@@ -130,6 +130,14 @@ int main(int argc, char* argv[])
 		std::cout << std::setw(8) << std::hex << t.type << " :" << t.expr << ":" << std::endl;
 	}
 
+	std::cout << std::endl;
+
+	std::string param2("(0 & 1) | (2 & 3)");
+	std::vector<struct ExprParser::TrgExpression> expressions2 = ExprParser::Parsing(param2);
+	for (auto &t : expressions2) {
+		std::cout << std::setw(8) << std::hex << t.type << " :" << t.expr << ":" << std::endl;
+	}
+
 	return 0;
 }
 #endif
