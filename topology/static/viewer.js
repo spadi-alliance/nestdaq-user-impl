@@ -418,7 +418,7 @@ function applyView() {
   const view = currentView();
   const titles = {
     params: ["nestdaq params", "params <span>Redis DB2 · param.sh</span>"],
-    daq: ["nestdaq daq", "daq <span>daq-webctl websocket</span>"],
+    daq: ["nestdaq daq", "daq"],
     edit: ["nestdaq edit", "edit <span>write topology from bin/</span>"],
     scripts: ["nestdaq scripts", "scripts <span>param / topology / run</span>"],
     topology: ["nestdaq topology", "topology <span>live from Redis</span>"],
@@ -526,6 +526,7 @@ function showOverview() {
   const box = $("detail");
   if (!snap) { box.hidden = true; return; }
   box.hidden = false;
+  box.dataset.focus = "";
   const staleRows = (snap.stale || []).slice(0, 20).map((s) =>
     `<tr><td colspan="2">${esc(s.key)}</td></tr><tr><td></td><td>${esc(s.reason)}</td></tr>`
   ).join("");
@@ -557,6 +558,7 @@ function showMeshDetail(key) {
   const box = $("detail");
   if (!snap || !key) { box.hidden = true; return; }
   box.hidden = false;
+  box.dataset.focus = "";
   const grp = (snap.groups || []).find((g) => meshKey(g) === key);
   const edges = (snap.edges || []).filter((e) => meshKey({
     from_service: e.from_service,
@@ -585,6 +587,15 @@ function showDetail(id) {
   box.hidden = false;
   const inst = (snap.instances || []).find((x) => x.id === id);
   const svc = (snap.services || []).find((s) => (s.instances || []).includes(id) || s.name === id);
+  if (box.dataset.focus === id && document.getElementById("tmux-pane")) {
+    const state = document.getElementById("detail-state");
+    const ttl = document.getElementById("detail-ttl");
+    if (state) state.textContent = inst ? inst.state : "no presence";
+    if (ttl) ttl.textContent = inst ? String(inst.ttl) : "";
+    loadTmux(id);
+    return;
+  }
+  box.dataset.focus = id;
   const edges = (snap.edges || []).filter((e) => e.from_id === id || e.to_id === id);
   const params = Object.assign({}, (svc && svc.params) || {}, (snap.params || {})[id] || {});
   const paramRows = Object.keys(params).map((k) =>
@@ -597,8 +608,8 @@ function showDetail(id) {
     <h2>${esc(id)}</h2>
     <table>
       <tr><th>service</th><td>${esc(inst ? inst.service : (svc && svc.name) || "")}</td></tr>
-      <tr><th>state</th><td>${esc(inst ? inst.state : "no presence")}</td></tr>
-      <tr><th>ttl</th><td>${inst ? inst.ttl : ""}</td></tr>
+      <tr><th>state</th><td id="detail-state">${esc(inst ? inst.state : "no presence")}</td></tr>
+      <tr><th>ttl</th><td id="detail-ttl">${inst ? inst.ttl : ""}</td></tr>
       <tr><th>host</th><td>${esc(inst ? (inst.host + " " + inst.ip) : "")}</td></tr>
       <tr><th>routing</th><td>${esc(svc && svc.routing || "")}</td></tr>
     </table>
@@ -606,8 +617,51 @@ function showDetail(id) {
     <table>${edgeRows || "<tr><td>none</td></tr>"}</table>
     <h2>params</h2>
     <table>${paramRows || "<tr><td>none</td></tr>"}</table>
+    <h2>tmux</h2>
+    <pre id="tmux-pane" class="tmux-pane"></pre>
     <p class="kind-label">click again to clear focus</p>
   `;
+  loadTmux(id);
+}
+
+function tmuxLineClass(line) {
+  if (line.includes("[ERROR]") || line.includes("[FATAL]")) return "lv-error";
+  if (line.includes("[WARN]")) return "lv-warn";
+  if (line.includes("[STATE]")) return "lv-state";
+  if (line.includes("[INFO]")) return "lv-info";
+  if (line.includes("[DEBUG]")) return "lv-debug";
+  return "lv-plain";
+}
+
+function paintTmux(pre, text) {
+  if (pre.dataset.raw === text) return;
+  const nearBottom = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 28;
+  pre.dataset.raw = text;
+  pre.innerHTML = text.split("\n").map((line) =>
+    `<span class="${tmuxLineClass(line)}">${esc(line)}</span>`
+  ).join("\n");
+  if (nearBottom) pre.scrollTop = pre.scrollHeight;
+}
+
+let tmuxGen = 0;
+async function loadTmux(id) {
+  const gen = ++tmuxGen;
+  try {
+    const r = await fetch("/api/tmux?id=" + encodeURIComponent(id), { cache: "no-store" });
+    const data = await r.json();
+    if (gen !== tmuxGen || focusId !== id) return;
+    const pre = document.getElementById("tmux-pane");
+    if (!pre) return;
+    if (!data.found) {
+      paintTmux(pre, data.error || "no tmux pane for this process");
+      return;
+    }
+    const where = [data.host, [data.session, data.window].filter(Boolean).join(":")].filter(Boolean).join(" ");
+    paintTmux(pre, (where ? where + "\n" : "") + (data.text || ""));
+  } catch (err) {
+    const pre = document.getElementById("tmux-pane");
+    if (pre && gen === tmuxGen) paintTmux(pre, String(err));
+  }
 }
 
 function el(parent, tag, attrs) {
@@ -674,6 +728,20 @@ window.addEventListener("DOMContentLoaded", () => {
       applyWarnlist();
       if (snap && currentView() === "topology" && !focusId && !focusMesh) showOverview();
     });
+  }
+  const togLog = $("tog-tmux-log");
+  if (togLog) {
+    togLog.addEventListener("change", () => {
+      fetch("/api/tmux/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: togLog.checked }),
+      }).catch((err) => console.error(err));
+    });
+    fetch("/api/tmux/log", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => { togLog.checked = !!data.enabled; })
+      .catch(() => {});
   }
   $("params-filter").addEventListener("input", () => {
     if (isParamsView()) poll();

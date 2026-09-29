@@ -105,6 +105,8 @@ from script_io import (  # noqa: E402
     run_script,
     write_edit_scripts,
 )
+from tmux_log import TmuxLog  # noqa: E402
+from tmux_view import capture_instance  # noqa: E402
 
 
 def _tcp_up(host: str, port: int) -> bool:
@@ -137,6 +139,7 @@ class App:
         self.ctl_host = ctl_host
         self.ctl_port = ctl_port
         self.rt = None
+        self.tmux_log = TmuxLog(self)
         try:
             self.rt = RedisTopology(uri)
         except Exception as exc:  # noqa: BLE001
@@ -200,6 +203,12 @@ def make_handler(app: App):
                 return self._file(STATIC / "ctl.js", "application/javascript")
             if path == "/viewer.css":
                 return self._file(STATIC / "viewer.css", "text/css")
+            if path == "/slides-viewer.tex":
+                return self._file(
+                    HERE / "docs" / "slides-viewer.tex",
+                    "application/x-tex; charset=utf-8",
+                    extra={"Content-Disposition": 'attachment; filename="slides-viewer.tex"'},
+                )
             if path == "/api/snapshot":
                 body = json.dumps(app.snapshot()).encode("utf-8")
                 return self._send(200, body, "application/json")
@@ -237,6 +246,23 @@ def make_handler(app: App):
                     return self._send(200, json.dumps(read_script(d, name)).encode(), "application/json")
                 except Exception as exc:  # noqa: BLE001
                     return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
+            if path == "/api/tmux/log":
+                return self._send(200, json.dumps(app.tmux_log.status()).encode(), "application/json")
+            if path == "/api/tmux":
+                q = parse_qs(urlparse(self.path).query)
+                inst = (q.get("id") or [""])[0]
+                host, ip, account = "", "", ""
+                if app.rt is not None:
+                    try:
+                        loc = app.rt.instance_location(inst)
+                        host, ip = loc.get("host") or "", loc.get("ip") or ""
+                        account = app.rt.instance_account(inst)
+                    except Exception:
+                        host, ip, account = "", "", ""
+                try:
+                    return self._send(200, json.dumps(capture_instance(inst, host, ip, account)).encode(), "application/json")
+                except Exception as exc:  # noqa: BLE001
+                    return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
             if path == "/api/daq/status":
                 return self._send(200, json.dumps(app.daq_status()).encode("utf-8"), "application/json")
             if path == "/api/daq-status":
@@ -251,6 +277,9 @@ def make_handler(app: App):
                 payload = self._read_json()
             except Exception as exc:  # noqa: BLE001
                 return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
+            if path == "/api/tmux/log":
+                enabled = bool(payload.get("enabled"))
+                return self._send(200, json.dumps(app.tmux_log.set_enabled(enabled)).encode(), "application/json")
             if path == "/api/scripts/run":
                 try:
                     out = run_script(
