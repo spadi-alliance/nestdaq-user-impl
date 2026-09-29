@@ -561,7 +561,10 @@ bool TimeFrameBuilder::ConditionalRun()
 
             fDbMetric->ts_add(
                 fKeyPrefixMetricTs + gKeySuccessfulRatio,
-                std::to_string(std::time(nullptr) * 1000),
+		std::to_string(
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::system_clock::now().time_since_epoch()
+			).count()),
                 std::to_string(successfulRatio));
 
             fNumSccesssfulTFB = 0;
