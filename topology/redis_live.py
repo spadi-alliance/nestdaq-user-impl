@@ -75,6 +75,15 @@ def _inst_index(inst: str) -> int:
     return 0
 
 
+def _split_service_id(instance_id: str) -> Tuple[str, str]:
+    if "-" not in instance_id:
+        return "", ""
+    service, tail = instance_id.rsplit("-", 1)
+    if not service or not tail.isdigit():
+        return "", ""
+    return service, tail
+
+
 def _sort_instances(names: List[str]) -> List[str]:
     return sorted(names, key=lambda n: (_inst_index(n), n))
 
@@ -365,6 +374,25 @@ class RedisTopology:
             })
         live.sort(key=lambda x: (x["service"], x["index"], x["id"]))
         return live
+
+    def instance_location(self, instance_id: str) -> Dict[str, str]:
+        """Host and IP from the process health hash. Empty when it has no presence."""
+        service, tail = _split_service_id(instance_id)
+        if not service or not tail:
+            return {"host": "", "ip": ""}
+        health = self.r0.hgetall(f"{TOP}:{service}:{instance_id}:{HEALTH}") or {}
+        return {
+            "host": health.get("hostname") or health.get("hostName") or "",
+            "ip": health.get("hostIp") or health.get("ip") or "",
+        }
+
+    def instance_account(self, instance_id: str) -> str:
+        """Unix account implied by a parameter path such as /home/nestdaq/data/00."""
+        prefix = self.r2.hget(f"parameters:{instance_id}", "prefix") or ""
+        parts = [p for p in str(prefix).split("/") if p]
+        if len(parts) >= 2 and parts[0] == "home":
+            return parts[1]
+        return ""
 
     def _read_index_stale(self, live: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         live_uuid = {x["uuid"] for x in live if x["uuid"]}

@@ -663,9 +663,29 @@ svg.graph {
   stroke-width: 3px;
 }
 
+.tmux-pane {
+  margin: 0 0 8px;
+  padding: 8px;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #e5e5e5;
+  font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+  overflow: auto;
+  max-height: 320px;
+  min-height: 120px;
+}
+
+.tmux-pane .lv-plain { color: #1a1a1a; }
+.tmux-pane .lv-info { color: #1d4ed8; }
+.tmux-pane .lv-warn { color: #b45309; }
+.tmux-pane .lv-error { color: #b91c1c; }
+.tmux-pane .lv-state { color: #047857; }
+.tmux-pane .lv-debug { color: #64748b; }
+
 aside {
-  flex: 0 0 240px;
-  width: 240px;
+  flex: 0 0 320px;
+  width: 320px;
   align-self: stretch;
   max-height: 100%;
   overflow: auto;
