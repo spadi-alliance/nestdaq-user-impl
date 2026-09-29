@@ -201,19 +201,19 @@ bool FileSink::HandleMultipartData(FairMQParts &msgParts, int index)
     // LOG(info) << __LINE__ << ":" << __func__ << " index = " << index << " n-received = " << fNReceived << ", n-write =
     // " << fNWrite;
     ++fNReceived;
-    auto nSubChan = GetNumSubChannels(fDQMChannelName);    
-
-	for (auto iSubChan = 0; iSubChan < nSubChan; ++iSubChan) {
-        fair::mq::Parts partsCopy = MessageUtil::Copy(*this, msgParts);
-        if (Send(partsCopy,fDQMChannelName,iSubChan) < 0) {
-            if (NewStatePending()) {
-                LOG(info) << "Device is not RUNNING";
-            } else {
-                LOG(error) << "Failed to enqueue time frame slice (DQM) " << std::endl;
+    if (fChannels.count(fDQMChannelName) > 0) {
+        auto nSubChan = GetNumSubChannels(fDQMChannelName);
+        for (auto iSubChan = 0; iSubChan < nSubChan; ++iSubChan) {
+            fair::mq::Parts partsCopy = MessageUtil::Copy(*this, msgParts);
+            if (Send(partsCopy, fDQMChannelName, iSubChan) < 0) {
+                if (NewStatePending()) {
+                    LOG(info) << "Device is not RUNNING";
+                } else {
+                    LOG(error) << "Failed to enqueue time frame slice (DQM) " << std::endl;
+                }
             }
         }
-    }   
-
+    }
 
     return WriteMultipartData(msgParts, index);
 }
