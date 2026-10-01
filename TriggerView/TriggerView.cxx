@@ -20,12 +20,12 @@
 #include "TSystem.h"
 #include "TApplication.h"
 
-#include "SubTimeFrameHeader.h"
-#include "TimeFrameHeader.h"
-#include "HeartbeatFrameHeader.h"
-#include "FilterHeader.h"
-#include "UnpackTdc.h"
-#include "KTimer.cxx"
+#include "../SubTimeFrameHeader.h"
+#include "../TimeFrameHeader.h"
+#include "../HeartbeatFrameHeader.h"
+#include "../FilterHeader.h"
+#include "../UnpackTdc.h"
+#include "../KTimer.cxx"
 
 #define USE_THREAD
 
