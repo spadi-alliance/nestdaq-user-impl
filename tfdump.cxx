@@ -29,8 +29,8 @@ struct TFdump : fair::mq::Device
 {
 	struct OptionKey {
 		static constexpr std::string_view InputChannelName  {"in-chan-name"};
-		static constexpr std::string_view ShrinkMode	{"shrink"};
-		static constexpr std::string_view Interval	  {"interval"};
+		static constexpr std::string_view ShrinkMode        {"shrink"};
+		static constexpr std::string_view Interval          {"interval"};
 	};
 
 	TFdump()
@@ -311,7 +311,7 @@ bool TFdump::CheckData(fair::mq::MessagePtr& msg)
 					   (pdata[j + 7] & 0xfc) == (TDC64H_V3::T_HB  << 2)
 					|| (pdata[j + 7] & 0xfc) == (TDC64H_V3::T_HB1 << 2)
 					|| (pdata[j + 7] & 0xfc) == (TDC64H_V3::T_HB2 << 2)) {
-					std::cout << "Hart beat" << std::endl;
+					std::cout << "Heart beat" << std::endl;
 
 					uint64_t *dword = reinterpret_cast<uint64_t *>(&(pdata[j]));
 					struct TDC64H::tdc64 tdc;
@@ -489,7 +489,7 @@ bool TFdump::ConditionalRun()
 		#endif
 
 		if ((fInterval == 0) || (fKt1->Check())) {
-			std::cout << "Nmsg: " << std::dec << inParts.Size();
+			std::cout << " Nmsg: " << std::dec << inParts.Size();
 			std::cout << "  Freq: " << freq << "Hz  el: " << elapse
 				<< " C: " << counts  << std::endl;
 			for(auto& vmsg : inParts) CheckData(vmsg);

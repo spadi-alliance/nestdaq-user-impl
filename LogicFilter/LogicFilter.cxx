@@ -47,7 +47,7 @@ struct LogicFilter : fair::mq::Device
 		static constexpr std::string_view SplitMethod        {"split"};
 
 		static constexpr std::string_view TriggerSignals     {"trigger-signals"};
-		static constexpr std::string_view TriggerFormula     {"trigger-expression"};
+		static constexpr std::string_view TriggerExpression  {"trigger-expression"};
 		static constexpr std::string_view TriggerWidth       {"trigger-width"};
 	};
 
@@ -207,7 +207,7 @@ void LogicFilter::InitTask()
 	fTrig->ClearEntry();
 
 	std::string str_signals = fConfig->GetProperty<std::string>(opt::TriggerSignals.data());
-	std::string formula = fConfig->GetProperty<std::string>(opt::TriggerFormula.data());
+	std::string expression = fConfig->GetProperty<std::string>(opt::TriggerExpression.data());
 	int window_width = std::stoi(fConfig->GetProperty<std::string>(opt::TriggerWidth.data()));
 
 	std::vector< std::vector<uint32_t> > signals = SignalParser::Parsing(str_signals);
@@ -231,8 +231,8 @@ void LogicFilter::InitTask()
 		}
 	}
 	
-	LOG(info) << "Formula: " << formula;
-	fTrig->MakeTable(formula);
+	LOG(info) << "Expression: " << expression;
+	fTrig->MakeTable(expression);
 
 	LOG(info) << "Trigger windows width: " << window_width;
 	fTrig->SetMarkLen(window_width);
@@ -289,12 +289,6 @@ bool LogicFilter::CheckData(fair::mq::MessagePtr &msg)
 			<< std::endl;
 
 		fe_type = pstf->femType;
-
-		//// toriaezu debug no tameni ireru. atodekesukoto
-		//fe_type = 1;
-		//pstf->femType = 1;
-		//pstf->femId = 1234;
-		////
 
 	} else {
 	       #if 1
@@ -1461,9 +1455,9 @@ void addCustomOptions(bpo::options_description& options)
 			bpo::value<std::string>()->default_value(
 			"(0xc0a802a9 0 0) (0xc0a802a9 1 0)"),
 			"Triger signals (module_IP Channel_number Offset)")
-		(opt::TriggerFormula.data(),
+		(opt::TriggerExpression.data(),
 			bpo::value<std::string>()->default_value("RPN 0 1 &"),
-			"Trigger formula")
+			"Trigger expression")
 		(opt::TriggerWidth.data(),
 			bpo::value<std::string>()->default_value("10"),
 			"Trigger window width (4 ns unit)")
