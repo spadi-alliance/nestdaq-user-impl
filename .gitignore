@@ -1,6 +1,1 @@
 dump.rdb
-run/logs/
-topology/run/logs/
-
-# Local topology viewer, not tracked on this branch.
-topology/
