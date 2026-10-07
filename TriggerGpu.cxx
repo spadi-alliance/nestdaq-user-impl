@@ -410,7 +410,21 @@ std::vector<uint32_t>* Trigger::Scan()
 
 std::vector<uint32_t>* Trigger::Exec(std::vector<struct HBFIndex>& hbf)
 {
-    // 1) Clear timeRegion (GPU if enabled)
+#ifdef USE_CUDA
+    // Both entry points share the one GPU path. ExecBatch gives up the whole
+    // heartbeat on the first CUDA error and redoes it from the raw segments, so
+    // a region marked only on the device can never reach the CPU scan, which
+    // reads fTimeRegion and would answer from an untouched buffer.
+    if (fUseCuda && fCuda) {
+        std::vector<std::vector<struct HBFIndex>> batch(1, hbf);
+        std::vector<std::vector<uint32_t>> out;
+        Trigger::ExecBatch(batch, out);
+        fHits = out.empty() ? std::vector<uint32_t>() : std::move(out[0]);
+        return &fHits;
+    }
+#endif
+
+    // 1) Clear timeRegion
     Trigger::CleanUpTimeRegion();
 
     // 2) Mark for each segment
@@ -418,23 +432,7 @@ std::vector<uint32_t>* Trigger::Exec(std::vector<struct HBFIndex>& hbf)
         Trigger::Mark(seg.data, seg.size, (int)seg.femId, seg.femType);
     }
 
-#ifdef USE_CUDA
-    if (fUseCuda && fCuda) {
-        // 3) Scan on GPU and get rising-edge hit times (small output)
-        try {
-            fCuda->scanRisingEdges(fHits);
-            return &fHits;
-        } catch (...) {
-            // If scan fails, fall back to CPU.
-            fUseCuda = false;
-            fCuda.reset();
-        }
-    }
-#endif
-
-    // CPU fallback path: Scan uses fTimeRegion.
-    // NOTE: If CUDA Mark was used but Scan failed, fTimeRegion is not updated.
-    // Therefore we only reach here when CUDA is disabled or fully failed early.
+    // 3) Scan uses fTimeRegion.
     return Trigger::Scan();
 }
 
