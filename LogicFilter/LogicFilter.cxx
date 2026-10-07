@@ -1285,10 +1285,9 @@ bool LogicFilter::ConditionalRun()
 							kk = jj;
 							break;
 						} else {
-							// Every part already in outParts is on the wire:
-							// a suppressed heartbeat was replaced by a blank
-							// one, not dropped. flag_sending is indexed by
-							// inParts and must not be used here.
+							// flag_sending is indexed by inParts, not
+							// outParts. Every part here counts: a suppressed
+							// heartbeat became a blank, not a gap.
 							len_stf += outParts[jj].GetSize();
 							nmsg_stf++;
 						}

@@ -411,10 +411,9 @@ std::vector<uint32_t>* Trigger::Scan()
 std::vector<uint32_t>* Trigger::Exec(std::vector<struct HBFIndex>& hbf)
 {
 #ifdef USE_CUDA
-    // Both entry points share the one GPU path. ExecBatch gives up the whole
-    // heartbeat on the first CUDA error and redoes it from the raw segments, so
-    // a region marked only on the device can never reach the CPU scan, which
-    // reads fTimeRegion and would answer from an untouched buffer.
+    // ExecBatch gives up the whole heartbeat on the first CUDA error and redoes
+    // it from the raw segments, so a region marked only on the device can never
+    // reach the CPU scan, which would answer from an untouched fTimeRegion.
     if (fUseCuda && fCuda) {
         std::vector<std::vector<struct HBFIndex>> batch(1, hbf);
         std::vector<std::vector<uint32_t>> out;

@@ -295,12 +295,6 @@ bool LogicFilterGpu::CheckData(fair::mq::MessagePtr &msg)
 
 		fe_type = pstf->femType;
 
-		//// toriaezu debug no tameni ireru. atodekesukoto
-		//fe_type = 1;
-		//pstf->femType = 1;
-		//pstf->femId = 1234;
-		////
-
 	} else {
 	       #if 1
 		for (unsigned int j = 0 ; j < msize ; j += 8) {
@@ -1331,10 +1325,9 @@ bool LogicFilterGpu::ConditionalRun()
 							kk = jj;
 							break;
 						} else {
-							// Every part already in outParts is on the wire:
-							// a suppressed heartbeat was replaced by a blank
-							// one, not dropped. flag_sending is indexed by
-							// inParts and must not be used here.
+							// flag_sending is indexed by inParts, not
+							// outParts. Every part here counts: a suppressed
+							// heartbeat became a blank, not a gap.
 							len_stf += outParts[jj].GetSize();
 							nmsg_stf++;
 						}

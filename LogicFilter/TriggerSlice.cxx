@@ -9,7 +9,7 @@
  *
  *   fSlice[sig * fNword + w] , bit j  ==  signal sig at time bin 32*w + j
  *
- * ------------------------------------------------
+ * -------------------------------------
  * The file is split by __CUDACC__ into two halves that never overlap:
  *
  *   __CUDACC__ defined    the kernels and the TriggerSliceGpu implementation.
@@ -19,7 +19,6 @@
  *                         defined either, TriggerSliceGpu is also given stubs
  *                         that report "no GPU", so a plain g++ build of
  *                         LogicFilterSlice.cxx needs no CUDA at all.
- *
  *
  *   CUDA off:  g++ -c LogicFilterSlice.cxx
  *   CUDA on :  g++ -DUSE_CUDA -c LogicFilterSlice.cxx
