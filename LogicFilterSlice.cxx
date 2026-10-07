@@ -336,11 +336,6 @@ bool LogicFilterSlice::CheckData(fair::mq::MessagePtr &msg)
 
 		fe_type = pstf->femType;
 
-		//// toriaezu debug no tameni ireru. atodekesukoto
-		//fe_type = 1;
-		//pstf->femType = 1;
-		//pstf->femId = 1234;
-		////
 
 	} else {
 	       #if 1

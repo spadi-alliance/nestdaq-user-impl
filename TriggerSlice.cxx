@@ -9,9 +9,6 @@
  *
  *   fSlice[sig * fNword + w] , bit j  ==  signal sig at time bin 32*w + j
  *
- *
- *
- * How this file compiles both with and without CUDA
  * ------------------------------------------------
  * The file is split by __CUDACC__ into two halves that never overlap:
  *
@@ -23,10 +20,6 @@
  *                         that report "no GPU", so a plain g++ build of
  *                         LogicFilterSlice.cxx needs no CUDA at all.
  *
- * With USE_CUDA the build compiles this same file twice: once through
- * LogicFilterSlice.cxx with the host compiler, and once standalone with nvcc
- * (CMake sets LANGUAGE CUDA on it). The device code therefore never has to go
- * through nvcc, and the GPU half still lives here.
  *
  *   CUDA off:  g++ -c LogicFilterSlice.cxx
  *   CUDA on :  g++ -DUSE_CUDA -c LogicFilterSlice.cxx
