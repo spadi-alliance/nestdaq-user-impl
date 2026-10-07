@@ -1,4 +1,4 @@
-// infixtorp.h //
+// infixtorpn.h //
 
 #include <string>
 #include <memory>
@@ -20,18 +20,18 @@ struct AstNode {
     }
 };
 
-std::shared_ptr<AstNode> infixtorp(const std::string& input);
+std::shared_ptr<AstNode> infixtorpn(const std::string& input);
 
 
 // - - - - - - - - - - - - - - - - 8< - - - - - - - - - - - - - - - - //
-// infixtorp.cxx //
+// infixtorpn.cxx //
 
 #include <string>
 #include <memory>
 #include <deque>
 #include <stdexcept>
 #include <cctype>
-//#include "infixtorp.h"
+//#include "infixtorpn.h"
 
 static std::deque<std::string> tokenize(const std::string& line)
 {
@@ -47,7 +47,7 @@ static std::deque<std::string> tokenize(const std::string& line)
         }
 
         std::string token;
-        if ((*i == '(') || (*i == ')') || (*i == '|') || (*i == '&')) {
+        if ((*i == '(') || (*i == ')') || (*i == '|') || (*i == '&') || (*i == '!')) {
             token = *(i++);
         }
         else if (std::isdigit(*i)) {
@@ -66,6 +66,7 @@ static std::deque<std::string> tokenize(const std::string& line)
 
 static std::shared_ptr<AstNode> parse_or(std::deque<std::string>&);
 static std::shared_ptr<AstNode> parse_and(std::deque<std::string>&);
+static std::shared_ptr<AstNode> parse_not(std::deque<std::string>&);
 static std::shared_ptr<AstNode> parse_value(std::deque<std::string>&);
 
 static std::shared_ptr<AstNode> parse_or(std::deque<std::string>& tokens)
@@ -84,16 +85,36 @@ static std::shared_ptr<AstNode> parse_or(std::deque<std::string>& tokens)
 
 static std::shared_ptr<AstNode> parse_and(std::deque<std::string>& tokens)
 {
-    std::shared_ptr<AstNode> left = parse_value(tokens);
+    //std::shared_ptr<AstNode> left = parse_value(tokens);
+    std::shared_ptr<AstNode> left = parse_not(tokens);
     while (left && ! tokens.empty() && tokens.front() == "&") {
         auto node = std::make_shared<AstNode>();
         node->left = left;
         node->value = tokens.front(); tokens.pop_front();
-        node->right = parse_value(tokens);
+        //node->right = parse_value(tokens);
+        node->right = parse_not(tokens);
         left = node;
     }
 
     return left;
+}
+
+static std::shared_ptr<AstNode> parse_not(std::deque<std::string>& tokens)
+{
+    //std::shared_ptr<AstNode> left = parse_value(tokens);
+    //if (left && ! tokens.empty() && tokens.front() == "!") {
+    if (! tokens.empty() && tokens.front() == "!") {
+        auto node = std::make_shared<AstNode>();
+        //node->left = left;
+        node->value = tokens.front(); tokens.pop_front();
+        //node->right = parse_value(tokens);
+        node->left = parse_not(tokens);
+        return node;
+    } else {
+        return  parse_value(tokens);
+    }
+
+    //return left;
 }
 
 static std::shared_ptr<AstNode> parse_value(std::deque<std::string>& tokens)
@@ -120,7 +141,7 @@ static std::shared_ptr<AstNode> parse_value(std::deque<std::string>& tokens)
     }
 }
 
-std::shared_ptr<AstNode> infixtorp(const std::string& input)
+std::shared_ptr<AstNode> infixtorpn(const std::string& input)
 {
     std::deque<std::string> tokens = tokenize(input);
     auto ast = parse_or(tokens);
@@ -141,12 +162,15 @@ std::shared_ptr<AstNode> infixtorp(const std::string& input)
 //#include "pasrse.h"
 
 
-int main(void)
+int main(int argc, char *argv[])
 {
-    std::string input = "(0 | 1) & (2 | 3 | 4) & (5 & 6)";
+    //std::string input = "(0 | 1) & (2 | 3 | 4) & (5 & 6)";
+    //std::string input = "(0 | ! 1) & (2 | 3 | 4) & ! (5 & 6)";
+    std::string input = argv[1];
 
+    std::cout << "in:  " << input << std::endl;
     try {
-        std::cout << infixtorp(input)->to_rpn() << std::endl;  // --> "1 2 | 3 4 5 | 6 & 7 & | & "
+        std::cout << "out: " << infixtorpn(input)->to_rpn() << std::endl;  // --> "1 2 | 3 4 5 | 6 & 7 & | & "
     }
     catch (std::exception& e) {
         std::cerr << "ERROR: " << e.what() << std::endl;

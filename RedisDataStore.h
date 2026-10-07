@@ -29,6 +29,9 @@ class RedisDataStore: public DataStore {
     void hset(const std::string& hash, const std::string& field, const std::string& value) {
       fClient->hset(hash, field, value);
     }
+    void hdel(const std::string& hash, const std::string& field) {
+      fClient->hdel(hash, field);
+    }
     void del(const std::string& key) {
       fClient->del(key);
     }

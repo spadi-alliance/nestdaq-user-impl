@@ -1,4 +1,8 @@
 #==============================================
+if(POLICY CMP0177)
+  cmake_policy(SET CMP0177 NEW)
+endif()
+
 add_executable(emulator
 	Emulator.cxx;
 	AmQTdc.cxx;

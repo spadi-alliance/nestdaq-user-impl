@@ -31,6 +31,7 @@ public:
         static constexpr std::string_view DiscardOutput        {"discard-output"};
         static constexpr std::string_view OutputIncompleteTF   {"output-incomplete-tf"};
         static constexpr std::string_view ObjectDbNumber       {"object-db-number"};
+        static constexpr std::string_view EnableCheckHBF       {"enable-check-hbf"};
     };
 
     struct STFBuffer {
@@ -88,6 +89,13 @@ private:
     int CheckHBFDelimitor(fair::mq::Parts&, uint32_t);
     void TFBSegmentCheck(std::vector<STFBuffer>&);
 
+    std::vector<uint32_t> fSuccessfulSegmentIDs;
+    void StoreSuccessfulSegmentIDs(const std::vector<STFBuffer>&);
+    std::vector<uint32_t> CheckLostSegmentIDs(const std::vector<STFBuffer>&);
+    bool fFirstTFB {true};
+    bool fEnableCheckHBF {true};
+
+    std::string fKeyPrefixMetricTs;
     std::string fKeyPrefixMetric;
     std::string fDbUriMetric;
     std::unique_ptr<RedisDataStore> fDbMetric {nullptr};
@@ -96,7 +104,12 @@ private:
     std::unique_ptr<RedisDataStore> fDbObjects {nullptr};
     void SetKeyPrefix();
 
+    std::unordered_map<uint32_t, int> fLostSegmentCounts;
+
     KTimer fKt;
 };
+
+inline const std::string gKeySuccessfulRatio {"SuccessfulRatio"};
+inline const std::string gKeyLostSegments {"LostSegments"};
 
 #endif

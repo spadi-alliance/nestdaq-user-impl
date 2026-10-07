@@ -8,11 +8,10 @@
 #include <string>
 
 #include <sw/redis++/redis++.h>
-//#include <sw/redis++/patterns/redlock.h>
 #include <sw/redis++/errors.h>
 
-#include "SignalParser.cxx"
-#include "ExprParser.cxx"
+#include "../LogicFilter/SignalParser.cxx"
+#include "../LogicFilter/ExprParser.cxx"
 
 
 //std::vector< std::vector<uint32_t> > GetTriggerSignals(std::string key, std::string server_uri)

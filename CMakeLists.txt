@@ -2,6 +2,9 @@
 cmake_minimum_required(VERSION 3.11)
 
 project(nestdaq LANGUAGES CXX C)
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
 # Optional CUDA for LogicFilterGpu only. Default OFF so machines without a
 # CUDA toolkit keep the same compile as before (cmake .. ; make).
@@ -186,11 +189,17 @@ foreach(lvar IN ITEMS
   Sampler; Sink; FileSink; STFBuilder;
   TimeFrameBuilder; TFBFilePlayer; STFBFilePlayer;
   TimeFrameSlicerByLogicTiming;
-  fltcoin; LogicFilter; LogicFilterGpu; LogicFilterSlice;
+#  fltcoin;
+#  LogicFilter;
   tfdump;
 # onlinedisplay;
   FilterTimeFrameSliceABC;
-  FilterTimeFrameSliceBySomething;
+#  FilterTimeFrameSliceBySomething;
+  FilterTimeFrameSliceByTOT;  # Add this line           2024/7/15
+  FilterTimeFrameSliceByTOF;  # Add this line           2024/7/15
+  FilterTimeFrameSliceByMultiplicity;  # Add this line  2024/7/15
+  
+  FilterTimeFrameSliceByTracking;  # Add this line           2024/7/18
   InputRegister;
 #  AmQStrTdcDqm;
   Scaler;
@@ -200,40 +209,6 @@ foreach(lvar IN ITEMS
   add_executable(${EXEC} 
     ${EXEC}.cxx;
   )
-
-  # CUDA sources stay off the original LogicFilter / fltcoin targets.
-  if((${EXEC} STREQUAL "LogicFilterGpu") AND USE_CUDA)
-    target_sources(${EXEC} PRIVATE TriggerCuda.cu)
-    target_compile_definitions(${EXEC} PRIVATE USE_CUDA)
-    target_link_libraries(${EXEC} PRIVATE CUDA::cudart)
-    set_target_properties(${EXEC} PROPERTIES
-      CUDA_SEPARABLE_COMPILATION ON
-      CUDA_STANDARD 17
-      CUDA_STANDARD_REQUIRED ON
-      CUDA_ARCHITECTURES native
-    )
-  endif()
-
-  # LogicFilterSlice keeps its CPU and GPU engine in TriggerSlice.cxx. That file
-  # is compiled a second time by nvcc, where __CUDACC__ selects the kernels, so
-  # the FairMQ device itself never goes through nvcc. Without USE_CUDA the file
-  # is only included by the device and supplies "no GPU" stubs instead.
-  if(${EXEC} STREQUAL "LogicFilterSlice")
-    target_compile_options(${EXEC} PRIVATE -mavx2)
-    target_compile_definitions(${EXEC} PRIVATE TRIGGERSLICE_AVX2)
-    if(USE_CUDA)
-      set_source_files_properties(TriggerSlice.cxx PROPERTIES LANGUAGE CUDA)
-      target_sources(${EXEC} PRIVATE TriggerSlice.cxx)
-      target_compile_definitions(${EXEC} PRIVATE USE_CUDA)
-      target_link_libraries(${EXEC} PRIVATE CUDA::cudart)
-      set_target_properties(${EXEC} PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-        CUDA_STANDARD 17
-        CUDA_STANDARD_REQUIRED ON
-        CUDA_ARCHITECTURES native
-      )
-    endif()
-  endif()
 
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
@@ -365,81 +340,9 @@ install(TARGETS
 )
 
 
-#
-#
-#
-
-foreach(lvar IN ITEMS
-    TriggerView;
-)
-
-set(EXEC ${lvar})
-  add_executable(${EXEC} 
-  ${EXEC}.cxx;
-)
-
-target_include_directories(${EXEC} PUBLIC 
-    ${Boost_INCLUDE_DIRS};  
-    ${FairMQ_INCDIR};
-    ${FairMQ_INCDIR}/fairmq;
-    ${FairMQ_INCDIR}/fairlogger/bundled;
-    ${CMAKE_SOURCE_DIR};
-    ${ROOT_INCLUDE_DIRS};
-    ${HIREDIS_HEADER};
-    ${REDIS_PLUS_PLUS_HEADER};
-)
-
-target_link_directories(${EXEC} PUBLIC
-    ${Boost_LIBRARY_DIRS}; 
-    ${FairMQ_LIBDIR};
-    ${ROOT_LIBRARIES};
-)
-
-if ((FairMQ_VERSION VERSION_GREATER_EQUAL 1.8.0)
-  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.8.9))
-  target_link_libraries(${EXEC} PUBLIC 
-    ${Boost_LIBRARIES};  
-    fairmq
-    FairLogger;
-    ${ROOT_LIBRARIES};
-    ${HIREDIS_LIB};
-    ${REDIS_PLUS_PLUS_LIB};
-  )
-elseif (((FairMQ_VERSION VERSION_GREATER_EQUAL 1.4.55)
-  AND (FairMQ_VERSION VERSION_LESS_EQUAL 1.4.56))
-  OR (FairMQ_VERSION VERSION_EQUAL 1.5.0))
-  target_link_libraries(${EXEC} PUBLIC 
-    ${Boost_LIBRARIES};  
-    FairMQ;
-    FairMQStateMachine;
-    FairLogger;
-    ${ROOT_LIBRARIES};
-    ${HIREDIS_LIB};
-    ${REDIS_PLUS_PLUS_LIB};
-  )
-elseif ((FairMQ_VERSION VERSION_EQUAL 1.10.0)) 
-  target_link_libraries(${EXEC} PUBLIC 
-    ${Boost_LIBRARIES};  
-    fairmq;
-    FairLogger;
-    ${ROOT_LIBRARIES};
-    ${HIREDIS_LIB};
-    ${REDIS_PLUS_PLUS_LIB};
-  )
-else()
-    message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
-endif()
-
-install(TARGETS ${EXEC};
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    #RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    RUNTIME DESTINATION ${INSTALL_BINDIR}
-)
-
-endforeach()
-
-
 #================================================================================
 add_subdirectory(utility)
+add_subdirectory(LogicFilter)
+add_subdirectory(TriggerView)
 add_subdirectory(emulator)
 add_subdirectory(sqlite)

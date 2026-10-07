@@ -19,17 +19,16 @@
 
 #include <cstring>
 
-#include "utility/MessageUtil.h"
+#include "../utility/MessageUtil.h"
 
-//#include "HulStrTdcData.h"
-#include "SubTimeFrameHeader.h"
-#include "TimeFrameHeader.h"
-#include "HeartbeatFrameHeader.h"
-#include "FilterHeader.h"
+#include "../SubTimeFrameHeader.h"
+#include "../TimeFrameHeader.h"
+#include "../HeartbeatFrameHeader.h"
+#include "../FilterHeader.h"
 
 #include "SignalParser.cxx"
-#include "KTimer.cxx"
 #include "Trigger.cxx"
+#include "../KTimer.cxx"
 
 
 //std::atomic<int> gQdepth = 0;
@@ -48,7 +47,7 @@ struct LogicFilter : fair::mq::Device
 		static constexpr std::string_view SplitMethod        {"split"};
 
 		static constexpr std::string_view TriggerSignals     {"trigger-signals"};
-		static constexpr std::string_view TriggerFormula     {"trigger-expression"};
+		static constexpr std::string_view TriggerExpression  {"trigger-expression"};
 		static constexpr std::string_view TriggerWidth       {"trigger-width"};
 	};
 
@@ -208,7 +207,7 @@ void LogicFilter::InitTask()
 	fTrig->ClearEntry();
 
 	std::string str_signals = fConfig->GetProperty<std::string>(opt::TriggerSignals.data());
-	std::string formula = fConfig->GetProperty<std::string>(opt::TriggerFormula.data());
+	std::string expression = fConfig->GetProperty<std::string>(opt::TriggerExpression.data());
 	int window_width = std::stoi(fConfig->GetProperty<std::string>(opt::TriggerWidth.data()));
 
 	std::vector< std::vector<uint32_t> > signals = SignalParser::Parsing(str_signals);
@@ -232,8 +231,8 @@ void LogicFilter::InitTask()
 		}
 	}
 	
-	LOG(info) << "Formula: " << formula;
-	fTrig->MakeTable(formula);
+	LOG(info) << "Expression: " << expression;
+	fTrig->MakeTable(expression);
 
 	LOG(info) << "Trigger windows width: " << window_width;
 	fTrig->SetMarkLen(window_width);
@@ -290,12 +289,6 @@ bool LogicFilter::CheckData(fair::mq::MessagePtr &msg)
 			<< std::endl;
 
 		fe_type = pstf->femType;
-
-		//// toriaezu debug no tameni ireru. atodekesukoto
-		//fe_type = 1;
-		//pstf->femType = 1;
-		//pstf->femId = 1234;
-		////
 
 	} else {
 	       #if 1
@@ -360,29 +353,25 @@ int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L) {
+	} else if (type == SubTimeFrame::TDC64L) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::Unpack(val, &tdc) == TDC64L::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L_V1) {
+	} else if (type == SubTimeFrame::TDC64L_V1) {
 		struct TDC64L::tdc64 tdc;
 		if (TDC64L::v1::Unpack(val, &tdc) == TDC64L::v1::T_HB) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64H_V3) {
+	} else if (type == SubTimeFrame::TDC64H_V3) {
 		struct TDC64H_V3::tdc64 tdc;
 		if (TDC64H_V3::Unpack(val, &tdc) == TDC64H_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
 			hbflag = tdc.flag;
 		}
-	} else
-	if (type == SubTimeFrame::TDC64L_V3) {
+	} else if (type == SubTimeFrame::TDC64L_V3) {
 		struct TDC64L_V3::tdc64 tdc;
 		if (TDC64L_V3::Unpack(val, &tdc) == TDC64L_V3::T_HB1) {
 			hbframe = tdc.hartbeat;
@@ -390,8 +379,11 @@ int LogicFilter::IsHartBeat(uint64_t val, uint32_t type)
 		}
 	} else {
 		std::cout << "Unknown device : " << std::hex << type << std::endl;
+		const uint64_t* data = reinterpret_cast<const uint64_t*>(&val);
+		for (size_t i = 0; i < sizeof(val) / sizeof(uint64_t); ++i) {
+			std::cout << "Data[" << i << "]: " << std::hex << data[i] << std::endl;
+		}
 	}
-
 
 	if (hbflag > 0) fHBflag |= hbflag;
 	if (fKt4->Check()) {
@@ -1466,9 +1458,9 @@ void addCustomOptions(bpo::options_description& options)
 			bpo::value<std::string>()->default_value(
 			"(0xc0a802a9 0 0) (0xc0a802a9 1 0)"),
 			"Triger signals (module_IP Channel_number Offset)")
-		(opt::TriggerFormula.data(),
+		(opt::TriggerExpression.data(),
 			bpo::value<std::string>()->default_value("RPN 0 1 &"),
-			"Trigger formula")
+			"Trigger expression")
 		(opt::TriggerWidth.data(),
 			bpo::value<std::string>()->default_value("10"),
 			"Trigger window width (4 ns unit)")
