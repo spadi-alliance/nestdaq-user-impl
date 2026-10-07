@@ -1178,7 +1178,7 @@ const char *LastError()
 
 #include "UnpackTdc.h"
 #include "SubTimeFrameHeader.h"
-#include "infixtorp.cxx"
+#include "infixtorpn.cxx"
 
 #ifndef USE_CUDA
 // Built without CUDA: the GPU backend reports that it is not there, and
@@ -1490,7 +1490,7 @@ void Trigger::MakeTable(std::string & formula)
 		// Not caught: Trigger.cxx lets the parse error out of InitTask, so a
 		// bad expression has to stop the device rather than leave it running
 		// with an empty program and no trigger at all.
-		rpn = infixtorp(formula)->to_rpn();
+		rpn = infixtorpn(formula)->to_rpn();
 	}
 
 	std::string word;
