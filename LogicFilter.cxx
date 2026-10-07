@@ -885,7 +885,7 @@ int LogicFilter::AddFilterMessage(
 	uint32_t flt_datasize = 0;
 	uint32_t totalhits = 0;
 	for (auto &v : fltdata) {
-		flt_datasize += v.size() * sizeof(uint32_t)
+		flt_datasize += v.size() * sizeof(Filter::TrgTime)
 			+ sizeof(struct Filter::TrgTimeHeader);
 		totalhits += v.size();
 	}
@@ -1292,8 +1292,11 @@ bool LogicFilter::ConditionalRun()
 						if (sstf->magic == SubTimeFrame::MAGIC) {
 							kk = jj;
 							break;
-						} else
-						if (flag_sending[jj]) {
+						} else {
+							// Every part already in outParts is on the wire:
+							// a suppressed heartbeat was replaced by a blank
+							// one, not dropped. flag_sending is indexed by
+							// inParts and must not be used here.
 							len_stf += outParts[jj].GetSize();
 							nmsg_stf++;
 						}
