@@ -34,6 +34,7 @@
 #include "SignalParser.cxx"
 #include "KTimer.cxx"
 #include "TriggerGpu.cxx"
+#include "FilterProf.h"
 
 
 //std::atomic<int> gQdepth = 0;
@@ -166,6 +167,9 @@ private:
 	KTimer *fKt2;
 	KTimer *fKt3;
 	KTimer *fKt4;
+
+	FilterProf fProf;
+	int fNsignal = 0;
 };
 
 
@@ -210,6 +214,8 @@ void LogicFilterGpu::InitTask()
 
 	fTrig->SetTimeRegion(1024 * 128);
 	fTrig->ClearEntry();
+	LOG(info) << "InitTask: Trigger backend : "
+		<< (fTrig->GetUseCuda() ? "gpu" : "cpu");
 
 	std::string str_signals = fConfig->GetProperty<std::string>(opt::TriggerSignals.data());
 	std::string formula = fConfig->GetProperty<std::string>(opt::TriggerFormula.data());
@@ -235,9 +241,13 @@ void LogicFilterGpu::InitTask()
 			i++;
 		}
 	}
+	fNsignal = i;
 	
 	LOG(info) << "Formula: " << formula;
+	auto tTable0 = FilterProf::Clock::now();
 	fTrig->MakeTable(formula);
+	LOG(info) << "MakeTable: " << fNsignal << " signals, "
+		<< FilterProf::Us(tTable0, FilterProf::Clock::now()) / 1000. << " ms";
 
 	LOG(info) << "Trigger windows width: " << window_width;
 	fTrig->SetMarkLen(window_width);
@@ -1015,15 +1025,15 @@ bool LogicFilterGpu::ConditionalRun()
 	// struct TimeFrame::Header *i_tfHeader = nullptr;
 	int i_tf_msg_index = 0;
 	uint32_t tf_tf_id = 0;
-	std::chrono::system_clock::time_point sw_start, sw_end;
 
 	if (Receive(inParts, fInputChannelName, 0, 1000) > 0) {
 		assert(inParts.Size() >= 2);
-		sw_start = std::chrono::system_clock::now();
 
 		#if 1
 		if (fKt1->Check()) CheckMultiPart(inParts);
 		#endif
+
+		const auto sw_start = FilterProf::Clock::now();
 
 		std::vector<struct DataBlock> blocks;
 		std::vector< std::vector<struct DataBlock> > block_map;
@@ -1077,7 +1087,7 @@ bool LogicFilterGpu::ConditionalRun()
 
 		std::vector< std::vector<uint32_t> > hitsPerHbf;
 		static const bool kPerHbf = (std::getenv("LF_EXEC_PERHBF") != nullptr);
-		auto prof_tGpu0 = std::chrono::system_clock::now();
+		const auto sw_trig0 = FilterProf::Clock::now();
 		if (kPerHbf) {
 			hitsPerHbf.resize(bsize_min);
 			for (size_t i = 0 ; i < bsize_min ; i++) {
@@ -1086,7 +1096,7 @@ bool LogicFilterGpu::ConditionalRun()
 		} else {
 			fTrig->ExecBatch(hbf_batch, hitsPerHbf);
 		}
-		auto prof_tGpu1 = std::chrono::system_clock::now();
+		const auto sw_trig1 = FilterProf::Clock::now();
 
 		for (size_t i = 0 ; i < bsize_min ; i++) {
 			fltdata.emplace_back(hitsPerHbf[i]);
@@ -1111,6 +1121,7 @@ bool LogicFilterGpu::ConditionalRun()
 
 			totalhits += nhits;
 		}
+		const auto sw_end = FilterProf::Clock::now();
 
 		#if 0
 		if (fKt2->Check()) {
@@ -1150,27 +1161,9 @@ bool LogicFilterGpu::ConditionalRun()
 		auto stfId     = stfHeader->timeFrameId;
 		#endif
 
-		sw_end = std::chrono::system_clock::now();
-		uint32_t elapse = std::chrono::duration_cast<std::chrono::microseconds>(
-			sw_end - sw_start).count();
+		uint32_t elapse = static_cast<uint32_t>(FilterProf::Us(sw_start, sw_end));
 
 		bool prof_tick = fKt3->Check();
-		{
-			using us_d = std::chrono::duration<double, std::micro>;
-			double d_prep = us_d(prof_tGpu0 - sw_start).count();
-			double d_gpu  = us_d(prof_tGpu1 - prof_tGpu0).count();
-			double d_post = us_d(sw_end     - prof_tGpu1).count();
-			static double prof_sp = 0, prof_sg = 0, prof_so = 0;
-			static uint64_t prof_n = 0;
-			prof_sp += d_prep; prof_sg += d_gpu; prof_so += d_post; prof_n++;
-			if (prof_n % 500 == 0) {
-				std::cout << "#Prof parse=" << prof_sp / prof_n
-					<< " gpu=" << prof_sg / prof_n
-					<< " post=" << prof_so / prof_n
-					<< " total=" << (prof_sp + prof_sg + prof_so) / prof_n
-					<< " us/TF n=" << prof_n << std::endl;
-			}
-		}
 
 		static uint64_t int_hits = 0;
 		static uint64_t int_processed_hbf = 0;
@@ -1189,6 +1182,7 @@ bool LogicFilterGpu::ConditionalRun()
 				<< " Hits(inte): " << int_hits
 				<< " HBF(inte): " << int_processed_hbf
 				<< std::endl;
+			fProf.PrintWindow();
 
 			//int_hits = 0;
 			//int_processed_hbf = 0;
@@ -1244,6 +1238,7 @@ bool LogicFilterGpu::ConditionalRun()
 		}
 		#endif
 
+		const auto sw_build0 = FilterProf::Clock::now();
 		FairMQParts outParts;
   
 		//Copy TimeFrameHeader
@@ -1374,6 +1369,10 @@ bool LogicFilterGpu::ConditionalRun()
 		std::cout << " : " << flagcount << std::endl;
 		#endif
 
+		fProf.Add(FilterProf::Us(sw_start, sw_trig0),
+			FilterProf::Us(sw_trig0, sw_trig1),
+			FilterProf::Us(sw_trig1, sw_end),
+			FilterProf::Us(sw_build0, FilterProf::Clock::now()));
 
 
 		#if 1
@@ -1430,6 +1429,8 @@ bool LogicFilterGpu::ConditionalRun()
 void LogicFilterGpu::PostRun()
 {
 	LOG(info) << "Post Run";
+	fProf.PrintSummary(fName, fTrig->GetUseCuda() ? "gpu" : "cpu", fNsignal);
+	fProf.Clear();
 	return;
 }
 

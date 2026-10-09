@@ -29,6 +29,7 @@
 #include "SignalParser.cxx"
 #include "Trigger.cxx"
 #include "../KTimer.cxx"
+#include "FilterProf.h"
 
 
 //std::atomic<int> gQdepth = 0;
@@ -161,6 +162,9 @@ private:
 	KTimer *fKt2;
 	KTimer *fKt3;
 	KTimer *fKt4;
+
+	FilterProf fProf;
+	int fNsignal = 0;
 };
 
 
@@ -230,9 +234,13 @@ void LogicFilter::InitTask()
 			i++;
 		}
 	}
+	fNsignal = i;
 	
 	LOG(info) << "Expression: " << expression;
+	auto tTable0 = FilterProf::Clock::now();
 	fTrig->MakeTable(expression);
+	LOG(info) << "MakeTable: " << fNsignal << " signals, "
+		<< FilterProf::Us(tTable0, FilterProf::Clock::now()) / 1000. << " ms";
 
 	LOG(info) << "Trigger windows width: " << window_width;
 	fTrig->SetMarkLen(window_width);
@@ -1009,15 +1017,15 @@ bool LogicFilter::ConditionalRun()
 	// struct TimeFrame::Header *i_tfHeader = nullptr;
 	int i_tf_msg_index = 0;
 	uint32_t tf_tf_id = 0;
-	std::chrono::system_clock::time_point sw_start, sw_end;
 
 	if (Receive(inParts, fInputChannelName, 0, 1000) > 0) {
 		assert(inParts.Size() >= 2);
-		sw_start = std::chrono::system_clock::now();
 
 		#if 1
 		if (fKt1->Check()) CheckMultiPart(inParts);
 		#endif
+
+		const auto sw_start = FilterProf::Clock::now();
 
 		std::vector<struct DataBlock> blocks;
 		std::vector< std::vector<struct DataBlock> > block_map;
@@ -1060,22 +1068,29 @@ bool LogicFilter::ConditionalRun()
 		// Trigger processing in unit of HBF
 		std::vector< std::vector<uint32_t> > fltdata;
 		int totalhits = 0;
+
+		//HBF building
+		std::vector< std::vector<struct HBFIndex> > hbf_batch(bsize_min);
 		for (size_t i = 0 ; i < bsize_min ; i++) {
+			BuildHBF(hbf_batch[i], block_map, inParts, i);
+		}
 
-			//HBF building
-			std::vector<struct HBFIndex> hbf_list;
-			BuildHBF(hbf_list, block_map, inParts, i);
+		//Trigger process
+		const auto sw_trig0 = FilterProf::Clock::now();
+		fltdata.reserve(bsize_min);
+		for (size_t i = 0 ; i < bsize_min ; i++) {
+			fltdata.emplace_back(*fTrig->Exec(hbf_batch[i]));
+		}
+		const auto sw_trig1 = FilterProf::Clock::now();
 
-			//Trigger process
-			std::vector<uint32_t> *hits = fTrig->Exec(hbf_list);
-			fltdata.emplace_back(*hits);
-			int nhits = hits->size();
+		for (size_t i = 0 ; i < bsize_min ; i++) {
+			int nhits = fltdata[i].size();
 
 			#if 0
 			if (nhits > 0) {
-				std::cout << "#D1 Hits : " << hits->size() << " ";
-				for (unsigned int ii = 0 ; ii < hits->size() ; ii++) {
-					std::cout << " " << std::dec << (*hits)[ii];
+				std::cout << "#D1 Hits : " << fltdata[i].size() << " ";
+				for (unsigned int ii = 0 ; ii < fltdata[i].size() ; ii++) {
+					std::cout << " " << std::dec << fltdata[i][ii];
 					if (ii > 10) {
 						std::cout << "...";
 						break;
@@ -1090,6 +1105,7 @@ bool LogicFilter::ConditionalRun()
 
 			totalhits += nhits;
 		}
+		const auto sw_end = FilterProf::Clock::now();
 
 		#if 0
 		if (fKt2->Check()) {
@@ -1129,9 +1145,7 @@ bool LogicFilter::ConditionalRun()
 		auto stfId     = stfHeader->timeFrameId;
 		#endif
 
-		sw_end = std::chrono::system_clock::now();
-		uint32_t elapse = std::chrono::duration_cast<std::chrono::microseconds>(
-			sw_end - sw_start).count();
+		uint32_t elapse = static_cast<uint32_t>(FilterProf::Us(sw_start, sw_end));
 		static uint64_t int_hits = 0;
 		static uint64_t int_processed_hbf = 0;
 		double trig_ratio;
@@ -1149,6 +1163,7 @@ bool LogicFilter::ConditionalRun()
 				<< " Hits(inte): " << int_hits
 				<< " HBF(inte): " << int_processed_hbf
 				<< std::endl;
+			fProf.PrintWindow();
 
 			//int_hits = 0;
 			//int_processed_hbf = 0;
@@ -1204,6 +1219,7 @@ bool LogicFilter::ConditionalRun()
 		}
 		#endif
 
+		const auto sw_build0 = FilterProf::Clock::now();
 		FairMQParts outParts;
   
 		//Copy TimeFrameHeader
@@ -1334,6 +1350,10 @@ bool LogicFilter::ConditionalRun()
 		std::cout << " : " << flagcount << std::endl;
 		#endif
 
+		fProf.Add(FilterProf::Us(sw_start, sw_trig0),
+			FilterProf::Us(sw_trig0, sw_trig1),
+			FilterProf::Us(sw_trig1, sw_end),
+			FilterProf::Us(sw_build0, FilterProf::Clock::now()));
 
 
 		#if 1
@@ -1390,6 +1410,8 @@ bool LogicFilter::ConditionalRun()
 void LogicFilter::PostRun()
 {
 	LOG(info) << "Post Run";
+	fProf.PrintSummary(fName, "cpu", fNsignal);
+	fProf.Clear();
 	return;
 }
 
