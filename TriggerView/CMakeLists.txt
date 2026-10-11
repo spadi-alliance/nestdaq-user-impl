@@ -13,6 +13,7 @@ foreach(lvar IN ITEMS
 set(EXEC ${lvar})
   add_executable(${EXEC} 
   ${EXEC}.cxx;
+  ${CMAKE_SOURCE_DIR}/LogicFilter/SignalParser.cxx
 )
 
 target_include_directories(${EXEC} PUBLIC 
@@ -70,8 +71,9 @@ endif()
 
 
 install(TARGETS ${EXEC};
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${INSTALL_BINDIR}
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib64
+    ARCHIVE DESTINATION lib64
 )
 
 endforeach()

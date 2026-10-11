@@ -26,7 +26,7 @@
 #include "../HeartbeatFrameHeader.h"
 #include "../FilterHeader.h"
 
-#include "SignalParser.cxx"
+#include "SignalParser.h"
 #include "Trigger.cxx"
 #include "../KTimer.cxx"
 
@@ -161,6 +161,8 @@ private:
 	KTimer *fKt2;
 	KTimer *fKt3;
 	KTimer *fKt4;
+
+	std::map<uint32_t, uint32_t> fNEntryInSubTimeRegion_LogicFilter; // key: iSubTR, value: # of signals in iSubTR
 };
 
 
@@ -210,32 +212,123 @@ void LogicFilter::InitTask()
 	std::string expression = fConfig->GetProperty<std::string>(opt::TriggerExpression.data());
 	int window_width = std::stoi(fConfig->GetProperty<std::string>(opt::TriggerWidth.data()));
 
-	std::vector< std::vector<uint32_t> > signals = SignalParser::Parsing(str_signals);
-	int i = 0;
-	for (auto &v : signals) {
-		if (v.size() >= 3) {
-			fTrig->Entry(v[0], v[1], static_cast<int>(v[2]));
-			union ipval {
-				uint32_t u32;
-				char c[4];
-			};
-			ipval mid; mid.u32 = v[0];
-			//LOG(info) << "Module: " << std::hex << v[0] << ", Channel: " << v[1] << ", Offset: " << v[2];
-			LOG(info) << std::setw(4) << i << ": "
-				<< "M_id: " << static_cast<unsigned int>(mid.c[3] & 0xff)
-				<< "."      << static_cast<unsigned int>(mid.c[2] & 0xff)
-				<< "."      << static_cast<unsigned int>(mid.c[1] & 0xff)
-				<< "."      << static_cast<unsigned int>(mid.c[0] & 0xff)
-				<< ", Ch.: " << std::setw(3) << v[1] << ", Offset: " << std::setw(6) << static_cast<int>(v[2]);
-			i++;
-		}
-	}
-	
-	LOG(info) << "Expression: " << expression;
-	fTrig->MakeTable(expression);
-
 	LOG(info) << "Trigger windows width: " << window_width;
 	fTrig->SetMarkLen(window_width);
+
+	std::vector<struct SignalParser::psig> signals = SignalParser::Parsing(str_signals);
+
+	// --------------------------------
+	// distribute signals into groups, and scan max group id
+	// --------------------------------
+	std::cout << "\n[LogicFilter::InitTask] Distributing signals into groups... " << std::endl;
+	std::vector<std::vector<struct SignalParser::psig>> groups;
+	uint32_t max_group_id = 0;
+	for(auto &sig : signals){
+		if(sig.group_id > max_group_id) max_group_id = sig.group_id;
+	}
+	groups.resize(max_group_id + 1);
+	for(auto &sig : signals){
+		groups[sig.group_id].emplace_back(sig);
+	}
+	std::cout << "\tMax group id: " << max_group_id << std::endl;
+
+	// --------------------------------
+	// sort signals in each group by subgroup_id for making SubTimeRegion in order of subgroup_id
+	// --------------------------------
+	std::cout << "\n[LogicFilter::InitTask] Sorting signals in each group by subgroup_id... " << std::endl;
+	for(auto &group : groups){
+		if(group.size() == 0) continue; // skip empty group
+		std::sort(group.begin(), group.end(),
+			[](const struct SignalParser::psig &left, const struct SignalParser::psig &right)
+			{
+				if(left.subgroup_id == right.subgroup_id){
+					return left.femId < right.femId;
+				}
+				else{
+					return left.subgroup_id < right.subgroup_id;
+				}
+			});
+	}
+	std::cout << "\tDone." << std::endl;
+
+
+	// --------------------------------
+	// check and print group information
+	// --------------------------------
+	std::cout << "\n[LogicFilter::InitTask] Check group information: " << std::endl;
+	for(size_t i = 0; i < max_group_id + 1; i++){
+		if(groups[i].size() > 0){
+			std::cout << "\tgroup " << i << " has " << groups[i].size() << std::endl;
+			std::cout << "\t\tSignals: ";
+			for(const auto &sig : groups[i]){
+				if(sig.subgroup_id != SignalParser::NO_SUBGROUP){
+					std::cout << sig.group_id << "-" << sig.subgroup_id << " ";
+				}
+				else{
+					std::cout << sig.group_id << " ";
+				}
+			}
+			std::cout << std::endl;
+		} // endif(groups[i].size() > 0)
+		else{
+			std::cout << "\tgroup " << i << " is empty" << std::endl;
+		}
+	} // for(size_t i = 0; i < max_group_id + 1; i++)
+	std::cout << "\tDone." << std::endl;
+	std::cout << "\n[LogicFilter::InitTask] Trigger expression: " << expression << std::endl;
+
+	// --------------------------------
+	// register signals to Trigger
+	// --------------------------------
+	std::cout << "\n[LogicFilter::InitTask] Registering signals to Trigger... " << std::endl;
+	int iSubTimeRegion = -1; // subgroupが見つかれば、0から順番に割り当てる
+	std::pair<uint32_t, uint32_t> last_subgroup = std::make_pair(UINT32_MAX, UINT32_MAX); // 最初にsubgroupが見つかれば必ず、このペアとは異なる
+	for(size_t i = 0; i < max_group_id + 1; i++){
+		auto &group = groups[i];
+		if(group.size() == 0){
+			std::cout << "\tgroup " << i << " is empty, skip." << std::endl;
+			continue; // skip empty group
+		}
+		for(const auto &sig : group){
+			if(sig.subgroup_id != SignalParser::NO_SUBGROUP){
+				if(last_subgroup != std::make_pair(sig.group_id, sig.subgroup_id)){
+					iSubTimeRegion++;
+					fNEntryInSubTimeRegion_LogicFilter[iSubTimeRegion] = 1;
+					last_subgroup = std::make_pair(sig.group_id, sig.subgroup_id);
+					std::cout << "\t\tgroup " << sig.group_id << " has subgroup " << sig.subgroup_id << " assigned to SubTimeRegion " << iSubTimeRegion << std::endl;
+				}
+				else{
+					fNEntryInSubTimeRegion_LogicFilter[iSubTimeRegion]++;
+					std::cout << "\t\tgroup " << sig.group_id << " has subgroup " << sig.subgroup_id << " assigned to SubTimeRegion " << iSubTimeRegion << " (entry count in this SubTimeRegion: " << fNEntryInSubTimeRegion_LogicFilter[iSubTimeRegion] << "th)" << std::endl;
+				}
+			}
+			std::cout << "\t\tRegistering signal: group_id=" << sig.group_id
+				<< " subgroup_id=" << sig.subgroup_id
+				<< " iSubTimeRegion=" << (sig.subgroup_id != SignalParser::NO_SUBGROUP ? iSubTimeRegion : UINT32_MAX)
+				<< " femId=" << std::hex << sig.femId
+				<< " channel=" << std::dec <<sig.channel
+				<< " offset=" << sig.offset
+				<< std::endl;
+			fTrig->EntryTo(sig.group_id, sig.subgroup_id, iSubTimeRegion, sig.femId, sig.channel, static_cast<int>(sig.offset));
+		}
+	}
+	std::cout << "\tNumber of SubTimeRegions: " << iSubTimeRegion + 1 << std::endl;
+	fTrig->SetfnEntryInSubTimeRegion(fNEntryInSubTimeRegion_LogicFilter);
+	std::cout << "\tDone." << std::endl;
+
+	// --------------------------------
+	// Initialize SubTimeRegions
+	// --------------------------------
+	std::cout << "\n[LogicFilter::InitTask] Setting SubTimeRegions... " << std::endl;
+	fTrig->SetSubTimeRegion(1024 * 128, fNEntryInSubTimeRegion_LogicFilter); // (int, map<uint32_t, uint32_t>) -> (subTimeRegionSize, nEntryInSubTimeRegion)
+	std::cout << "\tDone." << std::endl;
+
+	// --------------------------------
+	// Make LUT
+	// --------------------------------
+	LOG(info) << "Trigger Expression: " << expression;
+	fTrig->MakeTable(expression);
+	std::cout << "\tMaking table Done." << std::endl;
 
 }
 
@@ -1067,6 +1160,8 @@ bool LogicFilter::ConditionalRun()
 			BuildHBF(hbf_list, block_map, inParts, i);
 
 			//Trigger process
+			fTrig->CleanUpTimeRegion();
+			fTrig->CleanUpSubTimeRegion(fNEntryInSubTimeRegion_LogicFilter);
 			std::vector<uint32_t> *hits = fTrig->Exec(hbf_list);
 			fltdata.emplace_back(*hits);
 			int nhits = hits->size();
@@ -1453,7 +1548,7 @@ void addCustomOptions(bpo::options_description& options)
 
 		(opt::TriggerSignals.data(),
 			bpo::value<std::string>()->default_value(
-			"(0xc0a802a9 0 0) (0xc0a802a9 1 0)"),
+			"(0 0xc0a802a9 0 0) (1 0xc0a802a9 1 0)"),
 			"Triger signals (module_IP Channel_number Offset)")
 		(opt::TriggerExpression.data(),
 			bpo::value<std::string>()->default_value("RPN 0 1 &"),

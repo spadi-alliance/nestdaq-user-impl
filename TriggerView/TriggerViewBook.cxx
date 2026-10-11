@@ -159,14 +159,8 @@ void gHistWindowInit(std::string key, std::string redis_server)
 	g_trg_sources.clear();
 	g_trg_sources.resize(0);
 	for (unsigned int i = 0 ; i < signals.size() ; i++) {
-		if (signals[i].size() >= 3) {
-			struct signal_id sig;
-			sig.index = i;
-			sig.module = signals[i][0];
-			sig.channel = signals[i][1];
-			sig.offset = static_cast<int>(signals[i][2]);
-			g_trg_sources.emplace_back(sig);
-		}
+		const auto &s = signals[i];
+		s.print();
 	}
 
 	gTrigType.clear();
