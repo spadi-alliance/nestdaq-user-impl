@@ -55,6 +55,16 @@ foreach(lvar IN ITEMS
       ${REDIS_PLUS_PLUS_LIB};
       pthread;
     )
+  elseif((FairMQ_VERSION VERSION_EQUAL 1.10.0))
+    target_link_libraries(${EXEC}  PUBLIC
+      fairmq;
+      FairLogger;
+      ${Boost_LIBRARIES};
+      Utility;
+      sqlite3;
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+    )
   else()
     message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
   endif()
