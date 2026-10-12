@@ -8,6 +8,7 @@ set(INSTALL_BINDIR ${CMAKE_SOURCE_DIR}/bin)
 
 foreach(lvar IN ITEMS
 	TriggerView;
+	TriggerViewSd;
 )
 
 set(EXEC ${lvar})
@@ -24,6 +25,7 @@ target_include_directories(${EXEC} PUBLIC
     ${ROOT_INCLUDE_DIRS};
     ${HIREDIS_HEADER};
     ${REDIS_PLUS_PLUS_HEADER};
+    ../../uhbook;
 )
 
 target_link_directories(${EXEC} PUBLIC
