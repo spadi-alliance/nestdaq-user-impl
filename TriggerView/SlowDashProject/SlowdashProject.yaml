@@ -1,0 +1,18 @@
+slowdash_project:
+  name: Redis
+  title: Redis Test, Simple version
+
+  data_source:
+    type: Redis
+    parameters:
+      url: redis://localhost:6379/
+      time_series: {db: 1}
+      object: { db: 3 }
+      
+  module:
+    file: triggerview.py
+    enabled_for_commandline: true
+#    parameters:
+#      signals: ()
+#      expression: 0 & 1
+#      width: 20

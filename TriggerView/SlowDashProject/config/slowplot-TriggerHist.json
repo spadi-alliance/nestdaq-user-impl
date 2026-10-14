@@ -1,0 +1,44 @@
+{
+    "control": {
+        "range": { "length": 3600, "to": 0 },
+        "reload": 5,
+        "mode": "normal",
+        "grid": { "rows": 2, "columns": 2 }
+    },
+    "style": { },
+    "panels": [
+        {
+            "type": "plot",
+            "axes": { "xfixed": false, "yfixed": false, "xlog": false, "ylog": false, "zlog": false },
+            "plots": [
+                { "type": "histogram", "channel": "dqm:TriggerViewSd-0:Elapse Time (ms)", "color": "#009090", "opacity": 0.2, "label": "", "format": "%.5g" }
+            ],
+            "legend": { "style": "side", "position": "right" }
+        },
+        {
+            "type": "plot",
+            "plots": [
+                { "type": "histogram", "channel": "dqm:TriggerViewSd-0:Number of Trigger (STF)", "color": "#009090", "opacity": 0.2, "label": "", "format": "%.5g" }
+            ],
+            "axes": { "xfixed": false, "yfixed": false, "xlog": false, "ylog": false, "zlog": false, "xmin": -0.05, "xmax": 2, "ymin": 0, "ymax": 2, "zmin": 0, "zmax": 1 },
+            "legend": { "style": "side", "position": "right" }
+        },
+        {
+            "type": "plot",
+            "plots": [
+                { "type": "histogram2d", "channel": "dqm:TriggerViewSd-0:Trigger Window 000", "label": "", "format": "%.5g" }
+            ],
+            "axes": { "xfixed": false, "yfixed": false, "xlog": false, "ylog": false, "zlog": true, "colorscale": "Parula", "xmin": 0, "xmax": 1, "ymin": 0, "ymax": 1, "zmin": 0, "zmax": 1 },
+            "legend": { "style": "transparent", "position": "right" }
+        },
+        {
+            "type": "plot",
+            "plots": [
+                { "type": "histogram2d", "channel": "dqm:TriggerViewSd-0:Trigger Window One event 000", "label": "", "format": "%.5g" }
+            ],
+            "axes": { "xfixed": false, "yfixed": false, "xlog": false, "ylog": false, "zlog": false, "colorscale": "Parula", "xmin": 0, "xmax": 1, "ymin": 0, "ymax": 1, "zmin": 0, "zmax": 1 },
+            "legend": { "style": "transparent", "position": "right" }
+        }
+    ],
+    "meta": { "name": "TriggerHist", "title": "TriggerHist", "description": "" }
+}

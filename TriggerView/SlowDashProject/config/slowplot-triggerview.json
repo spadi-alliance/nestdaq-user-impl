@@ -1,0 +1,30 @@
+{
+    "control": {
+        "range": { "length": 3600, "to": 0 },
+        "reload": 5,
+        "mode": "normal",
+        "grid": { "rows": 2, "columns": 2 }
+    },
+    "style": { },
+    "panels": [
+        {
+            "type": "plot",
+            "plots": [
+                { "type": "histogram2d", "channel": "dqm:TriggerViewSd-0:Trigger Window 000", "label": "", "format": "%.5g" }
+            ],
+            "axes": { "xfixed": false, "yfixed": false, "xlog": false, "ylog": false, "zlog": true, "colorscale": "Parula", "xmin": 0, "xmax": 1, "ymin": 0, "ymax": 1, "zmin": 0, "zmax": 1 },
+            "legend": { "style": "transparent", "position": "right" }
+        },
+        {
+            "type": "plot",
+            "plots": [
+                { "type": "histogram2d", "channel": "dqm:TriggerViewSd-0:Trigger Window One event 000", "label": "", "format": "%.5g" }
+            ],
+            "axes": { "xfixed": false, "yfixed": false, "xlog": false, "ylog": false, "zlog": false, "colorscale": "Parula", "xmin": 0, "xmax": 1, "ymin": 0, "ymax": 1, "zmin": 0, "zmax": 1 },
+            "legend": { "style": "transparent", "position": "right" }
+        },
+        { "type": "tree", "channel": "LogicFilter" },
+        { "type": "html", "location": "project", "file": "TriggerView", "title": "" }
+    ],
+    "meta": { "name": "triggerview", "title": "Trigger View", "description": "" }
+}
