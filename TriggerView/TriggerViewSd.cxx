@@ -126,7 +126,6 @@ private:
 void OnlineDisplay::Init()
 {
 	using opt = OptionKey;
-
 	static bool at_first = true;
 
 	if (at_first) {
@@ -134,7 +133,7 @@ void OnlineDisplay::Init()
 		LOG(info) << "DB URI for Trigger singals : " << fTrgRedisServerUri;
 		fTrgRedisKey = fConfig->GetValue<std::string>(opt::TrgRedisKey.data());
 		LOG(info) << "Trigger key on DB : " << fTrgRedisKey;
-		gHistInit();
+		gHistInit(fId);
 
 		at_first = false;
 	}
@@ -523,9 +522,9 @@ bool OnlineDisplay::ConditionalRun()
 		}
 
 		if (fKt3.Check()) {
-			std::cout << "Nmsg: " << std::dec << inParts.Size();
-			std::cout << "  Freq: " << freq << " el " << elapse
-				<< " c " << counts  << std::endl;
+			LOG(info) << "Nmsg: " << std::dec << inParts.Size()
+				<< "  Freq: " << freq << " el " << elapse
+				<< " c " << counts;
 		}
 
 		#if 0

@@ -57,9 +57,9 @@ static std::vector<struct signal_id> g_trg_sources;
 
 void gEventCycle(void *arg = NULL)
 {
-#if 0
 	(void)arg;
 
+#if 0
 	while (true) {
 		//gMtxDisp->Lock();
 		gSystem->ProcessEvents();
@@ -106,7 +106,7 @@ void gHistInit()
 
 	gHTrig = new UH1Book("Trigger", 1000, 0, 150000);
 	gHElapse = new UH1Book("Elapse Time (ms)", 500, 0, 20000);
-	gHNTrig = new UH1Book("Number of Trigger (/STF)", 500, 0, 1000);
+	gHNTrig = new UH1Book("Number of Trigger (STF)", 500, 0, 1000);
 
 	for (int i = 0 ; i < gMaxTrigHist ; i++) {
 		std::ostringstream noss, toss;
@@ -131,15 +131,17 @@ void gHistInit()
 	return;
 }
 
-void gHistInit(std::string &url, std::string &name, int num)
+//void gHistInit(std::string &url, std::string &name, int num)
+void gHistInit(std::string &name)
 {
-	gDbURL = url;
-	gDevName = name;
+	//gDbURL = url;
+	//gDevName = name;
 	//gDevNumber = num;
 
-	std::ostringstream oss;
-	oss << num;
-	gNamePrefix = "dqm:" + name + "-" + oss.str();
+	//std::ostringstream oss;
+	//oss << num;
+	//gNamePrefix = "dqm:" + name + "-" + oss.str();
+	gNamePrefix = "dqm:" + name;
 
 	gHistInit();
 
@@ -257,7 +259,6 @@ void gHistDraw()
 		gUHistSlowdashify(gH2TrigWindow[i]);
 	}
 
-	
 	return;
 }
 
