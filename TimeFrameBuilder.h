@@ -90,8 +90,8 @@ private:
     void TFBSegmentCheck(std::vector<STFBuffer>&);
 
     std::vector<uint32_t> fSuccessfulSegmentIDs;
-    void StoreSuccessfulSegmentIDs(const std::vector<STFBuffer>&);
-    std::vector<uint32_t> CheckLostSegmentIDs(const std::vector<STFBuffer>&);
+    void StoreSuccessfulSegmentIDs(std::vector<STFBuffer>&);
+    std::vector<uint32_t> CheckLostSegmentIDs(std::vector<STFBuffer>&);
     bool fFirstTFB {true};
     bool fEnableCheckHBF {true};
 

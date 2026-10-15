@@ -133,7 +133,7 @@ void TimeFrameBuilder::TFBSegmentCheck(std::vector<STFBuffer> &tfBuf)
     return;
 }
 
-void TimeFrameBuilder::StoreSuccessfulSegmentIDs(const std::vector<STFBuffer> &stfBuf)
+void TimeFrameBuilder::StoreSuccessfulSegmentIDs(std::vector<STFBuffer> &stfBuf)
 {
     fSuccessfulSegmentIDs.clear();
     fSuccessfulSegmentIDs.resize(0);
@@ -152,7 +152,7 @@ void TimeFrameBuilder::StoreSuccessfulSegmentIDs(const std::vector<STFBuffer> &s
     return;
 }
 
-std::vector<uint32_t> TimeFrameBuilder::CheckLostSegmentIDs(const std::vector<STFBuffer> &stfBuf)
+std::vector<uint32_t> TimeFrameBuilder::CheckLostSegmentIDs(std::vector<STFBuffer> &stfBuf)
 {
     std::vector<uint32_t> lostSegmentIds;
     std::vector<uint32_t> existedSegmentIds;
