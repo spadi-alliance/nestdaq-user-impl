@@ -17,6 +17,12 @@ foreach(lvar IN ITEMS
     ${EXEC}.cxx;
   )
 
+  if(EXEC STREQUAL "LogicFilter")
+      target_sources(${EXEC} PRIVATE
+          SignalParser.cxx
+      )
+  endif()
+
   target_include_directories(${EXEC} PUBLIC 
     ${Boost_INCLUDE_DIRS};  
     ${FairMQ_INCDIR};
@@ -55,6 +61,16 @@ foreach(lvar IN ITEMS
       ${REDIS_PLUS_PLUS_LIB};
       pthread;
     )
+  elseif((FairMQ_VERSION VERSION_EQUAL 1.10.0))
+    target_link_libraries(${EXEC}  PUBLIC
+      fairmq;
+      FairLogger;
+      ${Boost_LIBRARIES};
+      Utility;
+      sqlite3;
+      ${HIREDIS_LIB};
+      ${REDIS_PLUS_PLUS_LIB};
+    )
   else()
     message(FATAL_ERROR "Unsupported FairMQ version ${FairMQ_VERSION}")
   endif()
@@ -63,7 +79,8 @@ foreach(lvar IN ITEMS
     ${EXEC};
     #LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     #RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${INSTALL_BINDIR}
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib64
+    ARCHIVE DESTINATION lib64
   )
 endforeach()

@@ -10,15 +10,16 @@
 #include <sw/redis++/redis++.h>
 #include <sw/redis++/errors.h>
 
-#include "../LogicFilter/SignalParser.cxx"
+// #include "../LogicFilter/SignalParser.cxx"
 #include "../LogicFilter/ExprParser.cxx"
+#include "../LogicFilter/SignalParser.h"
 
 
 //std::vector< std::vector<uint32_t> > GetTriggerSignals(std::string key, std::string server_uri)
-std::tuple< std::vector< std::vector<uint32_t> >, std::vector<struct ExprParser::TrgExpression> >
+std::tuple< std::vector< struct SignalParser::psig >, std::vector<struct ExprParser::TrgExpression> >
        	GetTriggerSignals(std::string key, std::string server_uri)
 {
-	std::vector< std::vector<uint32_t> > signals;
+	std::vector< struct SignalParser::psig > signals;
 	std::vector<struct ExprParser::TrgExpression> exprs;
 
 	std::shared_ptr<sw::redis::Redis> redis;
@@ -68,10 +69,8 @@ int main(int argc, char* argv[])  {
 
 	std::cout << "Signals: " << signals.size() << std::endl;
 	std::cout << std::hex;
-	for (auto &vec : signals) {
-		for (auto &val : vec) std::cout << " 0x" << std::hex << val;
-		std::cout << "  delay(singed int): " << std::dec << static_cast<int>(vec[2]);
-		std::cout << std::endl;
+	for (auto &sig : signals) {
+		sig.print();
 	}
 	std::cout << "Triggers: " << exprs.size() << std::endl;
 	for (auto &t : exprs) {
