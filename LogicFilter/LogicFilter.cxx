@@ -301,17 +301,27 @@ void LogicFilter::InitTask()
 					fNEntryInSubTimeRegion_LogicFilter[iSubTimeRegion]++;
 					std::cout << "\t\tgroup " << sig.group_id << " has subgroup " << sig.subgroup_id << " assigned to SubTimeRegion " << iSubTimeRegion << " (entry count in this SubTimeRegion: " << fNEntryInSubTimeRegion_LogicFilter[iSubTimeRegion] << "th)" << std::endl;
 				}
-			}
-			std::cout << "\t\tRegistering signal: group_id=" << sig.group_id
-				<< " subgroup_id=" << sig.subgroup_id
-				<< " iSubTimeRegion=" << (sig.subgroup_id != SignalParser::NO_SUBGROUP ? iSubTimeRegion : UINT32_MAX)
-				<< " femId=" << std::hex << sig.femId
-				<< " channel=" << std::dec <<sig.channel
-				<< " offset=" << sig.offset
-				<< std::endl;
-			fTrig->EntryTo(sig.group_id, sig.subgroup_id, iSubTimeRegion, sig.femId, sig.channel, static_cast<int>(sig.offset));
-		}
-	}
+				std::cout << "\t\tRegistering signal: group_id=" << sig.group_id
+					<< " subgroup_id=" << sig.subgroup_id
+					<< " iSubTimeRegion=" << (sig.subgroup_id != SignalParser::NO_SUBGROUP ? iSubTimeRegion : SignalParser::NO_SUBGROUP)
+					<< " femId=" << std::hex << sig.femId
+					<< " channel=" << std::dec <<sig.channel
+					<< " offset=" << sig.offset
+					<< std::endl;
+				fTrig->EntryTo(sig.group_id, sig.subgroup_id, iSubTimeRegion, sig.femId, sig.channel, static_cast<int>(sig.offset));
+			} // if(sig.subgroup_id != SignalParser::NO_SUBGROUP)
+			else{
+				std::cout << "\t\tRegistering signal: group_id=" << sig.group_id
+					<< " subgroup_id=NO_SUBGROUP"
+					<< " iSubTimeRegion=NO_SUBGROUP"
+					<< " femId=" << std::hex << sig.femId
+					<< " channel=" << std::dec <<sig.channel
+					<< " offset=" << sig.offset
+					<< std::endl;
+				fTrig->EntryTo(sig.group_id, sig.subgroup_id, SignalParser::NO_SUBGROUP, sig.femId, sig.channel, static_cast<int>(sig.offset));
+			} // else(sig.subgroup_id != SignalParser::NO_SUBGROUP)
+		} // for(const auto &sig : group)
+	} // for(size_t i = 0; i < max_group_id + 1; i++)
 	std::cout << "\tNumber of SubTimeRegions: " << iSubTimeRegion + 1 << std::endl;
 	fTrig->SetfnEntryInSubTimeRegion(fNEntryInSubTimeRegion_LogicFilter);
 	std::cout << "\tDone." << std::endl;
