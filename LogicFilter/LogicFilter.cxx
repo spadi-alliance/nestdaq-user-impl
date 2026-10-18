@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <string>
 #include <chrono>
+#include <stdexcept>
 
 #include <unordered_map>
 #include <unordered_set>
@@ -290,6 +291,7 @@ void LogicFilter::InitTask()
 			continue; // skip empty group
 		}
 		for(const auto &sig : group){
+			bool registered;
 			if(sig.subgroup_id != SignalParser::NO_SUBGROUP){
 				if(last_subgroup != std::make_pair(sig.group_id, sig.subgroup_id)){
 					iSubTimeRegion++;
@@ -308,7 +310,7 @@ void LogicFilter::InitTask()
 					<< " channel=" << std::dec <<sig.channel
 					<< " offset=" << sig.offset
 					<< std::endl;
-				fTrig->EntryTo(sig.group_id, sig.subgroup_id, iSubTimeRegion, sig.femId, sig.channel, static_cast<int>(sig.offset));
+				registered = fTrig->EntryTo(sig.group_id, sig.subgroup_id, iSubTimeRegion, sig.femId, sig.channel, static_cast<int>(sig.offset));
 			} // if(sig.subgroup_id != SignalParser::NO_SUBGROUP)
 			else{
 				std::cout << "\t\tRegistering signal: group_id=" << sig.group_id
@@ -318,8 +320,18 @@ void LogicFilter::InitTask()
 					<< " channel=" << std::dec <<sig.channel
 					<< " offset=" << sig.offset
 					<< std::endl;
-				fTrig->EntryTo(sig.group_id, sig.subgroup_id, SignalParser::NO_SUBGROUP, sig.femId, sig.channel, static_cast<int>(sig.offset));
+				registered = fTrig->EntryTo(sig.group_id, sig.subgroup_id, SignalParser::NO_SUBGROUP, sig.femId, sig.channel, static_cast<int>(sig.offset));
 			} // else(sig.subgroup_id != SignalParser::NO_SUBGROUP)
+			if(!registered){
+				std::cout << "[LogicFilter::InitTask] Failed to register signal: "
+					<< "group_id=" << sig.group_id
+					<< " subgroup_id=" << sig.subgroup_id
+					<< " iSubTimeRegion=" << (sig.subgroup_id != SignalParser::NO_SUBGROUP ? iSubTimeRegion : SignalParser::NO_SUBGROUP)
+					<< " femId=" << std::hex << sig.femId
+					<< " channel=" << std::dec << sig.channel
+					<< " offset=" << sig.offset << std::endl;
+				throw std::runtime_error("Trigger::EntryTo: group_id must be 0..31 and each subgroup must contain at most 31 signals");
+			}
 		} // for(const auto &sig : group)
 	} // for(size_t i = 0; i < max_group_id + 1; i++)
 	std::cout << "\tNumber of SubTimeRegions: " << iSubTimeRegion + 1 << std::endl;

@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <vector>
 #include <map>
+#include <limits>
 
 #include <string.h>
 #include <assert.h>
@@ -43,8 +44,8 @@ public:
 	uint32_t GetTimeRegionSize();
 	void Entry(uint32_t, int, int); // fem, ch, offset
 	void Entry(uint32_t, int, int, uint32_t, uint32_t); // fem, ch, offset, leftwidth, rightwidth
-	void EntryTo(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, int); // group_id, subgroup_id, iSubTimeRegion, fem, ch, offset
-	void EntryTo(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, int, uint32_t, uint32_t); // group_id, subgroup_id, iSubTimeRegion, fem, ch, offset, 
+	bool EntryTo(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, int); // group_id, subgroup_id, iSubTimeRegion, fem, ch, offset
+	bool EntryTo(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, int, uint32_t, uint32_t); // group_id, subgroup_id, iSubTimeRegion, fem, ch, offset,
 	void ClearEntry();
 	bool CheckEntryFEM(uint32_t);
 	void Mark(unsigned char *, int, int, uint32_t);
@@ -246,8 +247,16 @@ void Trigger::Entry(uint32_t fem, int ch, int offset)
 	return;
 }
 
-void Trigger::EntryTo(uint32_t group_id, uint32_t subgroup_id, uint32_t iSubTimeRegion, uint32_t fem, uint32_t ch, int offset)
+bool Trigger::EntryTo(uint32_t group_id, uint32_t subgroup_id, uint32_t iSubTimeRegion, uint32_t fem, uint32_t ch, int offset)
 {
+	constexpr int bitCount = std::numeric_limits<uint32_t>::digits;
+	if(group_id >= bitCount) return false;
+	if(subgroup_id != SignalParser::NO_SUBGROUP){
+		auto entry = fEntryCounts.find(std::make_pair(group_id, subgroup_id));
+		// SetSubTimeRegion/CleanUpSubTimeRegion also shift by the entry count.
+		if(entry != fEntryCounts.end() && entry->second >= bitCount - 1) return false;
+	}
+
 	fEntryCh[fem].emplace_back(ch);
 	fEntryChDelay[fem].emplace_back(offset);
 	if(subgroup_id == SignalParser::NO_SUBGROUP){
@@ -277,8 +286,8 @@ void Trigger::EntryTo(uint32_t group_id, uint32_t subgroup_id, uint32_t iSubTime
 
 	fEntryMask |= uint32_t(1u) << group_id;
 	
-	return;
-}
+	return true;
+} // bool Trigger::EntryTo(uint32_t group_id, uint32_t subgroup_id, uint32_t iSubTimeRegion, uint32_t fem, uint32_t ch, int offset)
 
 void Trigger::ClearEntry()
 {
