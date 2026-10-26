@@ -93,15 +93,18 @@ std::vector<struct TrgExpression> Parsing(const std::string &expression)
 		try {
 			unsigned long ll = std::stoul(words[0], nullptr, 0);
 			t.type = 0xffffffff & ll;
+			t.expr = words[1];
+			trig.emplace_back(t);
 		} catch (const std::invalid_argument &e) {
-			std::cerr << "#E invalid argument " << e.what() << " " << words[0] << std::endl;
+			//std::cerr << "#E invalid argument " << e.what() << " " << words[0] << std::endl;
+			t.type = 0xaa000000;
+			t.expr = words[0];
+			trig.emplace_back(t);
 			break;
 		} catch (const std::out_of_range &e) {
 			std::cerr << "#E out of range " << e.what() << " " << words[0] << std::endl;
 			break;
 		}
-		t.expr = words[1];
-		trig.emplace_back(t);
 	}
 
 	return trig;
@@ -124,6 +127,14 @@ int main(int argc, char* argv[])
 	std::vector<struct ExprParser::TrgExpression> expressions = ExprParser::Parsing(param);
 
 	for (auto &t : expressions) {
+		std::cout << std::setw(8) << std::hex << t.type << " :" << t.expr << ":" << std::endl;
+	}
+
+	std::cout << std::endl;
+
+	std::string param2("(0 & 1) | (2 & 3)");
+	std::vector<struct ExprParser::TrgExpression> expressions2 = ExprParser::Parsing(param2);
+	for (auto &t : expressions2) {
 		std::cout << std::setw(8) << std::hex << t.type << " :" << t.expr << ":" << std::endl;
 	}
 

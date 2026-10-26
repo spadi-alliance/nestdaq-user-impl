@@ -12,7 +12,7 @@
 
 #include <algorithm>
 
-#include "infixtorp.cxx"
+#include "infixtorpn.cxx"
 
 class LogiCalc
 {
@@ -82,7 +82,7 @@ std::vector<std::string> & LogiCalc::SetFormula(std::string sparam)
 	if ((sparam.substr(0,3) == "RPN") || (sparam.substr(0,3) == "rpn")) {
 		sform =  sparam.substr(3);
 	} else {
-		sform = infixtorp(sparam)->to_rpn();
+		sform = infixtorpn(sparam)->to_rpn();
 	}
 
 	#if 0

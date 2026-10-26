@@ -170,7 +170,7 @@ bool STFBFilePlayer::ConditionalRun()
               << " length : " << std::dec << stfHeader->length << std::endl;
 
     uint32_t *ddd = reinterpret_cast<uint32_t *>(stfHeader);
-    for (int ii = 0 ; ii < 32 ; ii++) {
+    for (size_t ii = 0 ; ii < msgSTFHeader.GetSize() / sizeof(*ddd) ; ii++) {
         if ((ii % 8) == 0) std::cout << std::endl << std::hex << std::setw(4) << ii << " : ";
         std::cout << " " << std::setw(8) << std::hex << ddd[ii];
     }

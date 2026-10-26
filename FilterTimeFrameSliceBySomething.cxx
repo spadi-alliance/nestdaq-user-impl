@@ -86,4 +86,3 @@ std::unique_ptr<fair::mq::Device> getDevice(fair::mq::ProgOptions& /*config*/)
 {
     return std::make_unique<FilterTimeFrameSliceBySomething>();
 }
-
