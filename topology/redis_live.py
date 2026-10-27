@@ -37,8 +37,9 @@ TOPOLOGY = "topology"
 ENDPOINT = "endpoint"
 LINK = "link"
 
-# Draw every crossing line below this; above it, use a mesh band.
-MESH_LINE_LIMIT = 32
+# Draw every crossing line at or below this; above it, use a mesh band.
+# The topology page can override this per browser (input "box above").
+MESH_LINE_LIMIT = 128
 
 # Known application-level routing when autoSubChannel creates N destinations.
 ROUTING = {

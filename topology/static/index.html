@@ -25,6 +25,13 @@
     <div id="toolbar-topo" class="toolbar-group">
       <label><input type="checkbox" id="tog-warnings"> show warnings</label>
       <label><input type="checkbox" id="tog-tmux-log"> save tmux logs</label>
+      <span class="tmux-mode">tmux
+        <label><input type="radio" name="xterm-mode" id="xterm-mode-xterm" value="xterm" checked> xterm + topology</label>
+        <label><input type="radio" name="xterm-mode" id="xterm-mode-viewer" value="viewer"> topology only</label>
+      </span>
+      <label>box above
+        <input id="mesh-box-limit" type="number" min="0" step="1" value="128" title="draw a mesh as a box when it has more links than this">
+      </label>
     </div>
     <div id="toolbar-params" class="toolbar-group" hidden>
       <label>filter
@@ -73,10 +80,22 @@
       <button type="button" id="edit-start">start processes</button>
       <button type="button" id="edit-clear-form">clear edit</button>
       <button type="button" id="edit-clear-redis" class="danger">clear Redis (keep run #)</button>
-      <label class="edit-inline">dir <input id="edit-script-dir" value="topology/run" list="scripts-dir-list"></label>
-      <label class="edit-inline">stem <input id="edit-script-stem" value="from-edit" title="prefix; time is appended"></label>
-      <button type="button" id="edit-write-scripts">write topo + param + run scripts</button>
       <span id="edit-status" class="daq-meta"></span>
+    </div>
+    <div class="edit-script-group">
+      <div class="edit-script-row">
+        <span class="edit-script-caption">write scripts</span>
+        <label class="edit-inline">dir <input id="edit-script-dir" value="topology" autocomplete="off" spellcheck="false" placeholder="folder path"></label>
+        <button type="button" id="edit-dir-up">up</button>
+        <label class="edit-inline">stem <input id="edit-script-stem" value="from-edit" title="prefix; time is appended"></label>
+        <button type="button" id="edit-write-scripts">write topo + param + run scripts</button>
+      </div>
+      <div id="edit-folder-panel" class="dir-panel" hidden>
+        <label class="edit-inline">filter
+          <input id="edit-folder-filter" autocomplete="off" spellcheck="false" placeholder="this folder">
+        </label>
+        <ul id="edit-folders" class="scripts-list dir-folders"></ul>
+      </div>
     </div>
     <div class="edit-grid">
       <section class="edit-bins">
@@ -98,14 +117,20 @@
   <div id="view-scripts" hidden>
     <div class="edit-toolbar">
       <label class="edit-inline">directory
-        <input id="scripts-dir" value="topology/run" list="scripts-dir-list">
+        <input id="scripts-dir" value="topology" autocomplete="off" spellcheck="false" placeholder="folder path">
       </label>
+      <button type="button" id="scripts-up">up</button>
       <datalist id="scripts-dir-list"></datalist>
-      <button type="button" id="scripts-list">list</button>
       <button type="button" id="scripts-run" class="go">run selected</button>
       <span id="scripts-status" class="daq-meta"></span>
     </div>
-    <p class="edit-hint">Lists *.sh in the directory (default topology/run). Change the path to use another folder under the repo. topology / param / run are grouped. Run executes the script with cwd = that directory.</p>
+    <div id="scripts-folder-panel" class="dir-panel" hidden>
+      <label class="edit-inline">filter
+        <input id="scripts-folder-filter" autocomplete="off" spellcheck="false" placeholder="this folder">
+      </label>
+      <ul id="scripts-folders" class="scripts-list dir-folders"></ul>
+    </div>
+    <p class="edit-hint">Click the directory field to show this folder's parent and subfolders. Click a folder to open it; the list closes. Type a path and press Enter to go there. Every .sh file in the selected directory is listed below. Default is topology.</p>
     <div class="scripts-cols">
       <section>
         <h2>topology</h2>

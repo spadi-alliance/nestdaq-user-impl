@@ -108,6 +108,14 @@ h1 span {
   align-items: center;
 }
 
+.tmux-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  color: var(--muted);
+}
+
 .toolbar-group[hidden] {
   display: none !important;
 }
@@ -117,6 +125,14 @@ h1 span {
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 3px 8px;
+  font: inherit;
+}
+
+#mesh-box-limit {
+  width: 4.5em;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 3px 6px;
   font: inherit;
 }
 
@@ -135,7 +151,7 @@ h1 span {
   margin-bottom: 12px;
 }
 
-.edit-toolbar button, .edit-card button, .edit-link-row button, #edit-add-link, .edit-bin {
+.edit-toolbar button, .edit-script-group button, .edit-card button, .edit-link-row button, #edit-add-link, .edit-bin {
   border: 1px solid #ddd;
   background: #fff;
   border-radius: 14px;
@@ -155,6 +171,35 @@ h1 span {
   color: #9f1239;
 }
 
+.edit-script-group {
+  margin: 0 0 12px;
+  border: 1px solid #c49bff;
+  border-radius: 0;
+  padding: 8px 10px;
+  background: #f7f1ff;
+}
+
+.edit-script-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.edit-script-caption {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7b4fd0;
+}
+
+.edit-script-group .dir-panel {
+  margin: 8px 0 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
 .edit-inline {
   display: inline-flex;
   align-items: center;
@@ -168,6 +213,38 @@ h1 span {
   border-radius: 4px;
   padding: 3px 8px;
   font: inherit;
+}
+
+#scripts-dir {
+  width: 420px;
+}
+
+#edit-script-dir {
+  width: 280px;
+}
+
+#scripts-folder-filter,
+#edit-folder-filter {
+  width: 140px;
+}
+
+.dir-panel {
+  margin: 0 0 12px;
+  border: 2px solid #5eb0ff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f3f9ff;
+}
+
+.dir-panel .edit-inline {
+  margin-bottom: 6px;
+}
+
+.dir-folders {
+  max-height: 220px;
+  margin: 0;
+  border-color: #5eb0ff;
+  background: #fff;
 }
 
 .scripts-cols {

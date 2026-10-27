@@ -11,7 +11,18 @@ from typing import Any, Dict, List, Optional
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
-DEFAULT_SCRIPTS_DIR = "topology/run"
+DEFAULT_SCRIPTS_DIR = "topology"
+_DIR_SKIP = {
+    "build",
+    "build-cuda",
+    "bin",
+    "lib64",
+    "tmp",
+    "data",
+    "__pycache__",
+    "node_modules",
+    ".checkout-hold",
+}
 PROTECTED = {
     "start_device.sh",
     "device_launch.sh",
@@ -23,25 +34,114 @@ SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+def _display_works(display: str, env: Dict[str, str]) -> bool:
+    if not display:
+        return False
+    trial = dict(env)
+    trial["DISPLAY"] = display
+    try:
+        proc = subprocess.run(
+            ["xdpyinfo"],
+            env=trial,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return proc.returncode == 0
+
+
+def _candidate_displays() -> List[str]:
+    """Displays that can show an xterm: the open SSH terminal, then local X11 ports."""
+    found: List[str] = []
+    me = os.getuid()
+    for name in os.listdir("/proc"):
+        if not name.isdigit():
+            continue
+        proc = Path("/proc") / name
+        try:
+            if proc.stat().st_uid != me:
+                continue
+            cmd = proc.joinpath("cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+            raw = proc.joinpath("environ").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        if "bash" not in cmd and "zsh" not in cmd:
+            continue
+        env: Dict[str, str] = {}
+        for item in raw:
+            if b"=" not in item:
+                continue
+            key, val = item.split(b"=", 1)
+            env[key.decode(errors="replace")] = val.decode(errors="replace")
+        disp = env.get("DISPLAY") or ""
+        if not disp:
+            continue
+        if "SSH_TTY" in env:
+            found.insert(0, disp)
+        else:
+            found.append(disp)
+    try:
+        text = subprocess.check_output(["ss", "-ltn"], text=True, timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        text = ""
+    for match in re.finditer(r"127\.0\.0\.1:(60\d\d)\b", text):
+        port = int(match.group(1))
+        if 6000 <= port <= 6099:
+            found.append(f"localhost:{port - 6000}.0")
+    out: List[str] = []
+    for disp in found:
+        if disp not in out:
+            out.append(disp)
+    return out
+
+
+def with_xterm_display(env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """Give a launched script a DISPLAY that xterm can actually open.
+
+    The viewer process itself has no X11 session. A fixed localhost:11.0
+    misses the terminal the operator has open (often localhost:10.0).
+    """
+    out = dict(env or os.environ)
+    current = out.get("DISPLAY") or ""
+    if _display_works(current, out):
+        return out
+    for disp in _candidate_displays():
+        if _display_works(disp, out):
+            out["DISPLAY"] = disp
+            return out
+    out.pop("DISPLAY", None)
+    return out
+
+
 def resolve_scripts_dir(rel: Optional[str]) -> Path:
     raw = (rel or DEFAULT_SCRIPTS_DIR).strip() or DEFAULT_SCRIPTS_DIR
     raw = raw.replace("\\", "/")
-    if raw.startswith("/"):
+    if raw.startswith("~"):
+        path = Path(raw).expanduser().resolve()
+    elif raw.startswith("/"):
         path = Path(raw).resolve()
     else:
         path = (REPO / raw).resolve()
-    root = REPO.resolve()
-    try:
-        path.relative_to(root)
-    except ValueError as exc:
-        raise ValueError("directory must be under the repo") from exc
     if not path.is_dir():
         raise ValueError(f"not a directory: {raw}")
     return path
 
 
 def rel_dir(path: Path) -> str:
-    return str(path.relative_to(REPO.resolve()))
+    """Label for the selected directory. ``topology`` stays the short default."""
+    path = path.resolve()
+    default = (REPO / DEFAULT_SCRIPTS_DIR).resolve()
+    if path == default:
+        return DEFAULT_SCRIPTS_DIR
+    try:
+        rel = path.relative_to(REPO.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+    if rel == ".":
+        return path.as_posix()
+    return rel
 
 
 def classify(name: str) -> str:
@@ -80,6 +180,46 @@ def list_script_dirs() -> List[str]:
     if (root / DEFAULT_SCRIPTS_DIR).is_dir():
         out.insert(0, DEFAULT_SCRIPTS_DIR)
     return out
+
+
+def _is_dir_entry(ent: os.DirEntry) -> bool:
+    try:
+        if ent.is_dir(follow_symlinks=False):
+            return True
+        return ent.is_symlink() and ent.is_dir(follow_symlinks=True)
+    except OSError:
+        return False
+
+
+def _child_dirs(path: Path, limit: int = 300) -> List[Path]:
+    found: List[Path] = []
+    try:
+        with os.scandir(path) as it:
+            for ent in it:
+                if ent.name.startswith(".") or ent.name == "__pycache__":
+                    continue
+                if not _is_dir_entry(ent):
+                    continue
+                found.append(Path(ent.path))
+                if len(found) >= limit:
+                    break
+    except OSError:
+        return []
+    found.sort(key=lambda item: item.name.lower())
+    return found
+
+
+def browse_script_dir(rel: Optional[str]) -> Dict[str, Any]:
+    """Immediate subfolders of one directory, like a file dialog."""
+    path = resolve_scripts_dir(rel)
+    parent = path.parent if path.parent != path else None
+    folders = [{"name": child.name, "path": rel_dir(child)} for child in _child_dirs(path, limit=500)]
+    return {
+        "ok": True,
+        "dir": rel_dir(path),
+        "parent": rel_dir(parent) if parent is not None else None,
+        "folders": folders,
+    }
 
 
 def list_scripts(rel: Optional[str]) -> Dict[str, Any]:
@@ -122,9 +262,7 @@ def read_script(rel: Optional[str], name: str) -> Dict[str, Any]:
 
 def run_script(rel: Optional[str], name: str, timeout: int = 180) -> Dict[str, Any]:
     path = _script_path(rel, name)
-    env = os.environ.copy()
-    if not env.get("DISPLAY"):
-        env["DISPLAY"] = "localhost:11.0"
+    env = with_xterm_display(os.environ.copy())
     log = path.parent / f"_{path.stem}.last.log"
     try:
         proc = subprocess.run(

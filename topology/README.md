@@ -68,7 +68,8 @@ python3 topology/serve.py
 ```bash
 python3 topology/serve.py --redis redis://127.0.0.1:6379
 python3 topology/serve.py --dump          # JSON snapshot
-./topology/start.sh                       # background
+./topology/server.sh start                # background; prints connect URLs
+./topology/server.sh stop
 ```
 
 The page polls `/api/snapshot` every second (same idea as `WebGui::PollState`,

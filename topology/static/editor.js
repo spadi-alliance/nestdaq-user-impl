@@ -284,7 +284,7 @@ async function writeEditorScripts() {
   }
   const dirEl = document.getElementById("edit-script-dir");
   const stemEl = document.getElementById("edit-script-stem");
-  const dir = ((dirEl && dirEl.value) || (window.currentScriptsDir && window.currentScriptsDir()) || "topology/run").trim() || "topology/run";
+  const dir = ((dirEl && dirEl.value) || (window.currentScriptsDir && window.currentScriptsDir()) || "topology").trim() || "topology";
   const stem = ((stemEl && stemEl.value) || "from-edit").trim() || "from-edit";
   if (!window.confirm(`Write topology/param/run-${stem}-<time>.sh into ${dir}/ ?`)) return;
   const r = await fetch("/api/scripts/write", {

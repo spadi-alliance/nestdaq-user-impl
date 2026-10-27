@@ -101,12 +101,32 @@ from redis_live import (  # noqa: E402
 from script_io import (  # noqa: E402
     DEFAULT_SCRIPTS_DIR,
     list_scripts,
+    browse_script_dir,
     read_script,
     run_script,
+    with_xterm_display,
     write_edit_scripts,
 )
 from tmux_log import TmuxLog  # noqa: E402
 from tmux_view import capture_instance  # noqa: E402
+
+XTERM_MODE_FILE = HERE / "xterm-mode"
+
+
+def xterm_mode() -> str:
+    try:
+        raw = XTERM_MODE_FILE.read_text(encoding="utf-8").strip().lower()
+    except OSError:
+        return "xterm"
+    if raw in {"viewer", "topology", "0", "off", "no"}:
+        return "viewer"
+    return "xterm"
+
+
+def set_xterm_mode(mode: str) -> dict:
+    chosen = "viewer" if str(mode).strip().lower() in {"viewer", "topology", "0", "off", "no"} else "xterm"
+    XTERM_MODE_FILE.write_text(chosen + "\n", encoding="utf-8")
+    return {"ok": True, "mode": chosen}
 
 
 def _tcp_up(host: str, port: int) -> bool:
@@ -231,6 +251,13 @@ def make_handler(app: App):
                     "links": snap.get("links") or [],
                     "counts": counts,
                 }).encode(), "application/json")
+            if path == "/api/scripts/dirs":
+                q = parse_qs(urlparse(self.path).query)
+                d = (q.get("dir") or [DEFAULT_SCRIPTS_DIR])[0]
+                try:
+                    return self._send(200, json.dumps(browse_script_dir(d)).encode(), "application/json")
+                except Exception as exc:  # noqa: BLE001
+                    return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
             if path == "/api/scripts":
                 q = parse_qs(urlparse(self.path).query)
                 d = (q.get("dir") or [DEFAULT_SCRIPTS_DIR])[0]
@@ -246,6 +273,8 @@ def make_handler(app: App):
                     return self._send(200, json.dumps(read_script(d, name)).encode(), "application/json")
                 except Exception as exc:  # noqa: BLE001
                     return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
+            if path == "/api/xterm-mode":
+                return self._send(200, json.dumps({"ok": True, "mode": xterm_mode()}).encode(), "application/json")
             if path == "/api/tmux/log":
                 return self._send(200, json.dumps(app.tmux_log.status()).encode(), "application/json")
             if path == "/api/tmux":
@@ -277,6 +306,8 @@ def make_handler(app: App):
                 payload = self._read_json()
             except Exception as exc:  # noqa: BLE001
                 return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
+            if path == "/api/xterm-mode":
+                return self._send(200, json.dumps(set_xterm_mode(payload.get("mode") or "")).encode(), "application/json")
             if path == "/api/tmux/log":
                 enabled = bool(payload.get("enabled"))
                 return self._send(200, json.dumps(app.tmux_log.set_enabled(enabled)).encode(), "application/json")
@@ -344,9 +375,7 @@ def make_handler(app: App):
                     n_params = app.rt.write_run_params(services, str(run_dir))
                     json_path = run_dir / "_edit_run.json"
                     json_path.write_text(json.dumps({"services": services}), encoding="utf-8")
-                    env = os.environ.copy()
-                    if not env.get("DISPLAY"):
-                        env["DISPLAY"] = "localhost:11.0"
+                    env = with_xterm_display(os.environ.copy())
                     log = run_dir / "_edit_run.log"
                     with log.open("ab") as fh:
                         subprocess.Popen(

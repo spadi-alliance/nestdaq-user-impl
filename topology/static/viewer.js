@@ -33,6 +33,15 @@ let focusId = null;
 let focusMesh = null;
 let pollGen = 0;
 let showWarnings = false;
+const MESH_BOX_DEFAULT = 128;
+const MESH_BOX_KEY = "nestdaq-mesh-box-limit";
+
+function meshBoxLimit() {
+  const el = $("mesh-box-limit");
+  const n = Number(el && el.value);
+  if (!Number.isFinite(n) || n < 0) return MESH_BOX_DEFAULT;
+  return Math.floor(n);
+}
 
 function meshKey(grp) {
   return `${grp.from_service}:${grp.from_channel}>${grp.to_service}:${grp.to_channel}`;
@@ -304,7 +313,7 @@ function render(snap) {
       e.from_service === grp.from_service && e.to_service === grp.to_service
       && e.from_channel === grp.from_channel && e.to_channel === grp.to_channel
     );
-    const bundle = grp.bundle;
+    const bundle = grp.kind === "mesh" && ge.length > meshBoxLimit();
     const key = meshKey(grp);
     const expanded = focusMesh === key;
     if (bundle && ge.length) {
@@ -729,6 +738,42 @@ window.addEventListener("DOMContentLoaded", () => {
       if (snap && currentView() === "topology" && !focusId && !focusMesh) showOverview();
     });
   }
+  const meshLimit = $("mesh-box-limit");
+  if (meshLimit) {
+    try {
+      const saved = localStorage.getItem(MESH_BOX_KEY);
+      const n = Number(saved);
+      if (saved != null && saved !== "" && Number.isFinite(n) && n >= 0) {
+        meshLimit.value = String(Math.floor(n));
+      }
+    } catch (err) { /* keep the default */ }
+    meshLimit.addEventListener("input", () => {
+      if (snap && currentView() === "topology") render(snap);
+    });
+    meshLimit.addEventListener("change", () => {
+      const n = meshBoxLimit();
+      meshLimit.value = String(n);
+      try { localStorage.setItem(MESH_BOX_KEY, String(n)); } catch (err) { /* ignore */ }
+      if (snap && currentView() === "topology") render(snap);
+    });
+  }
+  document.querySelectorAll('input[name="xterm-mode"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      if (!el.checked) return;
+      fetch("/api/xterm-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: el.value }),
+      }).catch((err) => console.error(err));
+    });
+  });
+  fetch("/api/xterm-mode", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((data) => {
+      const pick = $(data.mode === "viewer" ? "xterm-mode-viewer" : "xterm-mode-xterm");
+      if (pick) pick.checked = true;
+    })
+    .catch(() => {});
   const togLog = $("tog-tmux-log");
   if (togLog) {
     togLog.addEventListener("change", () => {

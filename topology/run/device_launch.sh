@@ -2,6 +2,9 @@
 # Sourced by start_from_edit.sh (and can be sourced by run-*.sh).
 # Default cwd is topology/run/; bin/ is at the repo root.
 
+# shellcheck source=../xterm_mode.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../xterm_mode.sh"
+
 XTERM_IDX=${XTERM_IDX:-0}
 XTERM_NCOL=3
 XTERM_NROW=2
@@ -50,6 +53,10 @@ xterm_geometry () {
 
 open_xterm () {
   local title=$1 session=$2
+  if ! want_xterm; then
+    echo "xterm off: $title  tmux session $session  (view in topology)"
+    return 0
+  fi
   if [ -z "$DISPLAY" ] || ! command -v xterm >/dev/null 2>&1; then
     return
   fi
