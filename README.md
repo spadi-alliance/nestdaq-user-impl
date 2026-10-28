@@ -25,3 +25,14 @@ cd build
 make
 make install
 ```
+
+## Topology viewer
+
+`topology/` is a live view of process connections. Set `NESTDAQ` and `REDIS_SERVER` in `topology/run/nestdaq.env`, then:
+
+```
+./topology/server.sh start
+./topology/server.sh stop
+```
+
+`start` writes `topology/run/redis-server.txt`. When Redis and daq-webctl are already running it only writes that address. Otherwise it starts whichever of Redis, RedisInsight, and daq-webctl is missing. Open one of the printed URLs. `/guide` on that server is the usage page. Details are in `topology/README.md`.

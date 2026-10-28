@@ -47,9 +47,9 @@ if every line is always drawn.
 
 - **1:1** (Sampler → STFBuilder): one line per pair, as in the sketch.
 - **fan-in / fan-out**: converging / diverging lines.
-- **mesh with ≤ 24 edges**: every line (TimeFrameBuilder → FileSink style).
-- **mesh with > 24 edges**: a band labelled `N×M mesh · K links` plus
-  `autoSubChannel` / routing. Check **draw every mesh line** to expand it.
+- **mesh at or below `box above`** (default 128): every line.
+- **mesh with more links than that number**: a band. Click the band to draw
+  every line and list them. Click the band again to collapse it.
 - **click a box**: only that process’s edges stay visible, with subchannel
   indices and Redis params in the side panel.
 
@@ -59,19 +59,37 @@ state or devices still negotiating).
 
 ## Run
 
-```bash
-# after Redis is up (topology/run/init.sh) and topology.sh / param.sh / run-*.sh
-python3 topology/serve.py
-# http://127.0.0.1:8765/
-```
+Settings are `topology/run/nestdaq.env`.
+
+- `NESTDAQ` is the nestdaq install. This checkout uses `$HOME/nestdaq`.
+- `REDIS_SERVER` is `host:port`. This checkout uses `127.0.0.1:6379`.
+- `BIN_DIR` applies only to the example launcher `topology/run/start_device.sh`.
+  Leave it empty to use this repository's `bin/`.
 
 ```bash
-python3 topology/serve.py --redis redis://127.0.0.1:6379
-python3 topology/serve.py --dump          # JSON snapshot
-./topology/server.sh start                # background; prints connect URLs
+./topology/server.sh start
 ./topology/server.sh stop
+```
+
+`start` reads `nestdaq.env` and writes `topology/run/redis-server.txt`.
+
+- Redis and daq-webctl are already running: `topology/run/setup.sh` writes the
+  address file, then the page starts.
+- Redis does not answer, daq-webctl is not running, or only one of them is
+  running: `topology/run/init.sh` writes the same file and starts each of
+  Redis, RedisInsight, and daq-webctl that is not already running. Then the
+  page starts.
+
+Open one of the printed URLs. The same server serves `/guide`.
+
+`stop` stops the viewer. Redis and the device processes keep running.
+After changing `REDIS_SERVER`, stop and start again so the page reads the new address.
+
+```bash
+python3 topology/serve.py --redis redis://127.0.0.1:6379   # this process only
+python3 topology/serve.py --dump                            # JSON snapshot
 ```
 
 The page polls `/api/snapshot` every second (same idea as `WebGui::PollState`,
 without touching nestdaq or its websocket). Empty Redis shows an empty graph
-and a warning — run a `run-*.sh` from `topology/run` (or another scripts dir) for live boxes.
+and a warning. A box appears when a running process registers in this Redis.
