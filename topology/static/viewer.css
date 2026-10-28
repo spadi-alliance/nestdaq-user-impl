@@ -229,7 +229,7 @@ a.guide-btn:hover { background: #e3f3ff; }
   font: inherit;
 }
 
-#scripts-dir {
+#scripts-dir, #edit-bin-dir {
   width: 420px;
 }
 

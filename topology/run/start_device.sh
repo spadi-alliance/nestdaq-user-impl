@@ -1,5 +1,5 @@
 #!/bin/bash
-# Launch one FairMQ binary from the repo bin/ with daq_service / metrics / parameter_config.
+# Launch one FairMQ binary from NESTDAQ_BIN with daq_service / metrics / parameter_config.
 #
 #   ./start_device.sh AmQStrTdcSampler
 #   ./start_device.sh FileSink --service-name DecSink
@@ -7,18 +7,12 @@
 # Extra arguments (after the binary name) are passed AFTER the plugins so
 # daq_service sees --service-name. There is no DecSink binary; DecSink is
 # FileSink with --service-name DecSink (same as run_daid-daq-01).
-# Default location is topology/run/; bin/ is at the repo root.
+# Default location is topology/run/. Executables come from NESTDAQ_BIN:
+# this repo's bin/ unless BIN_DIR is set in nestdaq.env.
 
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-if [ -d "$SCRIPT_DIR/../../bin" ]; then
-  ROOT_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
-elif [ -d "$SCRIPT_DIR/../bin" ]; then
-  ROOT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
-else
-  ROOT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
-fi
 cd "$SCRIPT_DIR"
 NESTDAQ_ENV_SH=$SCRIPT_DIR/nestdaq_env.sh
 # shellcheck disable=SC1090
@@ -26,8 +20,8 @@ NESTDAQ_ENV_SH=$SCRIPT_DIR/nestdaq_env.sh
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 BINARY [args...]" >&2
-  echo "  binaries in $ROOT_DIR/bin" >&2
-  ls -1 "$ROOT_DIR/bin" 2>/dev/null | sed 's/^/    /' >&2
+  echo "  binaries in $NESTDAQ_BIN" >&2
+  ls -1 "$NESTDAQ_BIN" 2>/dev/null | sed 's/^/    /' >&2
   sleep 30
   exit 1
 fi
@@ -40,13 +34,14 @@ redis_server=$(nestdaq_redis_host)
 if [[ "$BIN_NAME" =~ fairmq- ]]; then
   BIN=$BIN_NAME
 else
-  BIN=$ROOT_DIR/bin/$BIN_NAME
+  BIN=$NESTDAQ_BIN/$BIN_NAME
 fi
 
 if [ ! -x "$BIN" ]; then
   echo "ERROR: binary not found or not executable: $BIN" >&2
-  echo "  name used in the shell must match a file under $ROOT_DIR/bin" >&2
-  ls -1 "$ROOT_DIR/bin" 2>/dev/null | sed 's/^/    /' >&2
+  echo "  name used in the shell must match a file under $NESTDAQ_BIN" >&2
+  echo "  set BIN_DIR in topology/run/nestdaq.env when that directory is elsewhere" >&2
+  ls -1 "$NESTDAQ_BIN" 2>/dev/null | sed 's/^/    /' >&2
   sleep 60
   exit 1
 fi

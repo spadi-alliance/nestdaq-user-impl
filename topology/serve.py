@@ -21,7 +21,6 @@ from urllib.parse import parse_qs, urlparse
 
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
-BIN = HERE.parent / "bin"
 BIN_SKIP = {"sqlite3a", "tfdump", "fltcoin"}
 DEFAULT_ENDPOINTS = {
     "AmQStrTdcSampler": [
@@ -69,10 +68,69 @@ DEFAULT_ENDPOINTS = {
 }
 
 
+def _env_value(name: str) -> str:
+    path = HERE / "run" / "nestdaq.env"
+    if not path.is_file():
+        return ""
+    prefix = name + "="
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line.startswith(prefix):
+            continue
+        val = line.split("=", 1)[1].strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "'\"":
+            val = val[1:-1]
+        return val
+    return ""
+
+
+def bin_dir() -> Path:
+    raw = _env_value("BIN_DIR")
+    if not raw:
+        return HERE.parent / "bin"
+    return Path(os.path.expanduser(os.path.expandvars(raw)))
+
+
+def _shell_assign(value: str) -> str:
+    if not value:
+        return ""
+    if all(c.isalnum() or c in "/._~:-" for c in value):
+        return value
+    return "'" + value.replace("'", "'\\''") + "'"
+
+
+def set_bin_dir(raw: str) -> dict:
+    text = str(raw or "").strip()
+    if "\n" in text or "\r" in text:
+        return {"ok": False, "error": "path must be one line"}
+    env = HERE / "run" / "nestdaq.env"
+    lines = env.read_text(encoding="utf-8").splitlines() if env.is_file() else []
+    assign = "BIN_DIR=" + _shell_assign(text)
+    written = False
+    out = []
+    for line in lines:
+        body = line.split("#", 1)[0].strip()
+        if body.startswith("BIN_DIR="):
+            out.append(assign)
+            written = True
+        else:
+            out.append(line)
+    if not written:
+        if out and out[-1] != "":
+            out.append("")
+        out.append("# Device executables. Empty uses this repo's bin/.")
+        out.append(assign)
+    env.parent.mkdir(parents=True, exist_ok=True)
+    env.write_text("\n".join(out) + "\n", encoding="utf-8")
+    path = bin_dir()
+    return {"ok": True, "dir": str(path), "bin_dir": text, "exists": path.is_dir()}
+
+
 def list_binaries() -> list:
     rows = []
-    if BIN.is_dir():
-        for p in sorted(BIN.iterdir(), key=lambda x: x.name.lower()):
+    folder = bin_dir()
+    if folder.is_dir():
+        for p in sorted(folder.iterdir(), key=lambda x: x.name.lower()):
             if not p.is_file() or p.name in BIN_SKIP:
                 continue
             if not os.access(p, os.X_OK):
@@ -254,7 +312,9 @@ def make_handler(app: App):
                 body = json.dumps(app.params()).encode("utf-8")
                 return self._send(200, body, "application/json")
             if path == "/api/binaries":
-                return self._send(200, json.dumps({"ok": True, "binaries": list_binaries()}).encode(), "application/json")
+                folder = bin_dir()
+                body = {"ok": True, "dir": str(folder), "bin_dir": _env_value("BIN_DIR"), "exists": folder.is_dir(), "binaries": list_binaries()}
+                return self._send(200, json.dumps(body).encode(), "application/json")
             if path == "/api/topology":
                 snap = app.snapshot()
                 counts = {}
@@ -326,6 +386,8 @@ def make_handler(app: App):
                 return self._send(400, json.dumps({"ok": False, "error": str(exc)}).encode(), "application/json")
             if path == "/api/xterm-mode":
                 return self._send(200, json.dumps(set_xterm_mode(payload.get("mode") or "")).encode(), "application/json")
+            if path == "/api/bin-dir":
+                return self._send(200, json.dumps(set_bin_dir(payload.get("dir") or "")).encode(), "application/json")
             if path == "/api/tmux/log":
                 enabled = bool(payload.get("enabled"))
                 return self._send(200, json.dumps(app.tmux_log.set_enabled(enabled)).encode(), "application/json")

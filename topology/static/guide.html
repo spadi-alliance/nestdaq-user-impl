@@ -11,11 +11,14 @@
     <h1>guide <span>how to use</span></h1>
   </header>
   <article class="guide">
-    <h2>1. Prepare this machine</h2>
+    <h2>1. Settings this page needs</h2>
     <ol>
-      <li>Edit <code class="path">topology/run/nestdaq.env</code>. Set <code>NESTDAQ</code> to the nestdaq install directory and <code>REDIS_SERVER</code> to <code>host:port</code>. This checkout uses <code>$HOME/nestdaq</code> and <code>127.0.0.1:6379</code>.</li>
+      <li>Edit <code class="path">topology/run/nestdaq.env</code>. The page needs the two values below. Other lines in that file are for the example launcher in section 4.</li>
+      <li>Set <code>NESTDAQ</code> to the nestdaq install directory. <code class="cmd">./topology/run/init.sh</code> starts Redis and daq-webctl from there. This checkout uses <code>$HOME/nestdaq</code>.</li>
+      <li>Set <code>REDIS_SERVER</code> to <code>host:port</code>. This checkout uses <code>127.0.0.1:6379</code>.</li>
       <li>Run <code class="cmd">./topology/run/init.sh</code>. It writes <code class="path">topology/run/redis-server.txt</code> and starts Redis.</li>
     </ol>
+    <p>The topology page reads that Redis. A box appears when a running process registers there. The page does not start the process and does not choose the executable directory. Your own launch script shows the same box when the process uses this Redis.</p>
 
     <h2>2. Open the viewer</h2>
     <ol>
@@ -25,16 +28,18 @@
     <p>After changing <code>REDIS_SERVER</code>, run <code class="cmd">init.sh</code> again, then stop and start the viewer.</p>
 
     <h2>3. Choose xterm</h2>
-    <p>On the topology page, <strong>topology only</strong> is the default, so a new run does not open xterms. Select <strong>xterm + topology</strong> before the next run script to open one per process. Changing the choice does not close windows that are already open.</p>
+    <p>On the topology page, <strong>topology only</strong> is the default, so a new run does not open xterms. Select <strong>xterm + topology</strong> before the next run script to open one per process. The example launchers in section 4 read this choice. A script you write yourself does not have to. Changing the choice does not close windows that are already open.</p>
 
-    <h2>4. Run the example chain</h2>
+    <h2>4. Example: run the supplied chain</h2>
+    <p>This section is an example. <code class="path">topology/run/start_device.sh</code> is one launcher. You can write your own in its place.</p>
+    <p><code>BIN_DIR</code> in <code class="path">topology/run/nestdaq.env</code> applies only to that example launcher. Leave it empty to run executables from this repository's <code class="path">bin</code>. Set it, or type the path in the binaries field on <a href="/edit">edit</a>, when this example should run executables from another directory.</p>
     <p>On <a href="/scripts">scripts</a>, set the directory to <code class="path">topology/run/example-scripts</code> and press Enter. Run these three scripts in order:</p>
     <ol>
       <li><code class="cmd">param-stf-tf-flt.sh</code></li>
       <li><code class="cmd">topology-stf-tf-flt.sh</code></li>
       <li><code class="cmd">run-stf-tf-flt.sh</code></li>
     </ol>
-    <p>The run script executes the parameter and topology scripts again, then starts the processes. Open <a href="/">topology</a>. A box appears when a process registers in Redis.</p>
+    <p>The example run script registers parameters and topology again, then starts each process with <code class="path">topology/run/start_device.sh</code>. That example registers the process in the Redis from section 1, so a box appears on <a href="/">topology</a>. Your own launcher does not need <code>BIN_DIR</code> or this script. It appears on the page when it registers in that same Redis.</p>
     <figure class="guide-figure">
       <svg viewBox="0 0 860 188" role="img" aria-label="Chain started by run-stf-tf-flt.sh">
         <defs>
@@ -83,14 +88,14 @@
       <figcaption>AmQStrTdcSampler and STFBuilder pair by index. Later stages have autoSubChannel on, so each process connects to every process in the next stage. DecSink is the FileSink program with the service name DecSink.</figcaption>
     </figure>
 
-    <h2>5. Or write a small chain</h2>
+    <h2>5. Example: write a small chain</h2>
     <ol>
-      <li>Open <a href="/edit">edit</a>. Under <strong>bin/</strong>, click <code class="proc">AmQStrTdcSampler</code>, <code class="proc">STFBuilder</code>, <code class="proc">TimeFrameBuilder</code>, and <code class="proc">FileSink</code>.</li>
+      <li>Open <a href="/edit">edit</a>. The list under <strong>bin/</strong> is the directory the example <code class="path">topology/run/start_device.sh</code> runs. Click <code class="proc">AmQStrTdcSampler</code>, <code class="proc">STFBuilder</code>, <code class="proc">TimeFrameBuilder</code>, and <code class="proc">FileSink</code>.</li>
       <li>Set <strong>n</strong> to 2 on every service. Leave the <code class="proc">decimator</code> socket unlinked.</li>
       <li>Add links: <code class="proc">AmQStrTdcSampler.out</code> → <code class="proc">STFBuilder.in</code>, <code class="proc">STFBuilder.out</code> → <code class="proc">TimeFrameBuilder.in</code>, <code class="proc">TimeFrameBuilder.out</code> → <code class="proc">FileSink.in</code>.</li>
       <li>Set <strong>stem</strong> to <code>amq2-tfb</code> and <strong>dir</strong> to <code class="path">topology/run</code>.</li>
       <li>Click <strong>write topo + param + run scripts</strong>.</li>
-      <li>On <a href="/scripts">scripts</a>, open <code class="path">topology/run</code>, run the new <code class="cmd">run-amq2-tfb-&lt;time&gt;.sh</code>, then open <a href="/">topology</a>.</li>
+      <li>On <a href="/scripts">scripts</a>, open <code class="path">topology/run</code> and run the new <code class="cmd">run-amq2-tfb-&lt;time&gt;.sh</code>. That generated script calls the example <code class="path">topology/run/start_device.sh</code>. Open <a href="/">topology</a>. The boxes appear because the processes register in the Redis from section 1.</li>
     </ol>
     <figure class="guide-figure compact">
       <svg viewBox="0 0 700 148" role="img" aria-label="Two AmQ, two STF, two TimeFrameBuilder, and two FileSink, with meshes after STF">

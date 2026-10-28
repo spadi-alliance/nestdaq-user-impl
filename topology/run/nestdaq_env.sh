@@ -22,6 +22,25 @@ fi
 : "${NESTDAQ:=$HOME/nestdaq}"
 : "${REDIS_SERVER:=127.0.0.1:6379}"
 export NESTDAQ REDIS_SERVER NESTDAQ_REPO
+
+nestdaq_bin_dir() {
+  _bin=${BIN_DIR:-}
+  if [ -z "$_bin" ]; then
+    printf '%s\n' "$NESTDAQ_REPO/bin"
+    return 0
+  fi
+  case "$_bin" in
+    \~/*) _bin=$HOME/${_bin#\~/} ;;
+  esac
+  if [ -d "$_bin" ]; then
+    (CDPATH= cd "$_bin" && pwd)
+    return 0
+  fi
+  printf '%s\n' "$_bin"
+}
+
+NESTDAQ_BIN=$(nestdaq_bin_dir)
+export NESTDAQ_BIN
 export PATH="$NESTDAQ/bin:${PATH:-}"
 case ":${LD_LIBRARY_PATH:-}:" in
   *":$NESTDAQ/lib:"*) ;;

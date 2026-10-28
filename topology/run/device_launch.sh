@@ -1,9 +1,15 @@
 # Shared tmux + xterm launch for one device type.
 # Sourced by start_from_edit.sh (and can be sourced by run-*.sh).
-# Default cwd is topology/run/; bin/ is at the repo root.
+# Default cwd is topology/run/. Executables come from NESTDAQ_BIN.
 
 # shellcheck source=../xterm_mode.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../xterm_mode.sh"
+_launch_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+. "$_launch_dir/../xterm_mode.sh"
+if [ -z "${NESTDAQ_BIN:-}" ]; then
+  NESTDAQ_ENV_SH=$_launch_dir/nestdaq_env.sh
+  # shellcheck disable=SC1090
+  . "$NESTDAQ_ENV_SH"
+fi
 
 XTERM_IDX=${XTERM_IDX:-0}
 XTERM_NCOL=3
@@ -71,24 +77,13 @@ open_xterm () {
   xterm -fn "$XTERM_FN" -b 1 -geometry "$geom" -T "$title" -e tmux a -t "$session" &
 }
 
-bin_root () {
-  if [ -d ../../bin ]; then
-    echo ../..
-  elif [ -d ../bin ]; then
-    echo ..
-  else
-    echo ../..
-  fi
-}
-
 require_binary () {
   local name=$1
-  local root path
-  root=$(bin_root)
-  path="$root/bin/$name"
+  local path="$NESTDAQ_BIN/$name"
   if [ ! -x "$path" ]; then
     echo "ERROR: $path is missing." >&2
-    ls -1 "$root/bin" >&2
+    echo "  set BIN_DIR in topology/run/nestdaq.env when executables are not in this repo's bin/" >&2
+    ls -1 "$NESTDAQ_BIN" >&2
     return 1
   fi
   echo "  binary OK  $path"
@@ -117,8 +112,8 @@ start_group () {
   tmux set-option -t "$session" remain-on-exit on
   local i
   for i in $(seq 0 $((n - 1))); do
-    echo "start device $title $i  ./start_device.sh $*"
-    tmux new-window -d -n "${wprefix}${i}" -t "$session" -- ./start_device.sh "$@"
+    echo "start device $title $i  $_launch_dir/start_device.sh $*"
+    tmux new-window -d -n "${wprefix}${i}" -t "$session" -- "$_launch_dir/start_device.sh" "$@"
     sleep 0.15
   done
   tmux kill-window -t "${session}:_boot" 2>/dev/null || tmux kill-window -t "${session}:0" 2>/dev/null || true

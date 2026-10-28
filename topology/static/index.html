@@ -81,6 +81,9 @@
       <button type="button" id="edit-start">start processes</button>
       <button type="button" id="edit-clear-form">clear edit</button>
       <button type="button" id="edit-clear-redis" class="danger">clear Redis (keep run #)</button>
+      <label class="edit-inline">binaries
+        <input id="edit-bin-dir" autocomplete="off" spellcheck="false" placeholder="this repo's bin/">
+      </label>
       <span id="edit-status" class="daq-meta"></span>
     </div>
     <div class="edit-script-group">
@@ -101,7 +104,7 @@
     <div class="edit-grid">
       <section class="edit-bins">
         <h2>bin/</h2>
-        <p class="edit-hint">click a binary to add a service. DecSink = FileSink with another service name.</p>
+        <p class="edit-hint">click a binary to add a service. This list is only for the example start_device.sh. An empty binaries field uses this repo's bin/. DecSink = FileSink with another service name.</p>
         <ul id="edit-bin-list"></ul>
       </section>
       <section class="edit-services">

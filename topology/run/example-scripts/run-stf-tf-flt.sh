@@ -199,14 +199,16 @@ open_xterm () {
   xterm -fn "$XTERM_FN" -b 1 -geometry "$geom" -T "$title" -e tmux a -t "$session" &
 }
 
-# bin/ file name must match the first argument to start_device.sh
-# service name is the binary name, except DecSink = FileSink --service-name DecSink
+# File name must match the first argument to start_device.sh.
+# service name is the binary name, except DecSink = FileSink --service-name DecSink.
+# NESTDAQ_BIN is this repo's bin/ unless BIN_DIR is set in nestdaq.env.
 require_binary () {
   local name=$1
-  local path="../../../bin/$name"
+  local path="$NESTDAQ_BIN/$name"
   if [ ! -x "$path" ]; then
-    echo "ERROR: $path is missing. Shell name must match bin/." >&2
-    ls -1 ../../../bin >&2
+    echo "ERROR: $path is missing. Shell name must match a file in $NESTDAQ_BIN." >&2
+    echo "  set BIN_DIR in topology/run/nestdaq.env when executables are not in this repo's bin/" >&2
+    ls -1 "$NESTDAQ_BIN" >&2
     exit 1
   fi
   echo "  binary OK  $path"
@@ -235,8 +237,9 @@ start_group () {
   tmux set-option -t "$session" remain-on-exit on
   local i
   for i in $(seq 0 $((n - 1))); do
-    echo "start device $title $i  ../start_device.sh $*"
-    tmux new-window -d -n "${wprefix}${i}" -t "$session" -- ../start_device.sh "$@"
+    local starter="$NESTDAQ_REPO/topology/run/start_device.sh"
+    echo "start device $title $i  $starter $*"
+    tmux new-window -d -n "${wprefix}${i}" -t "$session" -- "$starter" "$@"
     sleep 0.15
   done
   tmux kill-window -t "${session}:_boot" 2>/dev/null || tmux kill-window -t "${session}:0" 2>/dev/null || true

@@ -66,7 +66,7 @@ function renderEditor() {
 
   bins.innerHTML = editBinaries.map((b) =>
     `<li><button type="button" class="edit-bin" data-bin="${esc(b.name)}">${esc(b.name)}</button></li>`
-  ).join("") || "<li>no executables in bin/</li>";
+  ).join("") || "<li>no executables in this directory</li>";
   bins.querySelectorAll(".edit-bin").forEach((btn) => {
     btn.addEventListener("click", () => addService(btn.dataset.bin));
   });
@@ -248,6 +248,27 @@ async function loadEditorBins() {
   const r = await fetch("/api/binaries", { cache: "no-store" });
   const data = await r.json();
   editBinaries = data.binaries || [];
+  const dir = document.getElementById("edit-bin-dir");
+  if (dir && document.activeElement !== dir) dir.value = data.bin_dir || "";
+  if (dir) dir.placeholder = data.dir || "this repo's bin/";
+}
+
+async function saveBinDir() {
+  const dir = document.getElementById("edit-bin-dir");
+  if (!dir) return;
+  const r = await fetch("/api/bin-dir", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dir: dir.value.trim() }),
+  });
+  const data = await r.json();
+  if (!data.ok) {
+    editStatus(data.error || "could not save binary directory", false);
+    return;
+  }
+  editStatus(data.exists ? data.dir : `${data.dir} is not a directory`, !!data.exists);
+  await loadEditorBins();
+  renderEditor();
 }
 
 async function loadEditorFromRedis() {
@@ -330,6 +351,12 @@ async function initEditor() {
   const addLink = document.getElementById("edit-add-link");
   if (!addLink) return;
   await loadEditorBins();
+  const binDir = document.getElementById("edit-bin-dir");
+  if (binDir) {
+    binDir.addEventListener("change", () => {
+      saveBinDir().catch((err) => editStatus(String(err), false));
+    });
+  }
   document.getElementById("edit-load").addEventListener("click", () => {
     loadEditorFromRedis().catch((err) => editStatus(String(err), false));
   });
