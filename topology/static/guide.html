@@ -11,21 +11,25 @@
     <h1>guide <span>how to use</span></h1>
   </header>
   <article class="guide">
-    <h2>1. Settings this page needs</h2>
+    <h2>1. Settings</h2>
     <ol>
       <li>Edit <code class="path">topology/run/nestdaq.env</code>. The page needs the two values below. Other lines in that file are for the example launcher in section 4.</li>
-      <li>Set <code>NESTDAQ</code> to the nestdaq install directory. <code class="cmd">./topology/run/init.sh</code> starts Redis and daq-webctl from there. This checkout uses <code>$HOME/nestdaq</code>.</li>
+      <li>Set <code>NESTDAQ</code> to the nestdaq install directory. This checkout uses <code>$HOME/nestdaq</code>.</li>
       <li>Set <code>REDIS_SERVER</code> to <code>host:port</code>. This checkout uses <code>127.0.0.1:6379</code>.</li>
-      <li>Run <code class="cmd">./topology/run/init.sh</code>. It writes <code class="path">topology/run/redis-server.txt</code> and starts Redis.</li>
     </ol>
-    <p>The topology page reads that Redis. A box appears when a running process registers there. The page does not start the process and does not choose the executable directory. Your own launch script shows the same box when the process uses this Redis.</p>
+    <p>The topology page reads that Redis. A box appears when a running process registers there.</p>
 
     <h2>2. Open the viewer</h2>
     <ol>
       <li>Run <code class="cmd">./topology/server.sh start</code> and open one of the printed URLs.</li>
       <li>To stop the viewer, run <code class="cmd">./topology/server.sh stop</code>. Redis and the device processes keep running.</li>
     </ol>
-    <p>After changing <code>REDIS_SERVER</code>, run <code class="cmd">init.sh</code> again, then stop and start the viewer.</p>
+    <p><code class="cmd">./topology/server.sh start</code> reads <code class="path">topology/run/nestdaq.env</code> and checks Redis and daq-webctl before it opens the page.</p>
+    <ul>
+      <li>Redis and daq-webctl are already running: it runs <code class="path">topology/run/setup.sh</code>. That writes <code class="path">topology/run/redis-server.txt</code> from <code>REDIS_SERVER</code>, then starts the page.</li>
+      <li>Redis does not answer, daq-webctl is not running, or only one of them is running: it runs <code class="path">topology/run/init.sh</code>. That writes the same address file and starts each of Redis, RedisInsight, and daq-webctl that is not already running. Then the page starts.</li>
+    </ul>
+    <p>After changing <code>REDIS_SERVER</code>, run <code class="cmd">./topology/server.sh stop</code> and then <code class="cmd">./topology/server.sh start</code>. The new start writes the address again.</p>
 
     <h2>3. Choose xterm</h2>
     <p>On the topology page, <strong>topology only</strong> is the default, so a new run does not open xterms. Select <strong>xterm + topology</strong> before the next run script to open one per process. The example launchers in section 4 read this choice. A script you write yourself does not have to. Changing the choice does not close windows that are already open.</p>

@@ -4,7 +4,11 @@
 #   ./server.sh start
 #   ./server.sh stop
 #
-# start listens on 0.0.0.0:8765 and prints the addresses to open.
+# start reads topology/run/nestdaq.env, then:
+#   Redis and daq-webctl both up    -> topology/run/setup.sh
+#   either one not running          -> topology/run/init.sh
+# init.sh starts only the missing processes.
+# Then start listens on 0.0.0.0:8765 and prints the addresses to open.
 # Extra arguments are passed to serve.py:
 #   ./server.sh start --port 8765 --redis redis://127.0.0.1:6379
 #   ./server.sh start --nolog
@@ -30,7 +34,10 @@ Usage:
   $0 start [options]
   $0 stop
 
-start runs the viewer in the background and prints where to connect.
+start reads topology/run/nestdaq.env.
+If Redis and daq-webctl are both up, it runs topology/run/setup.sh.
+Otherwise it runs topology/run/init.sh, which starts only what is missing.
+Then it runs the viewer in the background and prints where to connect.
 stop ends the process recorded in serve.pid.
 
 Options for start:
@@ -135,6 +142,55 @@ do_stop () {
   echo "stopped  pid=${old}  port=${PORT}"
 }
 
+prepare_monitor () {
+  local env_sh="$HERE/run/nestdaq_env.sh"
+  if [ ! -f "$env_sh" ]; then
+    echo "ERROR: missing $env_sh" >&2
+    exit 1
+  fi
+  NESTDAQ_ENV_SH=$env_sh
+  # shellcheck disable=SC1090
+  . "$env_sh"
+
+  local addr="${REDIS_SERVER}"
+  addr=${addr#redis://}
+  addr=${addr%%/*}
+
+  local redis_up=0 ctl_up=0
+  if redis-cli -u "redis://${addr}" ping >/dev/null 2>&1; then
+    redis_up=1
+  fi
+  if pgrep -x daq-webctl >/dev/null 2>&1; then
+    ctl_up=1
+  fi
+
+  if [ "$redis_up" -eq 1 ] && [ "$ctl_up" -eq 1 ]; then
+    echo "Redis and daq-webctl are already running. Writing the Redis address with topology/run/setup.sh"
+    "$HERE/run/setup.sh"
+    return 0
+  fi
+
+  if [ "$redis_up" -eq 0 ] && [ "$ctl_up" -eq 0 ]; then
+    echo "Redis and daq-webctl are not running. Starting them with topology/run/init.sh"
+  elif [ "$redis_up" -eq 1 ]; then
+    echo "daq-webctl is not running. Starting it with topology/run/init.sh"
+  else
+    echo "Redis is not running at ${addr}. Starting it with topology/run/init.sh"
+  fi
+  "$HERE/run/init.sh"
+  local i=0
+  while [ "$i" -lt 30 ]; do
+    if redis-cli -u "redis://${addr}" ping >/dev/null 2>&1 && pgrep -x daq-webctl >/dev/null 2>&1; then
+      echo "Redis and daq-webctl are ready at ${addr}"
+      return 0
+    fi
+    i=$((i + 1))
+    sleep 0.2
+  done
+  echo "ERROR: Redis or daq-webctl did not become ready at ${addr}" >&2
+  exit 1
+}
+
 do_start () {
   if ! command -v python3 >/dev/null 2>&1; then
     echo "ERROR: python3 not found" >&2
@@ -153,6 +209,7 @@ do_start () {
     return 0
   fi
   rm -f "$PIDFILE"
+  prepare_monitor
 
   if command -v ss >/dev/null 2>&1 && ss -ltn | awk '{print $4}' | grep -Eq "(^|:)${PORT}$"; then
     echo "ERROR: port ${PORT} is already in use." >&2
