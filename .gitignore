@@ -1,3 +1,4 @@
 dump.rdb
 run/logs/
+run/redis-server.txt
 topology/run/logs/

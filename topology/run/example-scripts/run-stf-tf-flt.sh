@@ -6,12 +6,15 @@
 #   AmQStrTdcSampler  STFBuilder  TimeFrameBuilder
 #   LogicFilter | LogicFilterGpu   FileSink
 # DecSink is not a file in bin/. It is:
-#   ../run/start_device.sh FileSink --service-name DecSink
+#   ../start_device.sh FileSink --service-name DecSink
 #   (same as run_daid-daq-01/run-stf-tf-flt.sh)
 # One tmux session + one xterm per device type (same as run-tfbplayer-2sink.sh).
 #
+# Lives in topology/run/example-scripts/. NESTDAQ and Redis come from
+# ../nestdaq.env.
+#
 # Sequence:
-#   1. Redis ping; if down, ../run/init.sh
+#   1. Redis ping; if down, ../init.sh
 #   2. ./param-stf-tf-flt.sh
 #   3. verify parameters
 #   4. ./topology-stf-tf-flt.sh
@@ -24,13 +27,12 @@
 
 set -e
 
-NESTDAQ=${NESTDAQ:-$HOME/nestdaq}
-export PATH="$NESTDAQ/bin:$PATH"
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NESTDAQ/lib:$NESTDAQ/lib64:$HOME/nestdaq/lib:$HOME/nestdaq/lib64
-
 cd "$(dirname "$0")"
-# shellcheck source=../topology/xterm_mode.sh
-. ../topology/xterm_mode.sh
+NESTDAQ_ENV_SH=$(CDPATH= cd "$(dirname "$0")/.." && pwd)/nestdaq_env.sh
+# shellcheck disable=SC1090
+. "$NESTDAQ_ENV_SH"
+# shellcheck source=../../xterm_mode.sh
+. ../../xterm_mode.sh
 
 FILTER_DEVICE=${FILTER_DEVICE:-LogicFilter}
 
@@ -41,7 +43,7 @@ N_FLT=${N_FLT:-3}
 N_SINK=${N_SINK:-3}
 N_DEC=${N_DEC:-3}
 
-redis_server=`cat redis-server.txt | sed 's/[[:blank:]]//g'`
+redis_server=$(nestdaq_redis_host)
 PARAM_URI=redis://$redis_server/2
 TOPO_URI=redis://$redis_server/0
 
@@ -52,8 +54,8 @@ ensure_redis () {
     echo "[1/6] Redis already running at $redis_server"
     return 0
   fi
-  echo "[1/6] Redis is down. Starting ../run/init.sh ..."
-  ../run/init.sh
+  echo "[1/6] Redis is down. Starting ../init.sh ..."
+  ../init.sh
   local i=0
   while [ $i -lt 30 ]; do
     if redis-cli -u redis://$redis_server ping >/dev/null 2>&1; then
@@ -63,7 +65,7 @@ ensure_redis () {
     i=$((i + 1))
     sleep 0.2
   done
-  echo "ERROR: Redis did not become ready after ../run/init.sh ($redis_server)" >&2
+  echo "ERROR: Redis did not become ready after ../init.sh ($redis_server)" >&2
   exit 1
 }
 
@@ -201,10 +203,10 @@ open_xterm () {
 # service name is the binary name, except DecSink = FileSink --service-name DecSink
 require_binary () {
   local name=$1
-  local path="../bin/$name"
+  local path="../../../bin/$name"
   if [ ! -x "$path" ]; then
     echo "ERROR: $path is missing. Shell name must match bin/." >&2
-    ls -1 ../bin >&2
+    ls -1 ../../../bin >&2
     exit 1
   fi
   echo "  binary OK  $path"
@@ -233,8 +235,8 @@ start_group () {
   tmux set-option -t "$session" remain-on-exit on
   local i
   for i in $(seq 0 $((n - 1))); do
-    echo "start device $title $i  ../run/start_device.sh $*"
-    tmux new-window -d -n "${wprefix}${i}" -t "$session" -- ../run/start_device.sh "$@"
+    echo "start device $title $i  ../start_device.sh $*"
+    tmux new-window -d -n "${wprefix}${i}" -t "$session" -- ../start_device.sh "$@"
     sleep 0.15
   done
   tmux kill-window -t "${session}:_boot" 2>/dev/null || tmux kill-window -t "${session}:0" 2>/dev/null || true

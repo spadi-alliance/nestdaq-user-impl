@@ -101,6 +101,20 @@ h1 span {
   background: #eef2ff;
 }
 
+a.guide-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 12px;
+  border: 1px solid #8ec8f8;
+  border-radius: 4px;
+  background: #f0f8ff;
+  color: #3aa0e8;
+  font-weight: 400;
+  text-decoration: none;
+}
+
+a.guide-btn:hover { background: #e3f3ff; }
+
 .toolbar-group {
   display: flex;
   flex-wrap: wrap;
@@ -840,3 +854,165 @@ aside th { color: var(--muted); font-weight: 600; width: 42%; }
 }
 
 .warnings li { color: var(--warn); }
+
+body.guide-page {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.guide {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 24px 48px;
+  max-width: 920px;
+}
+
+.guide h2 {
+  margin: 28px 0 8px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #1d6fbf;
+}
+
+.guide h3 {
+  margin: 22px 0 8px;
+  font-size: 16px;
+  font-weight: 400;
+  color: #1d6fbf;
+}
+
+.guide h3.ex-title { color: #7b4fd0; }
+
+.guide-figure {
+  margin: 12px 0 16px;
+  padding: 12px 12px 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  overflow-x: auto;
+}
+
+.guide-figure svg {
+  display: block;
+  min-width: 640px;
+  max-width: 100%;
+  height: auto;
+}
+
+.guide-figure.compact svg {
+  min-width: 0;
+  width: 720px;
+  max-width: 100%;
+}
+
+.guide-figure.settings svg {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.guide-figure.shot {
+  overflow-x: hidden;
+}
+
+.guide-figure.shot img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+}
+
+.guide-shot-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.72fr) minmax(0, 1.7fr);
+  gap: 10px;
+  align-items: start;
+  margin: 12px 0 16px;
+}
+
+.guide-shot-row .guide-figure.shot {
+  margin: 0;
+  padding: 8px 8px 6px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .guide-shot-row { grid-template-columns: 1fr; }
+}
+
+.guide-figure.shot.fit {
+  display: block;
+  width: fit-content;
+  max-width: min(324px, 100%);
+  box-sizing: border-box;
+  margin: 0 0 16px;
+  padding: 8px 10px 6px;
+}
+
+.guide-figure.shot.fit img {
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+.guide-figure figcaption {
+  margin-top: 8px;
+  color: #666;
+  font-size: 12px;
+}
+
+.guide table.data th:first-child,
+.guide table.data td:first-child { width: auto; }
+
+.guide p, .guide li { color: var(--ink); }
+
+.guide ul, .guide ol { margin: 6px 0 12px; padding-left: 22px; }
+
+.guide code {
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #f3f4f6;
+  padding: 0 4px;
+}
+
+.guide code.path {
+  background: #e7f3ff;
+}
+
+.guide code.cmd {
+  background: #ffe8f3;
+}
+
+.guide code.proc {
+  background: #f3e8ff;
+}
+
+.guide pre {
+  margin: 8px 0 14px;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  overflow-x: auto;
+}
+
+.guide pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.guide table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 16px;
+}
+
+.guide th, .guide td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.guide th { background: #f8fafc; }
+.guide th:first-child,
+.guide td:first-child { width: 28%; }

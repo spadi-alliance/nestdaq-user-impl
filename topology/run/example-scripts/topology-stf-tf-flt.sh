@@ -5,21 +5,23 @@
 #     TFB.out autoSubChannel true --> LogicFilter(Gpu) x3 --> FileSink x3
 #     TFB.decimator (no autoSub) --> DecSink x3  (1:1 each)
 #
-# Lives in example/. Redis address is example/redis-server.txt.
-# If Redis is down, start it with ../run/init.sh.
+# Lives in topology/run/example-scripts/. NESTDAQ and Redis come from
+# ../nestdaq.env.
+# If Redis is down, start it with ../init.sh.
 #
 # Usage:
 #   ./topology-stf-tf-flt.sh
 #   FILTER_DEVICE=LogicFilterGpu ./topology-stf-tf-flt.sh
 
 cd "$(dirname "$0")"
-export PATH="${NESTDAQ:-$HOME/nestdaq}/bin:$PATH"
-
-redis_server=`cat redis-server.txt | sed 's/[[:blank:]]//g'`
+NESTDAQ_ENV_SH=$(CDPATH= cd "$(dirname "$0")/.." && pwd)/nestdaq_env.sh
+# shellcheck disable=SC1090
+. "$NESTDAQ_ENV_SH"
+redis_server=$(nestdaq_redis_host)
 server=redis://$redis_server/0
 
 if ! redis-cli -u redis://$redis_server ping >/dev/null 2>&1; then
-  echo "ERROR: Redis is not running at $redis_server (run ../run/init.sh)" >&2
+  echo "ERROR: Redis is not running at $redis_server (run ../init.sh)" >&2
   exit 1
 fi
 set -e

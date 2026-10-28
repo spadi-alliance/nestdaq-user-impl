@@ -22,12 +22,13 @@
       <a href="/params" id="nav-params">params</a>
       <a href="/daq" id="nav-daq">daq</a>
     </nav>
+    <a class="guide-btn" href="/guide" target="_blank" rel="noopener">user guide</a>
     <div id="toolbar-topo" class="toolbar-group">
       <label><input type="checkbox" id="tog-warnings"> show warnings</label>
       <label><input type="checkbox" id="tog-tmux-log"> save tmux logs</label>
       <span class="tmux-mode">tmux
-        <label><input type="radio" name="xterm-mode" id="xterm-mode-xterm" value="xterm" checked> xterm + topology</label>
-        <label><input type="radio" name="xterm-mode" id="xterm-mode-viewer" value="viewer"> topology only</label>
+        <label><input type="radio" name="xterm-mode" id="xterm-mode-xterm" value="xterm"> xterm + topology</label>
+        <label><input type="radio" name="xterm-mode" id="xterm-mode-viewer" value="viewer" checked> topology only</label>
       </span>
       <label>box above
         <input id="mesh-box-limit" type="number" min="0" step="1" value="128" title="draw a mesh as a box when it has more links than this">

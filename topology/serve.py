@@ -117,10 +117,10 @@ def xterm_mode() -> str:
     try:
         raw = XTERM_MODE_FILE.read_text(encoding="utf-8").strip().lower()
     except OSError:
-        return "xterm"
-    if raw in {"viewer", "topology", "0", "off", "no"}:
         return "viewer"
-    return "xterm"
+    if raw in {"xterm", "1", "on", "yes"}:
+        return "xterm"
+    return "viewer"
 
 
 def set_xterm_mode(mode: str) -> dict:
@@ -141,15 +141,31 @@ def _tcp_up(host: str, port: int) -> bool:
         sock.close()
 
 
+def _redis_from_nestdaq_env() -> str:
+    path = HERE / "run" / "nestdaq.env"
+    if not path.is_file():
+        return ""
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line.startswith("REDIS_SERVER="):
+            continue
+        val = line.split("=", 1)[1].strip().strip("'\"")
+        if val and not val.startswith("$"):
+            return val
+    return ""
+
+
 def default_uri() -> str:
     for cand in (
         HERE / "run" / "redis-server.txt",
-        HERE.parent / "run" / "redis-server.txt",
     ):
         if cand.is_file():
             host = cand.read_text().strip().split()[0]
             if host:
-                return f"redis://{host}"
+                return f"redis://{host}" if not host.startswith("redis://") else host
+    host = _redis_from_nestdaq_env()
+    if host:
+        return f"redis://{host}" if not host.startswith("redis://") else host
     return "redis://127.0.0.1:6379"
 
 
@@ -213,6 +229,8 @@ def make_handler(app: App):
             path = urlparse(self.path).path
             if path in ("/", "/index.html", "/params", "/daq", "/edit", "/scripts"):
                 return self._file(STATIC / "index.html", "text/html; charset=utf-8")
+            if path == "/guide":
+                return self._file(STATIC / "guide.html", "text/html; charset=utf-8")
             if path == "/viewer.js":
                 return self._file(STATIC / "viewer.js", "application/javascript")
             if path == "/editor.js":

@@ -61,8 +61,14 @@ system_ips () {
 print_url () {
   local ip="$1" port="$2"
   case "$ip" in
-    *:*) printf '  http://[%s]:%s/\n' "$ip" "$port" ;;
-    *) printf '  http://%s:%s/\n' "$ip" "$port" ;;
+    *:*)
+      printf '  http://[%s]:%s/\n' "$ip" "$port"
+      printf '  http://[%s]:%s/guide\n' "$ip" "$port"
+      ;;
+    *)
+      printf '  http://%s:%s/\n' "$ip" "$port"
+      printf '  http://%s:%s/guide\n' "$ip" "$port"
+      ;;
   esac
 }
 
@@ -89,6 +95,7 @@ print_connect () {
   esac
   if [ "$local_shown" -eq 0 ]; then
     printf '  http://127.0.0.1:%s/  (this machine)\n' "$port"
+    printf '  http://127.0.0.1:%s/guide\n' "$port"
   fi
   name=$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)
   if [ -n "$name" ]; then

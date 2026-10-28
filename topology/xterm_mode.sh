@@ -1,6 +1,7 @@
 # Shared switch for run scripts.
 # topology/xterm-mode is "xterm" (open an xterm per tmux session) or
 # "viewer" (leave tmux detached; watch it in the topology page).
+# A missing file means viewer: do not open xterms.
 # NESTDAQ_XTERM=xterm|viewer overrides the file for that command.
 
 want_xterm () {
@@ -17,7 +18,7 @@ want_xterm () {
     fi
   done
   case "$mode" in
-    viewer|topology|0|off|no) return 1 ;;
+    xterm|1|on|yes) return 0 ;;
   esac
-  return 0
+  return 1
 }

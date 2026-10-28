@@ -20,6 +20,9 @@ else
   ROOT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 fi
 cd "$SCRIPT_DIR"
+NESTDAQ_ENV_SH=$SCRIPT_DIR/nestdaq_env.sh
+# shellcheck disable=SC1090
+. "$NESTDAQ_ENV_SH"
 
 if [ $# -lt 1 ]; then
   echo "Usage: $0 BINARY [args...]" >&2
@@ -32,10 +35,7 @@ fi
 BIN_NAME=$1
 shift
 
-redis_server=127.0.0.1:6379
-if [ -f "$SCRIPT_DIR/redis-server.txt" ]; then
-  redis_server=$(cat "$SCRIPT_DIR/redis-server.txt" | sed 's/[[:blank:]]//g')
-fi
+redis_server=$(nestdaq_redis_host)
 
 if [[ "$BIN_NAME" =~ fairmq- ]]; then
   BIN=$BIN_NAME
@@ -51,10 +51,9 @@ if [ ! -x "$BIN" ]; then
   exit 1
 fi
 
-NESTDAQ_ROOT=${NESTDAQ:-$HOME/nestdaq}
-PLUGIN_LIBDIR=$NESTDAQ_ROOT/lib64
-if [ ! -d "$PLUGIN_LIBDIR" ] && [ -d "$NESTDAQ_ROOT/lib" ]; then
-  PLUGIN_LIBDIR=$NESTDAQ_ROOT/lib
+PLUGIN_LIBDIR=$NESTDAQ/lib64
+if [ ! -d "$PLUGIN_LIBDIR" ] && [ -d "$NESTDAQ/lib" ]; then
+  PLUGIN_LIBDIR=$NESTDAQ/lib
 fi
 
 echo "binary            = $BIN"
